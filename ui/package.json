@@ -2,6 +2,7 @@
   "name": "@geocite/ui",
   "private": true,
   "scripts": {
+    "debug:ui": "next dev -H 127.0.0.1 -p ${PORT:-8000}",
     "build": "next build",
     "test": "playwright test --pass-with-no-tests"
   },

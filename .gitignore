@@ -11,3 +11,6 @@ coverage/
 server/data/
 .worktrees/
 .superpowers/
+.env.local
+server/.env.local
+ui/.env.local

@@ -2,6 +2,7 @@
   "name": "@geocite/server",
   "private": true,
   "scripts": {
+    "debug:server": "tsx watch src/main.ts",
     "build": "tsc --module commonjs --target ES2022 --experimentalDecorators --emitDecoratorMetadata --esModuleInterop --skipLibCheck --outDir dist src/main.ts",
     "test": "jest --runInBand"
   },
@@ -9,8 +10,13 @@
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/typeorm": "^11.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "sqlite3": "^6.0.1",
+    "typeorm": "^0.3.24"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.1",
@@ -19,6 +25,7 @@
     "jest": "^29.7.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.3"
   },
   "jest": {
