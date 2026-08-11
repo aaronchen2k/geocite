@@ -1,0 +1,21 @@
+{
+  "name": "@geocite/ui",
+  "private": true,
+  "scripts": {
+    "debug:ui": "next dev -H 127.0.0.1 -p ${PORT:-8000}",
+    "build": "next build",
+    "test": "playwright test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "next": "^15.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.3"
+  }
+}

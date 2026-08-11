@@ -11,5 +11,3 @@ coverage/
 server/data/
 .worktrees/
 .superpowers/
-/openspec/
-/docs/
