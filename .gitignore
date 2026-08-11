@@ -4,6 +4,9 @@ dist/
 build/
 .next/
 coverage/
+test-results/
+playwright-report/
+blob-report/
 *.log
 *.sqlite
 *.sqlite-shm
@@ -11,3 +14,5 @@ coverage/
 server/data/
 .worktrees/
 .superpowers/
+/docs/
+/openspec/

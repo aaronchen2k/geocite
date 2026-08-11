@@ -1,0 +1,2 @@
+import { Module } from '@nestjs/common'; import { TypeOrmModule } from '@nestjs/typeorm'; import { EngineEntity } from './engine.entity'; import { EnginesController } from './engines.controller'; import { EnginesService } from './engines.service';
+@Module({ imports: [TypeOrmModule.forFeature([EngineEntity])], controllers: [EnginesController], providers: [EnginesService] }) export class EnginesModule {}

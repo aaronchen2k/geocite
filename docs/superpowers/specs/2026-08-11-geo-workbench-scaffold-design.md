@@ -127,9 +127,9 @@ Brand 另有 `PATCH /api/v1/brands/:id/default`；Model 另有 `PATCH /api/v1/mo
 
 ## 环境配置
 
-后端提供 `server/.env.example` 与本地开发用的 `server/.env.development`，包含 `HOST=127.0.0.1`、`PORT=8001`、`API_PREFIX=api/v1`、`DB_PATH=data/geocite.db` 和 `LOG_DIR=logs`。模板中注释说明未来 MySQL/PostgreSQL 的变量名称，但不得启用它们或添加驱动依赖。前端提供 `ui/.env.example` 与本地开发用的 `ui/.env.local`，包含 `PORT=8000`、`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1`、`NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1`。
+后端和前端都同时使用 `.env.development` 与 `.env.local`。`.env.development` 是可提交的开发默认配置，包含 `HOST=127.0.0.1`、`PORT=8001`、`API_PREFIX=api/v1`、`DB_PATH=data/geocite.db`、`LOG_DIR=logs` 等非敏感值，所有密钥字段必须为空。`.env.local` 是被 Git 忽略的本机覆盖配置，保存真实密钥。后端显式依次加载 `.env.development`、`.env.local`，使后者覆盖前者；Next.js 使用相同优先级。模板中注释说明未来 MySQL/PostgreSQL 的变量名称，但不得启用它们或添加驱动依赖。前端默认 API 地址为 `http://127.0.0.1:8001/api/v1`，WebSocket 地址为 `ws://127.0.0.1:8001/api/v1`。
 
-所有真实密钥只允许写入被 Git 忽略的本地 `.env` 文件；示例文件只能使用空值或安全占位值。启动文档必须明确开发时后端读取 `.env.development`、前端读取 `.env.local`，并列出 `pnpm install`、`pnpm dev:server` 和 `pnpm dev:ui` 命令。
+所有真实密钥只允许写入被 Git 忽略的 `.env.local`；`.env.development` 与示例文件只能使用空值或安全占位值。启动文档必须明确两端均读取 `.env.development` 和 `.env.local`，并列出 `pnpm install`、`pnpm dev:server` 和 `pnpm dev:ui` 命令。
 
 ## 测试
 

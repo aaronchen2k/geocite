@@ -1,6 +1,22 @@
 import { defineConfig } from '@playwright/test';
 
+const globalChromiumExecutable =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ??
+  (process.platform === 'darwin'
+    ? '/Applications/Chromium.app/Contents/MacOS/Chromium'
+    : undefined);
+
 export default defineConfig({
   testDir: './tests',
-  use: { baseURL: 'http://127.0.0.1:3000' },
+  use: {
+    baseURL: 'http://127.0.0.1:8000',
+    launchOptions: globalChromiumExecutable
+      ? { executablePath: globalChromiumExecutable }
+      : undefined,
+  },
+  webServer: {
+    command: 'pnpm debug:ui',
+    url: 'http://127.0.0.1:8000/api/e2e-health',
+    reuseExistingServer: !process.env.CI,
+  },
 });

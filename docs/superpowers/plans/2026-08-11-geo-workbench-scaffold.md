@@ -551,7 +551,9 @@ git commit -m "test: cover geo workbench scaffold"
 **Files:**
 - Create: `server/.env.example`
 - Create: `server/.env.development`
+- Create: `server/.env.local`
 - Create: `ui/.env.example`
+- Create: `ui/.env.development`
 - Create: `ui/.env.local`
 - Modify: `.gitignore`
 - Modify: `server/src/main.ts`
@@ -559,14 +561,14 @@ git commit -m "test: cover geo workbench scaffold"
 - Test: `server/test/environment-config.spec.ts`
 
 **Interfaces:**
-- Produces: 后端开发配置读取 `HOST`、`PORT`、`API_PREFIX`、`DB_PATH`、`LOG_DIR`，默认监听 `127.0.0.1:8001`。
+- Produces: 后端按 `.env.development` 再 `.env.local` 的顺序读取 `HOST`、`PORT`、`API_PREFIX`、`DB_PATH`、`LOG_DIR`，默认监听 `127.0.0.1:8001`。
 - Produces: 前端 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_API_WS_URL` 指向 `http://127.0.0.1:8001/api/v1` 与 `ws://127.0.0.1:8001/api/v1`。
 
 - [ ] **Step 1: 写失败测试，证明开发配置覆盖端口与 API 前缀**
 
 ```ts
-it('loads the development host, port and API prefix without loading secrets', () => {
-  const config = loadRuntimeConfig({ HOST: '127.0.0.1', PORT: '8001', API_PREFIX: 'api/v1', DB_PATH: 'data/geocite.db', LOG_DIR: 'logs' });
+it('loads .env.local values after .env.development values without exposing secrets', () => {
+  const config = loadRuntimeConfig({ HOST: '127.0.0.1', PORT: '8001', API_PREFIX: 'api/v1', DB_PATH: 'data/geocite.db', LOG_DIR: 'logs', LLM_API_KEY: '' }, { LLM_API_KEY: 'local-only-secret' });
   expect(config).toEqual({ host: '127.0.0.1', port: 8001, apiPrefix: 'api/v1', dbPath: 'data/geocite.db', logDir: 'logs' });
 });
 ```
@@ -596,7 +598,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1
 NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1
 ```
 
-将 `.env`、`.env.*` 加入 `.gitignore`，再以否定规则保留两个 `.env.example`；`server/.env.development` 与 `ui/.env.local` 只写本机开发地址和空密钥，禁止包含真实凭据。
+`server/.env.development` 与 `ui/.env.development` 跟踪默认开发地址，所有密钥为空；`server/.env.local` 与 `ui/.env.local` 被 `.gitignore` 忽略并只存本机真实密钥。后端加载器必须在加载 `.env.development` 后加载 `.env.local`；Next.js 自动遵循同一覆盖顺序。禁止将任何真实凭据加入示例文件或 `.env.development`。
 
 - [ ] **Step 4: 运行配置测试、服务构建与前端构建**
 
@@ -607,6 +609,6 @@ Expected: 全部 PASS，且 `git status --ignored` 显示本地环境文件已�
 - [ ] **Step 5: 提交**
 
 ```bash
-git add .gitignore server/.env.example ui/.env.example server/src/main.ts quickstart.md server/test/environment-config.spec.ts
+git add .gitignore server/.env.example server/.env.development ui/.env.example ui/.env.development server/src/main.ts quickstart.md server/test/environment-config.spec.ts
 git commit -m "chore: add local development environment configuration"
 ```
