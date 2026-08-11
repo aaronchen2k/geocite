@@ -544,3 +544,68 @@ Expected: 所有单元、API、构建和 E2E 测试 PASS。
 git add e2e quickstart.md package.json ui/playwright.config.ts
 git commit -m "test: cover geo workbench scaffold"
 ```
+
+### Task 8: 补齐安全的开发环境配置
+
+**Files:**
+- Create: `server/.env.example`
+- Create: `server/.env.development`
+- Create: `ui/.env.example`
+- Create: `ui/.env.local`
+- Modify: `.gitignore`
+- Modify: `server/src/main.ts`
+- Modify: `quickstart.md`
+- Test: `server/test/environment-config.spec.ts`
+
+**Interfaces:**
+- Produces: 后端开发配置读取 `HOST`、`PORT`、`API_PREFIX`、`DB_PATH`、`LOG_DIR`，默认监听 `127.0.0.1:8001`。
+- Produces: 前端 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_API_WS_URL` 指向 `http://127.0.0.1:8001/api/v1` 与 `ws://127.0.0.1:8001/api/v1`。
+
+- [ ] **Step 1: 写失败测试，证明开发配置覆盖端口与 API 前缀**
+
+```ts
+it('loads the development host, port and API prefix without loading secrets', () => {
+  const config = loadRuntimeConfig({ HOST: '127.0.0.1', PORT: '8001', API_PREFIX: 'api/v1', DB_PATH: 'data/geocite.db', LOG_DIR: 'logs' });
+  expect(config).toEqual({ host: '127.0.0.1', port: 8001, apiPrefix: 'api/v1', dbPath: 'data/geocite.db', logDir: 'logs' });
+});
+```
+
+- [ ] **Step 2: 运行测试并确认失败**
+
+Run: `pnpm --dir server test environment-config.spec.ts`
+
+Expected: FAIL，因为 `loadRuntimeConfig` 尚不存在。
+
+- [ ] **Step 3: 实现运行时配置加载与无密钥示例文件**
+
+```dotenv
+# server/.env.example
+HOST=127.0.0.1
+PORT=8001
+API_PREFIX=api/v1
+DB_PATH=data/geocite.db
+LOG_DIR=logs
+LLM_API_KEY=
+```
+
+```dotenv
+# ui/.env.example
+PORT=8000
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1
+NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1
+```
+
+将 `.env`、`.env.*` 加入 `.gitignore`，再以否定规则保留两个 `.env.example`；`server/.env.development` 与 `ui/.env.local` 只写本机开发地址和空密钥，禁止包含真实凭据。
+
+- [ ] **Step 4: 运行配置测试、服务构建与前端构建**
+
+Run: `pnpm --dir server test environment-config.spec.ts && pnpm --dir server build && pnpm --dir ui build`
+
+Expected: 全部 PASS，且 `git status --ignored` 显示本地环境文件已忽略、示例文件被跟踪。
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add .gitignore server/.env.example ui/.env.example server/src/main.ts quickstart.md server/test/environment-config.spec.ts
+git commit -m "chore: add local development environment configuration"
+```

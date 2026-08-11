@@ -125,6 +125,12 @@ Brand 另有 `PATCH /api/v1/brands/:id/default`；Model 另有 `PATCH /api/v1/mo
 - 密钥字段不记录在浏览器日志、应用日志、错误响应或 API 返回体中。
 - 页面处于加载、空数据、加载失败时均显示明确状态和重试入口。
 
+## 环境配置
+
+后端提供 `server/.env.example` 与本地开发用的 `server/.env.development`，包含 `HOST=127.0.0.1`、`PORT=8001`、`API_PREFIX=api/v1`、`DB_PATH=data/geocite.db` 和 `LOG_DIR=logs`。前端提供 `ui/.env.example` 与本地开发用的 `ui/.env.local`，包含 `PORT=8000`、`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1`、`NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1`。
+
+所有真实密钥只允许写入被 Git 忽略的本地 `.env` 文件；示例文件只能使用空值或安全占位值。启动文档必须明确开发时后端读取 `.env.development`、前端读取 `.env.local`。
+
 ## 测试
 
 - 后端：实体/服务测试覆盖唯一 code、默认项、RagAgent 外键、禁用 Model 选择和 API Key 掩码；控制器测试覆盖 CRUD、分页、搜索及错误码。
