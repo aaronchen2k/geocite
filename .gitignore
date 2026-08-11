@@ -1,0 +1,13 @@
+.idea/
+node_modules/
+dist/
+build/
+.next/
+coverage/
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+server/data/
+.worktrees/
+.superpowers/
