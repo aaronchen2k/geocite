@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - Brand 是待 GEO 优化的品牌实体，也是业务页面的当前工作区。
+- 首期数据库必须使用 SQLite 与 TypeORM 的 SQLite 驱动；不得安装、导入或加载 MySQL/PostgreSQL 驱动。
 - Engine 是全局被评估的 AI 引擎目录，不得与 Model 建立实体关系。
 - Model 是项目内部大模型 API 配置；任何 API 响应、日志和前端状态均不得泄漏原始 API Key。
 - RagAgent 必须关联已有 Brand 与启用的 Model，且不得关联 Engine。

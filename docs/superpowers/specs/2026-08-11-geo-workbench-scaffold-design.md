@@ -60,7 +60,7 @@ GEO 工作台
 
 - `ui/`：Next.js App Router、TypeScript、Tailwind、组件库。`AppShell` 包含顶部栏、响应式侧栏和菜单树；`BrandWorkspaceProvider` 负责加载 Brand、保存选择状态和向业务页提供当前 Brand。
 - `server/`：NestJS。每个实体都有 module、entity、DTO、repository、service、controller。控制器位于 `/api/v1` 前缀下。
-- `server/data/`：SQLite 数据库及 TypeORM migration。开发环境可自动初始化，但结构演进必须通过 migration。
+- `server/data/`：SQLite 数据库及 TypeORM migration。开发环境可自动初始化，但结构演进必须通过 migration。首期只安装 SQLite 驱动；MySQL/PostgreSQL 仅作为注释化的未来配置示例，不加载相关驱动或连接配置。
 
 前端使用统一 API 客户端。管理页面的表格、分页、搜索、表单和删除确认抽成可复用组件，避免四套 CRUD 页面分叉。后端用 class-validator 校验 DTO，服务层负责唯一性、外键存在性和删除约束。
 
@@ -127,9 +127,9 @@ Brand 另有 `PATCH /api/v1/brands/:id/default`；Model 另有 `PATCH /api/v1/mo
 
 ## 环境配置
 
-后端提供 `server/.env.example` 与本地开发用的 `server/.env.development`，包含 `HOST=127.0.0.1`、`PORT=8001`、`API_PREFIX=api/v1`、`DB_PATH=data/geocite.db` 和 `LOG_DIR=logs`。前端提供 `ui/.env.example` 与本地开发用的 `ui/.env.local`，包含 `PORT=8000`、`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1`、`NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1`。
+后端提供 `server/.env.example` 与本地开发用的 `server/.env.development`，包含 `HOST=127.0.0.1`、`PORT=8001`、`API_PREFIX=api/v1`、`DB_PATH=data/geocite.db` 和 `LOG_DIR=logs`。模板中注释说明未来 MySQL/PostgreSQL 的变量名称，但不得启用它们或添加驱动依赖。前端提供 `ui/.env.example` 与本地开发用的 `ui/.env.local`，包含 `PORT=8000`、`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api/v1`、`NEXT_PUBLIC_API_WS_URL=ws://127.0.0.1:8001/api/v1`。
 
-所有真实密钥只允许写入被 Git 忽略的本地 `.env` 文件；示例文件只能使用空值或安全占位值。启动文档必须明确开发时后端读取 `.env.development`、前端读取 `.env.local`。
+所有真实密钥只允许写入被 Git 忽略的本地 `.env` 文件；示例文件只能使用空值或安全占位值。启动文档必须明确开发时后端读取 `.env.development`、前端读取 `.env.local`，并列出 `pnpm install`、`pnpm dev:server` 和 `pnpm dev:ui` 命令。
 
 ## 测试
 
