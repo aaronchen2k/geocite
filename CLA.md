@@ -54,8 +54,8 @@ You hereby grant to the Copyright Holder a perpetual, worldwide, non-exclusive, 
 - Reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute Your Contributions.
   复制、创作衍生作品、公开展示、公开表演、再许可及分发您的贡献。
 
-- Re-license Your Contributions under the GeoCite.net License v1.1 (or any future version thereof), any Commercial License issued by the Copyright Holder, or any future license terms chosen by the Copyright Holder.
-  将您的贡献在 GeoCite.net 许可证 v1.1（或其任何未来版本）、版权所有者发布的任何商业许可证或版权所有者选择的任何未来许可条款下重新许可。
+- Re-license Your Contributions under the Apache License, Version 2.0.
+  将您的贡献按 Apache License 2.0 重新许可。
 
 ## 4. Patent License / 专利许可
 

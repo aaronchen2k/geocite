@@ -12,6 +12,4 @@ Execution diagnosis verifies whether completed GEO optimization work has taken e
 
 ## License
 
-GeoCite is licensed under the [GeoCite.net License v1.1](LICENSE.md), a source-available license based on Apache 2.0 with additional commercial restrictions.
-
-For commercial licensing, contact [license@geocite.net](mailto:license@geocite.net).
+GeoCite is licensed under the [Apache License 2.0](LICENSE.md).

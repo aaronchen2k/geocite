@@ -1,214 +1,202 @@
-# GeoCite.net License v1.1
 
-**Effective Date: August 11, 2026 / 生效日期：2026年8月11日**
-
----
-
-## English Version
-
-### 1. Preamble
-
-This GeoCite.net License (the "License") is a modified version of the Apache License, Version 2.0. While it retains the core permissions of the Apache License 2.0, it includes additional conditions specifically designed to protect the commercial interests of the GeoCite project. By using, copying, modifying, or distributing the Software, you agree to be bound by the terms of this License.
-
-This License incorporates by reference the full text of the Apache License, Version 2.0 (available at https://www.apache.org/licenses/LICENSE-2.0). Where any provision of this License conflicts with the Apache License 2.0, the provisions of this License shall prevail. All terms not expressly modified herein remain in full force and effect as set forth in the Apache License 2.0.
-
-**This License is NOT an Open Source License as defined by the Open Source Initiative (OSI). It is a source-available public license designed to balance community access with sustainable commercial development.**
-
-### 2. Definitions
-
-2.1. "License" means this GeoCite.net License document.
-
-2.2. "Software" means the GeoCite platform (a GEO / Generative Engine Optimization detection and optimization platform) in both source code and binary forms.
-
-2.3. "Copyright Holder" means Suzhou Industrial Park Gudi Consulting Studio, the company operating geocite.net that owns the copyright to the Software.
-
-2.4. "Commercial License" means a separate, paid license agreement provided by the Copyright Holder that grants rights not permitted under this License.
-
-2.5. "Multi-tenant SaaS Environment" means a software-as-a-service deployment where a single instance of the Software serves multiple tenants, with each tenant corresponding to an independent Workspace providing data isolation for third-party users or organizations.
-
-2.6. "Competitive Service" means any commercial service or product whose primary purpose or principal value proposition overlaps with the core functionalities of GeoCite as documented at https://geocite.net/features (or any successor URL), including but not limited to GEO detection, AI citation monitoring, intent matrix tracking, visibility trend tracking, and periodic re-evaluation. The determination of whether a service constitutes a Competitive Service shall be based on its primary function, not incidental or auxiliary features.
-
-2.7. "Derivative Works" means any work based upon the Software, including modifications, translations, or adaptations.
-
-2.8. "Modification" means any change to the Software, including additions, deletions, or alterations to the source code or binary files.
-
-### 3. Grant of Rights
-
-Subject to the terms and conditions of this License, the Copyright Holder hereby grants you a perpetual, worldwide, non-exclusive, royalty-free license to:
-
-3.1. Use the Software for commercial and non-commercial purposes.
-
-3.2. Modify the Software and create Derivative Works.
-
-3.3. Distribute the original Software or Derivative Works, subject to the conditions set forth in Section 4.
-
-3.4. Practice any patents licensed under the Apache License 2.0 terms incorporated herein.
-
-3.5. Deploy the Software privately in a single-tenant environment for internal organizational use.
-
-### 4. Additional Conditions
-
-Notwithstanding the grants in Section 3, the following additional conditions apply:
-
-4.1. **Multi-tenant SaaS Restriction**: You shall not use the source code of the Software to operate a Multi-tenant SaaS Environment to provide GEO detection or related services to third parties without the prior written authorization of the Copyright Holder.
-
-4.2. **Competitive Service Restriction**: You shall not use the source code of the Software to build, operate, or provide any Competitive Service as a SaaS offering or commercial product.
-
-4.3. **Brand Protection**: You shall not remove, alter, or obscure any logos, trademarks, copyright notices, or other brand identifiers present in the GeoCite user interface or documentation.
-
-### 5. Compliance Requirements
-
-5.1. You must retain all copyright, patent, trademark, and attribution notices from the original Software in all copies or substantial portions of the Software.
-
-5.2. If you modify the Software, you must include prominent notices stating that you have modified the files, along with the date of modification.
-
-5.3. This License does not grant you permission to use the trade names, trademarks, service marks, or product names of the Copyright Holder, except as required for reasonable and customary use in describing the origin of the Software.
-
-### 6. Contributor Agreement
-
-6.1. By submitting a contribution to the Software, you represent and warrant that: (a) the contribution is your original work or you have sufficient rights to grant the licenses set forth in this Section; and (b) the contribution does not infringe any third-party intellectual property rights.
-
-6.2. You hereby grant to the Copyright Holder a perpetual, worldwide, non-exclusive, royalty-free license to use, reproduce, modify, distribute, sublicense, and re-license your contribution under this License, any Commercial License issued by the Copyright Holder, or any future license terms.
-
-6.3. You hereby grant to all recipients of the Software a patent license consistent with Section 3 of the Apache License 2.0 for your contribution.
-
-6.4. You acknowledge that the Copyright Holder reserves the right to adjust the licensing terms of the Software in future versions.
-
-### 7. Commercial Licensing
-
-If you wish to use the Software in a manner restricted by Section 4 (e.g., operating a Multi-tenant SaaS Environment or providing a Competitive Service), or if you require a proprietary or closed-source deployment, you must obtain a Commercial License from the Copyright Holder.
-
-For commercial licensing inquiries, please contact: license@geocite.net
-
-### 8. Disclaimer of Warranty
-
-UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING, THE SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH YOU.
-
-### 9. Limitation of Liability
-
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-### 10. Termination
-
-10.1. Your rights under this License will terminate automatically if you fail to comply with any material term of this License and do not cure such breach within thirty (30) days after receiving written notice from the Copyright Holder specifying the nature of the breach.
-
-10.2. Notwithstanding Section 10.1, your rights under this License shall terminate immediately and without prior notice if you: (a) operate a Multi-tenant SaaS Environment in violation of Section 4.1; or (b) provide a Competitive Service in violation of Section 4.2.
-
-10.3. Upon termination, you must immediately cease all use, modification, and distribution of the Software and destroy all copies of the Software in your possession or control within fifteen (15) days.
-
-10.4. Sections 8, 9, and 10 shall survive any termination of this License.
-
-### 11. Contact
-
-For questions regarding this License or to obtain a Commercial License, please contact:
-
-- Email: license@geocite.net
-- Website: https://geocite.net
-- Address: [Your Mailing Address]
-
-© 2026 Suzhou Industrial Park Gudi Consulting Studio. All rights reserved.
-
----
-
-## 中文版本
-
-### 1. 序言
-
-本 GeoCite.net 许可证（以下简称“本许可证”）是基于 Apache License 2.0 的修改版本。本许可证保留了 Apache License 2.0 的核心授权，但增加了旨在保护 GeoCite 项目商业利益的附加条件。使用、复制、修改或分发本软件，即表示您同意受本许可证条款的约束。
-
-本许可证以引用方式纳入 Apache License 2.0 全文（可访问 https://www.apache.org/licenses/LICENSE-2.0 获取）。如本许可证任何条款与 Apache License 2.0 冲突，以本许可证条款为准。未被本许可证明确修改的条款，仍按 Apache License 2.0 原文完整有效。
-
-**本许可证并非开放源代码促进会（OSI）定义的“开源许可证”。它是一份源码可用的公共许可证，旨在平衡社区访问与可持续的商业开发。**
-
-### 2. 定义
-
-2.1. “许可证”指本 GeoCite.net 许可证文本。
-
-2.2. “软件”指 GeoCite 平台（一个 GEO / 生成式引擎优化检测与优化平台）的源代码及二进制形式。
-
-2.3. “版权所有者”指 苏州工业园区谷笛咨询工作室，即运营 geocite.net 并拥有该软件版权的公司。
-
-2.4. “商业许可证”指由版权所有者提供的独立付费许可协议，授予本许可证未允许的权利。
-
-2.5. “多租户 SaaS 环境”指一种软件即服务部署模式，其中软件的单一实例服务于多个租户，每个租户对应一个独立的工作区（Workspace），为第三方用户或组织提供数据隔离。
-
-2.6. “竞品服务”指任何主要目的或核心价值主张与 GeoCite 核心功能重叠的商业服务或产品，核心功能以 https://geocite.net/features（或其任何后继网址）所记载的内容为准，包括但不限于 GEO 检测、AI 引用监测、意图矩阵追踪、可见度趋势追踪及周期性复测。判断某项服务是否构成竞品服务，应以其主要功能为准，而非附带或辅助功能。
-
-2.7. “衍生作品”指基于本软件创作的任何作品，包括修改、翻译或改编。
-
-2.8. “修改”指对软件的任何更改，包括对源代码或二进制文件的增加、删除或变更。
-
-### 3. 权利授予
-
-在遵守本许可证条款和条件的前提下，版权所有者特此授予您永久的、全球性的、非排他性的、免版税的许可，以：
-
-3.1. 出于商业和非商业目的使用本软件。
-
-3.2. 修改本软件并创建衍生作品。
-
-3.3. 分发原始软件或衍生作品，但须遵守第 4 条规定的附加条件。
-
-3.4. 实施本许可证纳入的 Apache License 2.0 条款下许可的任何专利。
-
-3.5. 在单租户环境中进行私有化部署，供组织内部使用。
-
-### 4. 附加条件
-
-尽管有第 3 条的授权，仍适用以下附加条件：
-
-4.1. **多租户 SaaS 限制**：未经版权所有者事先书面授权，您不得使用本软件的源代码运营多租户 SaaS 环境，向第三方提供 GEO 检测或相关服务。
-
-4.2. **竞品服务限制**：您不得使用本软件的源代码构建、运营或提供任何作为 SaaS 产品或商业产品的竞品服务。
-
-4.3. **品牌保护**：您不得删除、更改或掩盖 GeoCite 用户界面或文档中出现的任何徽标、商标、版权声明或其他品牌标识。
-
-### 5. 合规要求
-
-5.1. 您必须在软件的所有副本或实质性部分中保留原始的版权、专利、商标及归属声明。
-
-5.2. 如果您修改了本软件，您必须包含显眼的说明，声明您已修改了相关文件，并注明修改日期。
-
-5.3. 本许可证不授予您使用版权所有者商号、商标、服务标记或产品名称的权限，但在合理和惯常地描述软件来源时所需的除外。
-
-### 6. 贡献者协议
-
-6.1. 向本软件提交贡献即表示您声明并保证：(a) 该贡献是您的原创作品，或者您拥有足够的权利以授予本节所述的许可；且 (b) 该贡献不侵犯任何第三方的知识产权。
-
-6.2. 您特此授予版权所有者永久的、全球性的、非排他性的、免版税的许可，以使用、复制、修改、分发、再许可及重新许可您的贡献，许可范围包括本许可证、版权所有者发布的任何商业许可证或任何未来的许可条款。
-
-6.3. 您特此向本软件的所有接收者授予与 Apache License 2.0 第 3 条一致的专利许可，范围限于您的贡献。
-
-6.4. 您承认版权所有者保留在未来版本中调整软件许可条款的权利。
-
-### 7. 商业许可
-
-如您希望以第 4 条限制的方式使用本软件（例如运营多租户 SaaS 环境或提供竞品服务），或需要进行专有或闭源部署，您必须向版权所有者获取商业许可证。
-
-商业许可咨询请联系：license@geocite.net
-
-### 8. 免责声明
-
-**【重要提示】除非适用法律要求或书面同意，本软件按“原样”提供，不附带任何明示或暗示的保证或条件，包括但不限于所有权、非侵权、适销性或特定用途适用性的保证或条件。本软件的质量及性能风险完全由您承担。**
-
-### 9. 责任限制
-
-**【重要提示】在任何情况下，版权所有者或贡献者均不对任何直接、间接、附带、特殊、惩戒性或后果性损害（包括但不限于替代商品或服务的采购、使用、数据或利润的损失，或业务中断）承担责任，无论该等责任是基于合同、严格责任还是侵权（包括过失或其他），即使已被告知可能发生此类损害。**
-
-### 10. 终止
-
-10.1. 若您未能遵守本许可证的任何实质性条款，且在收到版权所有者书面通知（载明违约性质）后三十（30）日内未予纠正，您在本许可证下的权利将自动终止。
-
-10.2. 尽管有第 10.1 条的规定，若您存在以下行为，您在本许可证下的权利将立即终止且无需事先通知：(a) 违反第 4.1 条运营多租户 SaaS 环境；或 (b) 违反第 4.2 条提供竞品服务。
-
-10.3. 权利终止后，您必须立即停止对本软件的所有使用、修改和分发，并在十五（15）日内销毁您持有或控制的所有软件副本。
-
-10.4. 第 8 条、第 9 条及第 10 条在本许可证终止后继续有效。
-
-### 11. 联系方式
-
-如对本许可证有任何疑问或需获取商业许可证，请联系：
-
-- 邮箱：license@geocite.net
-- 网站：https://geocite.net
-
-© 2026 苏州工业园区谷笛咨询工作室。保留所有权利。
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.

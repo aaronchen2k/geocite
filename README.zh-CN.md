@@ -12,6 +12,4 @@
 
 ## 许可证
 
-GeoCite 使用 [GeoCite.net License v1.1](LICENSE.md)。该许可证基于 Apache 2.0，并附加商业使用限制，属于源码可用许可证。
-
-商业许可请联系：[license@geocite.net](mailto:license@geocite.net)。
+GeoCite 使用 [Apache License 2.0](LICENSE.md) 开源许可证。

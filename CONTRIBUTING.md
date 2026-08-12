@@ -4,9 +4,9 @@ Thank you for your interest in contributing to GeoCite! We welcome bug reports, 
 
 感谢您对 GeoCite 项目的关注与贡献意愿！我们欢迎缺陷报告、功能建议、文档改进及代码贡献。
 
-By participating in this project, you agree to abide by the [GeoCite.net License v1.1](./LICENSE.md) and the Contributor Agreement set forth therein.
+By participating in this project, you agree to abide by the [Apache License 2.0](./LICENSE.md) and the Contributor Agreement set forth herein.
 
-参与本项目即表示您同意遵守 [GeoCite.net 许可证 v1.1](./LICENSE.md) 及其中的贡献者协议条款。
+参与本项目即表示您同意遵守 [Apache License 2.0](./LICENSE.md) 及本贡献者协议条款。
 
 ---
 
@@ -14,16 +14,14 @@ By participating in this project, you agree to abide by the [GeoCite.net License
 
 ### 1. Read the License / 阅读许可证
 
-GeoCite uses a **source-available** license (not OSI open source). Please read [LICENSE.md](./LICENSE.md) carefully before contributing. Key points:
+GeoCite uses the **Apache License 2.0**. Please read [LICENSE.md](./LICENSE.md) carefully before contributing. Key points:
 
-GeoCite 采用**源码可用**许可证（非 OSI 定义的开源许可证）。贡献前请仔细阅读 [LICENSE.md](./LICENSE.md)，核心要点如下：
+GeoCite 采用 **Apache License 2.0** 开源许可证。贡献前请仔细阅读 [LICENSE.md](./LICENSE.md)，核心要点如下：
 
 - You may use, modify, and distribute the software for commercial and non-commercial purposes
 - 您可以出于商业和非商业目的使用、修改和分发本软件
-- Multi-tenant SaaS and competitive service restrictions apply
-- 多租户 SaaS 环境与竞品服务受到限制
-- Brand protection requirements are enforced
-- 须遵守品牌保护相关要求
+- The license includes attribution, notice, and patent provisions
+- 许可证包含署名、声明与专利相关条款
 
 ### 2. Sign the CLA / 签署贡献者许可协议
 
@@ -86,6 +84,6 @@ We use [CLA Assistant](https://cla-assistant.io) to automate this process. When 
 
 ## License Notice / 许可声明
 
-Contributions to this project are dual-licensed under the GeoCite.net License v1.1 and any Commercial License issued by the Copyright Holder, as specified in Section 6 of the License.
+Contributions to this project are licensed under the Apache License 2.0.
 
-根据许可证第 6 条规定，对本项目的贡献将在 GeoCite.net 许可证 v1.1 及版权所有者发布的任何商业许可证下双重授权。
+对本项目的贡献采用 Apache License 2.0 许可。
