@@ -1,5 +1,4 @@
-![执行诊断页面](xdoc/images/status-in-development-yellow.svg)   
-# [GeoCite.net](https://geocite.net)
+# [GeoCite.net](https://geocite.net) ![执行诊断页面](xdoc/images/status-in-development-yellow.svg)
 
 > 面向 AI 搜索引擎的生成式引擎优化（GEO）平台，帮助品牌衡量、理解、优化并汇报其在 AI 生成回答中的表现。
 

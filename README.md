@@ -1,5 +1,4 @@
-![执行诊断页面](xdoc/images/status-in-development-yellow.svg)
-# [GeoCite.net](https://geocite.net)
+# [GeoCite.net](https://geocite.net) ![执行诊断页面](xdoc/images/status-in-development-yellow.svg)
 
 > A Generative Engine Optimization (GEO) platform for AI search engines—measuring, explaining, optimizing, and reporting how brands appear in AI-generated answers.
 
