@@ -20,4 +20,11 @@ describe('runtime configuration', () => {
 
     expect(loadRuntimeConfig(directory, { NODE_ENV: 'production' })).toMatchObject({ host: '0.0.0.0', port: 9001, apiPrefix: 'api/v1' });
   });
+
+  it('loads .env.test when NODE_ENV is test', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'geocite-test-env-'));
+    fs.writeFileSync(path.join(directory, '.env.test'), 'HOST=127.0.0.1\nPORT=8101\nAPI_PREFIX=api/v1\n');
+
+    expect(loadRuntimeConfig(directory, { NODE_ENV: 'test' })).toMatchObject({ host: '127.0.0.1', port: 8101, apiPrefix: 'api/v1' });
+  });
 });

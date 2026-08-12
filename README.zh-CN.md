@@ -4,6 +4,12 @@
 
 [English README](README.md)
 
+## 执行诊断
+
+执行诊断用于验证已执行的 GEO 优化是否真实生效。页面以七步队列展示检测进度，并提供每一步的实时事件、检查结论、证据与修复建议。
+
+![执行诊断页面](xdoc/execution-diagnosis_cn.png)
+
 ## 许可证
 
 GeoCite 使用 [GeoCite.net License v1.1](LICENSE.md)。该许可证基于 Apache 2.0，并附加商业使用限制，属于源码可用许可证。

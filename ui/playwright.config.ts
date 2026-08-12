@@ -9,21 +9,21 @@ const globalChromiumExecutable =
 export default defineConfig({
   testDir: './tests',
   use: {
-    baseURL: 'http://127.0.0.1:8000',
+    baseURL: 'http://127.0.0.1:8100',
     launchOptions: globalChromiumExecutable
       ? { executablePath: globalChromiumExecutable }
       : undefined,
   },
   webServer: [
     {
-      command: 'PORT=8001 HOST=127.0.0.1 pnpm --dir ../server debug:server',
-      url: 'http://127.0.0.1:8001/api/v1/health',
-      reuseExistingServer: true,
+      command: 'NODE_ENV=test pnpm --dir ../server debug:server',
+      url: 'http://127.0.0.1:8101/api/v1/health',
+      reuseExistingServer: false,
     },
     {
-      command: 'pnpm debug:ui',
-      url: 'http://127.0.0.1:8000/api/e2e-health',
-      reuseExistingServer: true,
+      command: 'set -a && . ./.env.test && set +a && pnpm debug:ui',
+      url: 'http://127.0.0.1:8100/api/e2e-health',
+      reuseExistingServer: false,
     },
   ],
 });

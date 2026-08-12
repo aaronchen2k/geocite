@@ -1,6 +1,8 @@
 const developmentOrigins = new Set([
   'http://127.0.0.1:8000',
   'http://localhost:8000',
+  'http://127.0.0.1:8100',
+  'http://localhost:8100',
 ]);
 
 export const corsOptions = {

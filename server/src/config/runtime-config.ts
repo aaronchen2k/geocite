@@ -18,7 +18,9 @@ function readEnvFile(filePath: string): Record<string, string> {
 }
 
 export function loadRuntimeConfig(directory = process.cwd(), environment: Environment = process.env) {
-  const environmentName = environment.NODE_ENV === 'production' ? 'production' : 'development';
+  const environmentName = environment.NODE_ENV === 'production' || environment.NODE_ENV === 'test'
+    ? environment.NODE_ENV
+    : 'development';
   const development = readEnvFile(path.join(directory, `.env.${environmentName}`));
   const local = readEnvFile(path.join(directory, '.env.local'));
   const value = (key: string, fallback: string) => environment[key] ?? local[key] ?? development[key] ?? fallback;

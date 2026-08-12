@@ -2,11 +2,15 @@
 
 import {useLocale, useTranslations} from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
+import {addCollection, Icon} from '@iconify/react';
+import lucide from '@iconify-json/lucide/icons.json';
 import { navigationTree, type NavigationNode } from '../lib/navigation';
 import {Link, usePathname, useRouter} from '@/i18n/navigation';
 import {routing} from '@/i18n/routing';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
+
+addCollection(lucide);
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
 type Brand = { id: number; name: string; code: string; isDefault: boolean };
@@ -26,6 +30,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function NavigationNodeView({ node, pathname, open, onToggle }: { node: NavigationNode; pathname: string; open: boolean; onToggle: () => void }) {
   const t = useTranslations('Navigation');
-  if (!node.children) return <Link className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm ${pathname === node.href ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'text-[var(--foreground)] hover:bg-[var(--muted)]'}`} href={node.href!}>{t(node.titleKey)}</Link>;
-  return <section><button className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm text-[var(--foreground)] hover:bg-[var(--muted)]" aria-expanded={open} onClick={onToggle}>{t(node.titleKey)}<span>{open ? '⌄' : '›'}</span></button>{open && node.children.map((child) => <Link className={`block rounded-md py-[7px] pl-6 pr-2.5 text-sm ${pathname === child.href ? 'bg-[var(--muted)] text-[var(--foreground)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]'}`} key={child.key} href={child.href!}>{t(child.titleKey)}</Link>)}</section>;
+  if (!node.children) return <Link className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm ${pathname === node.href ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'text-[var(--foreground)] hover:bg-[var(--muted)]'}`} href={node.href!}><Icon className="size-4 shrink-0" icon={`lucide:${node.icon}`} aria-hidden="true" />{t(node.titleKey)}</Link>;
+  return <section><button className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-[var(--foreground)] hover:bg-[var(--muted)]" aria-expanded={open} onClick={onToggle}><Icon className="size-4 shrink-0" icon={`lucide:${node.icon}`} aria-hidden="true" /><span>{t(node.titleKey)}</span><span className="ml-auto" aria-hidden="true">{open ? '⌄' : '›'}</span></button>{open && node.children.map((child) => <Link className={`flex items-center gap-2.5 rounded-md py-[7px] pl-6 pr-2.5 text-sm ${pathname === child.href ? 'bg-[var(--muted)] text-[var(--foreground)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]'}`} key={child.key} href={child.href!}><Icon className="size-4 shrink-0" icon={`lucide:${child.icon}`} aria-hidden="true" />{t(child.titleKey)}</Link>)}</section>;
 }

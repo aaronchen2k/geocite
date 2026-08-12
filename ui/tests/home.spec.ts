@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const reservedRoutes = [
   { path: '/zh/dashboard', title: '仪表盘' },
+  { path: '/zh/diagnosis/execution-diagnosis', title: '执行诊断' },
   { path: '/zh/admin/brands', title: '品牌管理' },
   { path: '/zh/admin/engines', title: '目标引擎' },
   { path: '/zh/admin/models', title: '模型管理' },

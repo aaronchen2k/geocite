@@ -1,6 +1,6 @@
 {
   "Shell": {
-    "appName": "GeoCite",
+    "appName": "GeoCite.net",
     "brandLabel": "选择 Brand",
     "chooseBrand": "选择 Brand",
     "noBrands": "暂无 Brand",
@@ -19,11 +19,12 @@
   "Navigation": {
     "dashboard": "仪表盘",
     "diagnosis": "诊断",
-    "citationDetection": "引用检测",
+    "citationDetection": "引用结果",
     "competitorComparison": "竞品对比",
     "assetAudit": "资产审计",
     "channelMap": "渠道地图",
     "comprehensiveReport": "综合报告",
+    "executionDiagnosis": "执行诊断",
     "improvement": "提升",
     "optimizationWorkOrders": "优化工单",
     "keywordMatrix": "关键矩阵",
@@ -48,8 +49,8 @@
       "description": "查看当前 Brand 的 GEO 工作台概览。"
     },
     "citationDetection": {
-      "title": "引用检测",
-      "description": "识别品牌在 AI 回答中的引用表现。"
+      "title": "引用结果",
+      "description": "查看品牌在 AI 回答中的引用表现与证据。"
     },
     "competitorComparison": {
       "title": "竞品对比",
@@ -66,6 +67,10 @@
     "comprehensiveReport": {
       "title": "综合报告",
       "description": "汇总诊断结果。"
+    },
+    "executionDiagnosis": {
+      "title": "执行诊断",
+      "description": "验证已执行的优化是否真实生效。"
     },
     "optimizationWorkOrders": {
       "title": "优化工单",
@@ -108,6 +113,20 @@
       "description": "安排周期复测。"
     },
     "placeholder": "此功能页面已准备就绪，后续 GEO 数据将在此呈现。"
+  },
+  "ExecutionDiagnosis": {
+    "title": "执行诊断", "sampleData": "示例数据", "description": "验证已执行的优化是否对站点可访问性、内容可引用性和 AI 可见性产生结果。", "lastSuccess": "最近成功：2026-08-12 10:24", "brandLabel": "Brand：", "brand": "乐堡论文", "scopeLabel": "范围：", "scope": "全部站点与已配置引擎", "start": "开始执行", "usePrevious": "使用上次数据", "stop": "停止检测", "runProgress": "运行中 · {completed} / 7 步完成 · 02:14", "stoppedRun": "示例运行已停止 · 已保留已采集证据", "stopped": "已停止", "stoppedDetail": "检测已由用户停止，保留当前已采集的证据。", "fromSnapshot": "来自快照", "snapshotDetail": "已加载最近成功运行的已保存结果。", "stepQueue": "步骤队列", "currentOperation": "当前操作", "liveEvents": "实时事件", "noEvents": "此步骤尚未开始，暂无事件。", "stepResult": "本步骤结果", "summary": "检测摘要", "summaryPassed": "通过 {count}", "summaryFailed": "未达标 {count}", "summaryManual": "待人工 {count}", "summaryUnmeasured": "未测 {count}", "history": "历史运行：今天 10:24（17 / 3 / 2 / 1） · 8 月 5 日（15 / 4 / 1 / 2）",
+    "status": {"succeeded": "已完成", "running": "运行中", "pending": "待执行", "failed": "失败", "unmeasured": "未测", "cancelled": "已停止"},
+    "result": {"status": "状态", "severity": "严重度", "impact": "影响", "evidence": "证据", "recommendation": "建议"},
+    "steps": {
+      "1": {"title": "读取上次基线", "detail": "已读取 2026-08-12 的诊断快照与规则版本。", "duration": "0.2 秒", "conclusion": "已建立可比较基线", "severity": "信息", "impact": "本次可比较 20 项检查规则", "evidence": "基线 RUN-20260812-1024，规则版本 v2.4", "recommendation": "本次运行将基于该快照计算变化。", "events": ["10:26:01 读取最近成功运行", "10:26:01 加载 20 项检查规则", "10:26:02 基线准备完成"]},
+      "2": {"title": "重抓网站证据", "detail": "已抓取入口页、robots.txt、sitemap 与 42 个关联页面。", "duration": "18 秒", "conclusion": "站点证据已刷新", "severity": "信息", "impact": "42 / 44 个页面抓取成功", "evidence": "sitemap.xml 可访问；2 个旧活动页返回 404", "recommendation": "将失效活动页重定向至对应的常青内容。", "events": ["10:26:03 请求 https://aurora-beauty.example", "10:26:11 读取 robots.txt 与 sitemap.xml", "10:26:21 保存 42 条页面证据"]},
+      "3": {"title": "站点连通与 AI 抓取检测", "detail": "正在以浏览器和 AI 爬虫 UA 探测入口页与关键内容页。", "duration": "进行中", "conclusion": "发现 AI 爬虫访问限制", "severity": "P0", "impact": "GPTBot 无法访问站点入口页", "evidence": "GPTBot 请求 https://aurora-beauty.example/ 返回 403；浏览器 UA 返回 200", "recommendation": "在 CDN / WAF 中允许已授权的 AI 爬虫 UA，完成后重新执行本步骤。", "events": ["10:26:22 开始浏览器 UA 探测", "10:26:25 robots.txt 允许访问", "10:26:28 开始 GPTBot UA 探测", "10:26:31 CDN 返回 403"]},
+      "4": {"title": "页面与内容体检", "detail": "检查结构化数据、规范链接、可引用段落和内容覆盖率。", "duration": "待执行", "conclusion": "尚未执行", "severity": "未测", "impact": "等待网站证据与连通性结论", "evidence": "—", "recommendation": "站点连通检查完成后自动继续。"},
+      "5": {"title": "AI 回答采样", "detail": "按已配置的引擎、市场和问题集保存回答及引用证据。", "duration": "待执行", "conclusion": "尚未执行", "severity": "未测", "impact": "等待内容体检结果", "evidence": "—", "recommendation": "确认引擎配置后进行授权采样。"},
+      "6": {"title": "规则验收与前后对比", "detail": "将本次证据与工单目标、历史基线进行对照。", "duration": "待执行", "conclusion": "尚未执行", "severity": "未测", "impact": "等待检查证据汇总", "evidence": "—", "recommendation": "证据齐备后计算通过、未达标与待人工结论。"},
+      "7": {"title": "生成检测结果", "detail": "生成可追溯快照、结果摘要和关联发现项。", "duration": "待执行", "conclusion": "尚未执行", "severity": "未测", "impact": "等待全部步骤完成", "evidence": "—", "recommendation": "完成后生成本次诊断快照。"}
+    }
   },
   "Management": {
     "brands": {
