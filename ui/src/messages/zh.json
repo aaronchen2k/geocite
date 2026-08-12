@@ -27,9 +27,9 @@
     "executionDiagnosis": "执行诊断",
     "improvement": "提升",
     "optimizationWorkOrders": "优化工单",
-    "keywordMatrix": "关键矩阵",
+    "keywordMatrix": "破局矩阵",
     "sourceBuilding": "信源建设",
-    "technicalAdaptation": "技术适配",
+    "technicalAdaptation": "网站优化",
     "contentProduction": "内容生产",
     "verification": "验证",
     "visibilityTrend": "可见趋势",
@@ -77,16 +77,16 @@
       "description": "管理优化执行项。"
     },
     "keywordMatrix": {
-      "title": "关键矩阵",
-      "description": "规划关键主题矩阵。"
+      "title": "破局矩阵",
+      "description": "识别优先突破的主题、问题与内容方向。"
     },
     "sourceBuilding": {
       "title": "信源建设",
       "description": "规划信源建设。"
     },
     "technicalAdaptation": {
-      "title": "技术适配",
-      "description": "检查技术适配项。"
+      "title": "网站优化",
+      "description": "优化影响 AI 理解和访问网站的技术与页面配置。"
     },
     "contentProduction": {
       "title": "内容生产",

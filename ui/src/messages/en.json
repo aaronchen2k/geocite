@@ -27,9 +27,9 @@
     "executionDiagnosis": "Execution diagnosis",
     "improvement": "Improve",
     "optimizationWorkOrders": "Optimization work orders",
-    "keywordMatrix": "Keyword matrix",
+    "keywordMatrix": "Breakthrough matrix",
     "sourceBuilding": "Source building",
-    "technicalAdaptation": "Technical adaptation",
+    "technicalAdaptation": "Website optimization",
     "contentProduction": "Content production",
     "verification": "Verification",
     "visibilityTrend": "Visibility trend",
@@ -77,16 +77,16 @@
       "description": "Manage optimization tasks."
     },
     "keywordMatrix": {
-      "title": "Keyword matrix",
-      "description": "Plan the key topic matrix."
+      "title": "Breakthrough matrix",
+      "description": "Identify priority topics, questions, and content directions for breakthroughs."
     },
     "sourceBuilding": {
       "title": "Source building",
       "description": "Plan source-building work."
     },
     "technicalAdaptation": {
-      "title": "Technical adaptation",
-      "description": "Review technical adaptations."
+      "title": "Website optimization",
+      "description": "Improve site and page configuration that affects AI access and understanding."
     },
     "contentProduction": {
       "title": "Content production",
