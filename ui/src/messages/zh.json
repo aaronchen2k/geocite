@@ -13,7 +13,8 @@
     "unreadMessages": "有未读消息",
     "messages": "消息",
     "profile": "资料",
-    "logout": "登出", "close": "关闭"
+    "logout": "登出",
+    "close": "关闭"
   },
   "Navigation": {
     "dashboard": "仪表盘",
@@ -42,29 +43,135 @@
     "ragAgents": "RAG 智能体"
   },
   "Pages": {
-    "dashboard": {"title": "仪表盘", "description": "查看当前 Brand 的 GEO 工作台概览。"},
-    "citationDetection": {"title": "引用检测", "description": "识别品牌在 AI 回答中的引用表现。"},
-    "competitorComparison": {"title": "竞品对比", "description": "比较竞品的可见性表现。"},
-    "assetAudit": {"title": "资产审计", "description": "审计可用数字资产。"},
-    "channelMap": {"title": "渠道地图", "description": "查看影响渠道。"},
-    "comprehensiveReport": {"title": "综合报告", "description": "汇总诊断结果。"},
-    "optimizationWorkOrders": {"title": "优化工单", "description": "管理优化执行项。"},
-    "keywordMatrix": {"title": "关键矩阵", "description": "规划关键主题矩阵。"},
-    "sourceBuilding": {"title": "信源建设", "description": "规划信源建设。"},
-    "technicalAdaptation": {"title": "技术适配", "description": "检查技术适配项。"},
-    "contentProduction": {"title": "内容生产", "description": "管理内容生产计划。"},
-    "visibilityTrend": {"title": "可见趋势", "description": "查看可见性变化。"},
-    "rankTracking": {"title": "排名追踪", "description": "追踪排名变化。"},
-    "attribution": {"title": "效果归因", "description": "分析优化效果归因。"},
-    "comparisonTest": {"title": "对比测试", "description": "管理对比实验。"},
-    "periodicRetest": {"title": "周期复测", "description": "安排周期复测。"},
+    "dashboard": {
+      "title": "仪表盘",
+      "description": "查看当前 Brand 的 GEO 工作台概览。"
+    },
+    "citationDetection": {
+      "title": "引用检测",
+      "description": "识别品牌在 AI 回答中的引用表现。"
+    },
+    "competitorComparison": {
+      "title": "竞品对比",
+      "description": "比较竞品的可见性表现。"
+    },
+    "assetAudit": {
+      "title": "资产审计",
+      "description": "审计可用数字资产。"
+    },
+    "channelMap": {
+      "title": "渠道地图",
+      "description": "查看影响渠道。"
+    },
+    "comprehensiveReport": {
+      "title": "综合报告",
+      "description": "汇总诊断结果。"
+    },
+    "optimizationWorkOrders": {
+      "title": "优化工单",
+      "description": "管理优化执行项。"
+    },
+    "keywordMatrix": {
+      "title": "关键矩阵",
+      "description": "规划关键主题矩阵。"
+    },
+    "sourceBuilding": {
+      "title": "信源建设",
+      "description": "规划信源建设。"
+    },
+    "technicalAdaptation": {
+      "title": "技术适配",
+      "description": "检查技术适配项。"
+    },
+    "contentProduction": {
+      "title": "内容生产",
+      "description": "管理内容生产计划。"
+    },
+    "visibilityTrend": {
+      "title": "可见趋势",
+      "description": "查看可见性变化。"
+    },
+    "rankTracking": {
+      "title": "排名追踪",
+      "description": "追踪排名变化。"
+    },
+    "attribution": {
+      "title": "效果归因",
+      "description": "分析优化效果归因。"
+    },
+    "comparisonTest": {
+      "title": "对比测试",
+      "description": "管理对比实验。"
+    },
+    "periodicRetest": {
+      "title": "周期复测",
+      "description": "安排周期复测。"
+    },
     "placeholder": "此功能页面已准备就绪，后续 GEO 数据将在此呈现。"
   },
   "Management": {
-    "brands": {"title": "品牌管理", "singular": "Brand", "description": "管理工作台中的品牌。"},
-    "engines": {"title": "目标引擎", "singular": "Engine", "description": "管理需要评估的外部 AI 引擎。"},
-    "models": {"title": "模型管理", "singular": "Model", "description": "管理项目调用的模型配置。"},
-    "ragAgents": {"title": "RAG智能体", "singular": "RagAgent", "description": "管理 Brand 关联的 RAG 智能体。"},
-    "name": "名称", "code": "编码", "website": "官网", "industry": "行业", "descriptionField": "描述", "status": "状态", "vendor": "供应商", "modelName": "模型名称", "provider": "提供商", "baseUrl": "基础地址", "apiKey": "API Key", "brandId": "Brand ID", "modelId": "Model ID", "systemPrompt": "系统提示词", "default": "默认", "allStatus": "全部状态", "allDefaultStatus": "全部默认状态", "enabled": "已启用", "disabled": "已禁用", "defaultModel": "默认模型", "none": "—", "search": "搜索名称、编码或相关字段", "searchResource": "搜索{resource}", "refresh": "刷新{resource}列表", "create": "新建", "createResource": "新建 {resource}", "editResource": "编辑 {resource}", "save": "保存", "cancel": "取消", "previous": "上一页", "next": "下一页", "actions": "操作", "empty": "暂无符合条件的{resource}", "summary": "共 {total} 条，第 {page}/{pageCount} 页", "apiUnavailable": "无法连接管理 API，请确认服务端正在运行。", "saveFailed": "保存失败，请检查必填字段和关联对象。", "deleteFailed": "删除失败，请检查该记录是否仍被引用。", "confirmDelete": "确认删除“{name}”吗？", "edit": "编辑 {name}", "delete": "删除 {name}", "enable": "启用"
+    "brands": {
+      "title": "品牌管理",
+      "singular": "Brand",
+      "description": "管理工作台中的品牌。"
+    },
+    "engines": {
+      "title": "目标引擎",
+      "singular": "Engine",
+      "description": "管理需要评估的外部 AI 引擎。"
+    },
+    "models": {
+      "title": "模型管理",
+      "singular": "Model",
+      "description": "管理项目调用的模型配置。"
+    },
+    "ragAgents": {
+      "title": "RAG智能体",
+      "singular": "RagAgent",
+      "description": "管理 Brand 关联的 RAG 智能体。"
+    },
+    "name": "名称",
+    "code": "编码",
+    "website": "官网",
+    "industry": "行业",
+    "descriptionField": "描述",
+    "status": "状态",
+    "vendor": "供应商",
+    "modelName": "模型名称",
+    "provider": "提供商",
+    "baseUrl": "基础地址",
+    "apiKey": "API Key",
+    "brandId": "Brand ID",
+    "modelId": "Model ID",
+    "systemPrompt": "系统提示词",
+    "default": "默认",
+    "allStatus": "全部状态",
+    "allDefaultStatus": "全部默认状态",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "defaultModel": "默认模型",
+    "none": "—",
+    "search": "搜索名称、编码或相关字段",
+    "searchResource": "搜索{resource}",
+    "refresh": "刷新{resource}列表",
+    "create": "新建",
+    "createResource": "新建 {resource}",
+    "editResource": "编辑 {resource}",
+    "save": "保存",
+    "cancel": "取消",
+    "previous": "上一页",
+    "next": "下一页",
+    "actions": "操作",
+    "empty": "暂无符合条件的{resource}",
+    "summary": "共 {total} 条，第 {page}/{pageCount} 页",
+    "apiUnavailable": "无法连接管理 API，请确认服务端正在运行。",
+    "saveFailed": "保存失败，请检查必填字段和关联对象。",
+    "deleteFailed": "删除失败，请检查该记录是否仍被引用。",
+    "confirmDelete": "确认删除“{name}”吗？",
+    "edit": "编辑 {name}",
+    "delete": "删除 {name}",
+    "enable": "启用",
+    "createdAt": "创建时间",
+    "updatedAt": "更新时间"
   }
 }

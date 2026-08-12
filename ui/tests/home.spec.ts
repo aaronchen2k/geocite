@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 const reservedRoutes = [
   { path: '/zh/dashboard', title: '仪表盘' },
   { path: '/zh/admin/brands', title: '品牌管理' },
-  { path: '/zh/admin/engines', title: '目标引擎 Engine' },
-  { path: '/zh/admin/models', title: '模型管理 Model' },
-  { path: '/zh/admin/rag-agents', title: 'RAG 智能体' },
+  { path: '/zh/admin/engines', title: '目标引擎' },
+  { path: '/zh/admin/models', title: '模型管理' },
+  { path: '/zh/admin/rag-agents', title: 'RAG智能体' },
 ];
 
 test('redirects the landing route to an available dashboard', async ({ page }) => {
@@ -52,15 +52,16 @@ test('opens a compact Brand editor dialog from the management toolbar', async ({
   await expect(page.getByRole('dialog', { name: '新建 Brand' })).toBeVisible();
 });
 
-test('creates a Brand in the modal and refreshes the active list', async ({ page }) => {
-  let items: Array<{ id: number; name: string; code: string; enabled: boolean }> = [];
+test('creates a non-disabled Brand in the modal and refreshes the active list', async ({ page }) => {
+  let items: Array<{ id: number; name: string; code: string; disabled: boolean }> = [];
   await page.route('http://127.0.0.1:8001/api/v1/brands**', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ json: { items, total: items.length, page: 1, pageSize: 20 } });
       return;
     }
     if (route.request().method() === 'POST') {
-      const payload = route.request().postDataJSON() as { name: string; code: string; enabled: boolean };
+      const payload = route.request().postDataJSON() as { name: string; code: string; disabled: boolean };
+      expect(payload.disabled).toBe(false);
       items = [{ id: 1, ...payload }];
       await route.fulfill({ status: 201, json: items[0] });
       return;

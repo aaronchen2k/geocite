@@ -25,20 +25,20 @@ describe('system management APIs', () => {
       .send({ name: '分析模型', modelName: 'gpt-5', provider: 'OpenAI', apiKey: 'sk-secret-value' })
       .expect(201);
 
-    expect(engine.body).toMatchObject({ name: '豆包', code: 'doubao', vendor: 'ByteDance', enabled: true });
+    expect(engine.body).toMatchObject({ name: '豆包', code: 'doubao', vendor: 'ByteDance', disabled: false });
     expect(engine.body).not.toHaveProperty('modelId');
     expect(model.body).toMatchObject({ name: '分析模型', apiKeyConfigured: true, apiKeyMasked: 'sk-…alue' });
     expect(JSON.stringify(model.body)).not.toContain('sk-secret-value');
   });
 
-  it('creates RagAgents only for existing Brands and enabled Models', async () => {
+  it('creates RagAgents only for existing Brands and non-disabled Models', async () => {
     const brand = await request(app.getHttpServer())
       .post('/api/v1/brands')
       .send({ name: '星云', code: 'nebula' })
       .expect(201);
     const disabledModel = await request(app.getHttpServer())
       .post('/api/v1/models')
-      .send({ name: '禁用模型', modelName: 'gpt-disabled', provider: 'OpenAI', enabled: false })
+      .send({ name: '禁用模型', modelName: 'gpt-disabled', provider: 'OpenAI', disabled: true })
       .expect(201);
 
     await request(app.getHttpServer())
@@ -57,7 +57,7 @@ describe('system management APIs', () => {
     await request(app.getHttpServer()).post('/api/v1/engines').send({ name: '其他引擎', code: 'sort-c', vendor: 'Other' }).expect(201);
 
     const response = await request(app.getHttpServer())
-      .get('/api/v1/engines?page=1&pageSize=1&vendor=OpenAI&enabled=true&sortBy=name&sortOrder=DESC')
+      .get('/api/v1/engines?page=1&pageSize=1&vendor=OpenAI&disabled=false&sortBy=name&sortOrder=DESC')
       .expect(200);
 
     expect(response.body).toMatchObject({ total: 2, page: 1, pageSize: 1 });

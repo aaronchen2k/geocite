@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
 const PAGE_SIZE = 20;
-type Item = Record<string, unknown> & { id: number; name?: string; enabled?: boolean };
+type Item = Record<string, unknown> & { id: number; name?: string; disabled?: boolean };
 type Field = { key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'checkbox'; required?: boolean };
 type Filter = { key: string; label: string; type?: 'text' | 'boolean' };
 type Column = { key: string; label: string; sortable?: boolean; render?: (item: Item) => string };
@@ -52,7 +52,7 @@ export function ResourceManagementPage({ config }: { config: ResourceConfig }): 
   };
   useEffect(() => { void load(); }, [query, config.endpoint]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openCreate = () => { setEditing(null); setValues(Object.fromEntries(config.fields.map((field) => [field.key, field.type === 'checkbox' ? true : '']))); setOpen(true); };
+  const openCreate = () => { setEditing(null); setValues(Object.fromEntries(config.fields.map((field) => [field.key, field.type === 'checkbox' ? field.key !== 'disabled' : '']))); setOpen(true); };
   const openEdit = (item: Item) => { setEditing(item); setValues(Object.fromEntries(config.fields.map((field) => [field.key, field.type === 'checkbox' ? Boolean(item[field.key]) : String(item[field.key] ?? '')]))); setOpen(true); };
   const setFilter = (key: string, value: string) => { setFilters((current) => ({ ...current, [key]: value })); setPage(1); };
   const toggleSort = (key: string) => { if (sortBy === key) setSortOrder((current) => current === 'ASC' ? 'DESC' : 'ASC'); else { setSortBy(key); setSortOrder('ASC'); } setPage(1); };
@@ -73,7 +73,7 @@ export function ResourceManagementPage({ config }: { config: ResourceConfig }): 
     <header className="mb-[22px] border-b border-[var(--border)] pb-4"><h1 className="mb-[7px] text-[22px] font-semibold">{config.title}</h1><p className="text-[var(--muted-foreground)]">{config.description}</p></header>
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="relative min-w-56 flex-1"><Search className="pointer-events-none absolute left-3 top-2 size-4 text-[var(--muted-foreground)]" /><input aria-label={t('searchResource', {resource: config.singular})} className="h-8 w-full rounded-md border border-[var(--border)] bg-[var(--card)] pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder={t('search')} value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} /></div>
-      {config.filters.map((filter) => filter.type === 'boolean' ? <select key={filter.key} aria-label={filter.label} className="h-8 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm" value={filters[filter.key] ?? ''} onChange={(event) => setFilter(filter.key, event.target.value)}><option value="">{filter.label}</option><option value="true">{t('enabled')}</option><option value="false">{t('disabled')}</option></select> : <input key={filter.key} aria-label={filter.label} className="h-8 w-36 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder={filter.label} value={filters[filter.key] ?? ''} onChange={(event) => setFilter(filter.key, event.target.value)} />)}
+      {config.filters.map((filter) => filter.type === 'boolean' ? <select key={filter.key} aria-label={filter.label} className="h-8 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm" value={filters[filter.key] ?? ''} onChange={(event) => setFilter(filter.key, event.target.value)}><option value="">{filter.label}</option><option value="true">{filter.key === 'disabled' ? t('disabled') : t('enabled')}</option><option value="false">{filter.key === 'disabled' ? t('enabled') : t('disabled')}</option></select> : <input key={filter.key} aria-label={filter.label} className="h-8 w-36 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder={filter.label} value={filters[filter.key] ?? ''} onChange={(event) => setFilter(filter.key, event.target.value)} />)}
       <Button variant="outline" size="icon" aria-label={t('refresh', {resource: config.singular})} onClick={() => void load()}><RefreshCw className={loading ? 'size-4 animate-spin' : 'size-4'} /></Button>
       <Button size="sm" aria-label={t('createResource', {resource: config.singular})} onClick={openCreate}><Plus className="size-4" />{t('create')}</Button>
     </div>

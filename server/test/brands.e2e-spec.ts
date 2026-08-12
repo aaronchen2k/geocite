@@ -59,16 +59,16 @@ describe('Brands', () => {
       industry: 'SaaS',
       description: 'GEO platform',
       isDefault: false,
-      enabled: true,
+      disabled: false,
     });
     expect(created.body.createdAt).toEqual(expect.any(String));
     expect(created.body.updatedAt).toEqual(expect.any(String));
 
     await request(app.getHttpServer())
       .patch(`/api/v1/brands/${created.body.id}`)
-      .send({ name: '极光智能', enabled: false })
+      .send({ name: '极光智能', disabled: true })
       .expect(200)
-      .expect(({ body }) => expect(body).toMatchObject({ name: '极光智能', enabled: false }));
+      .expect(({ body }) => expect(body).toMatchObject({ name: '极光智能', disabled: true }));
 
     await request(app.getHttpServer())
       .post('/api/v1/brands')
@@ -88,7 +88,7 @@ describe('Brands', () => {
       .get(`/api/v1/brands/${created.body.id}`)
       .expect(200)
       .expect(({ body }) =>
-        expect(body).toMatchObject({ id: created.body.id, code: 'aurora', name: '极光智能', enabled: false }),
+        expect(body).toMatchObject({ id: created.body.id, code: 'aurora', name: '极光智能', disabled: true }),
       );
 
     await request(app.getHttpServer()).delete(`/api/v1/brands/${created.body.id}`).expect(200).expect({
