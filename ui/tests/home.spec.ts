@@ -32,6 +32,15 @@ test('switches the active locale from the workspace header', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 });
 
+test('hides only the AppShell vertical scrollbars', async ({ page }) => {
+  await page.goto('/zh/dashboard');
+
+  for (const locator of [page.locator('aside'), page.locator('main')]) {
+    await expect(locator).toHaveClass(/scrollbar-hide/);
+    await expect(locator).toHaveCSS('scrollbar-width', 'none');
+  }
+});
+
 for (const route of reservedRoutes) {
   test(`${route.path} displays its reserved page`, async ({ page }) => {
     const response = await page.goto(route.path);

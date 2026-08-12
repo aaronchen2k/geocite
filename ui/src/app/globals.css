@@ -9,6 +9,8 @@
 .scroll-area:hover::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--foreground) 38%, transparent); background-clip: padding-box; }
 .scroll-area::-webkit-scrollbar-corner { background: transparent; }
 @media (prefers-reduced-motion: no-preference) { .scroll-area::-webkit-scrollbar-thumb { transition: background-color 160ms ease-out; } }
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .brand-picker { color: var(--foreground); }
 .theme-toggle { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 7px; color: var(--foreground); background: var(--card); }
