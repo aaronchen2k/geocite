@@ -1,12 +1,13 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { corsOptions } from './config/cors';
 import { loadRuntimeConfig } from './config/runtime-config';
 
 async function bootstrap() {
   const config = loadRuntimeConfig();
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: 'http://127.0.0.1:8000' });
+  app.enableCors(corsOptions);
   app.setGlobalPrefix(config.apiPrefix);
   await app.listen(config.port, config.host);
 }

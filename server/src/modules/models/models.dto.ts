@@ -1,3 +1,5 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-export class CreateModelDto { @IsString() @IsNotEmpty() name!: string; @IsString() @IsNotEmpty() modelName!: string; @IsString() @IsNotEmpty() provider!: string; @IsOptional() @IsString() baseUrl?: string; @IsOptional() @IsString() apiKey?: string; @IsOptional() @IsBoolean() enabled?: boolean; }
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+export class CreateModelDto { @IsString() @IsNotEmpty() name!: string; @IsString() @IsNotEmpty() modelName!: string; @IsString() @IsNotEmpty() provider!: string; @IsOptional() @IsString() baseUrl?: string; @IsOptional() @IsString() apiKey?: string; @IsOptional() @IsBoolean() disabled?: boolean; }
 export class UpdateModelDto extends CreateModelDto {}
+export class ListModelDto { @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number; @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number; @IsOptional() @IsString() keyword?: string; @IsOptional() @IsString() provider?: string; @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() disabled?: boolean; @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() isDefault?: boolean; @IsOptional() @IsString() sortBy?: string; @IsOptional() @IsString() sortOrder?: string; }

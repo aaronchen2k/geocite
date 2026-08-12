@@ -50,4 +50,58 @@ describe('system management APIs', () => {
       .send({ name: '助手', code: 'disabled-agent', brandId: brand.body.id, modelId: disabledModel.body.id })
       .expect(400);
   });
+
+  it('filters, sorts, and paginates Engine lists with a page envelope', async () => {
+    await request(app.getHttpServer()).post('/api/v1/engines').send({ name: '排序引擎 A', code: 'sort-a', vendor: 'OpenAI' }).expect(201);
+    await request(app.getHttpServer()).post('/api/v1/engines').send({ name: '排序引擎 B', code: 'sort-b', vendor: 'OpenAI' }).expect(201);
+    await request(app.getHttpServer()).post('/api/v1/engines').send({ name: '其他引擎', code: 'sort-c', vendor: 'Other' }).expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/engines?page=1&pageSize=1&vendor=OpenAI&enabled=true&sortBy=name&sortOrder=DESC')
+      .expect(200);
+
+    expect(response.body).toMatchObject({ total: 2, page: 1, pageSize: 1 });
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({ name: '排序引擎 B', vendor: 'OpenAI' });
+  });
+
+  it('assigns Engine ordr from its id and lists Engines by id by default', async () => {
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/engines')
+      .send({ name: '默认排序 A', code: 'default-order-a', vendor: 'Order Test' })
+      .expect(201);
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/engines')
+      .send({ name: '默认排序 B', code: 'default-order-b', vendor: 'Order Test' })
+      .expect(201);
+
+    expect(first.body.ordr).toBe(first.body.id * 100);
+    expect(second.body.ordr).toBe(second.body.id * 100);
+
+    const response = await request(app.getHttpServer()).get('/api/v1/engines?vendor=Order%20Test').expect(200);
+    expect(response.body.items.map((item: { id: number }) => item.id)).toEqual([first.body.id, second.body.id]);
+  });
+
+  it('soft deletes every management resource and exposes UTC audit fields', async () => {
+    const brand = await request(app.getHttpServer()).post('/api/v1/brands').send({ name: '软删除品牌', code: 'soft-brand', disabled: false }).expect(201);
+    const engine = await request(app.getHttpServer()).post('/api/v1/engines').send({ name: '软删除引擎', code: 'soft-engine', vendor: 'Test', disabled: false }).expect(201);
+    const model = await request(app.getHttpServer()).post('/api/v1/models').send({ name: '软删除模型', modelName: 'soft-model', provider: 'Test', disabled: false }).expect(201);
+    const agent = await request(app.getHttpServer()).post('/api/v1/rag-agents').send({ name: '软删除智能体', code: 'soft-agent', brandId: brand.body.id, modelId: model.body.id, disabled: false }).expect(201);
+
+    for (const item of [brand.body, engine.body, model.body, agent.body]) {
+      expect(item).toMatchObject({ disabled: false, deleted: false });
+      expect(item.createdAt).toEqual(expect.any(String));
+      expect(item.updatedAt).toEqual(expect.any(String));
+      expect(item.deletedAt).toBeNull();
+    }
+
+    await request(app.getHttpServer()).delete(`/api/v1/engines/${engine.body.id}`).expect({ deleted: true, id: engine.body.id });
+    await request(app.getHttpServer()).get(`/api/v1/engines/${engine.body.id}`).expect(404);
+    await request(app.getHttpServer()).get('/api/v1/engines?keyword=软删除引擎').expect(({ body }) => expect(body.items).toHaveLength(0));
+
+    await request(app.getHttpServer()).delete(`/api/v1/rag-agents/${agent.body.id}`).expect({ deleted: true, id: agent.body.id });
+    await request(app.getHttpServer()).get(`/api/v1/rag-agents/${agent.body.id}`).expect(400);
+    await request(app.getHttpServer()).delete(`/api/v1/models/${model.body.id}`).expect({ deleted: true, id: model.body.id });
+    await request(app.getHttpServer()).delete(`/api/v1/brands/${brand.body.id}`).expect({ deleted: true, id: brand.body.id });
+  });
 });

@@ -14,9 +14,16 @@ export default defineConfig({
       ? { executablePath: globalChromiumExecutable }
       : undefined,
   },
-  webServer: {
-    command: 'pnpm debug:ui',
-    url: 'http://127.0.0.1:8000/api/e2e-health',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'PORT=8001 HOST=127.0.0.1 pnpm --dir ../server debug:server',
+      url: 'http://127.0.0.1:8001/api/v1/health',
+      reuseExistingServer: true,
+    },
+    {
+      command: 'pnpm debug:ui',
+      url: 'http://127.0.0.1:8000/api/e2e-health',
+      reuseExistingServer: true,
+    },
+  ],
 });

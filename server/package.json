@@ -4,6 +4,7 @@
   "scripts": {
     "debug:server": "node --watch --require ts-node/register src/main.ts",
     "build": "tsc -p tsconfig.json",
+    "seed": "node --require ts-node/register src/database/seed.ts",
     "test": "jest --runInBand"
   },
   "dependencies": {

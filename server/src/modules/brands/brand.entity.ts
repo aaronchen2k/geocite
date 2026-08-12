@@ -1,7 +1,8 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { AuditedEntity } from '../../database/audited.entity';
 
 @Entity('brands')
-export class BrandEntity {
+export class BrandEntity extends AuditedEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
@@ -23,12 +24,6 @@ export class BrandEntity {
   @Column({ default: false })
   isDefault!: boolean;
 
-  @Column({ default: true })
-  enabled!: boolean;
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
+  @Column({ default: false })
+  disabled!: boolean;
 }

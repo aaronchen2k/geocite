@@ -1,3 +1,5 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-export class CreateRagAgentDto { @IsString() @IsNotEmpty() name!: string; @IsString() @IsNotEmpty() code!: string; @IsInt() brandId!: number; @IsInt() modelId!: number; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() systemPrompt?: string; @IsOptional() @IsBoolean() enabled?: boolean; }
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+export class CreateRagAgentDto { @IsString() @IsNotEmpty() name!: string; @IsString() @IsNotEmpty() code!: string; @IsInt() brandId!: number; @IsInt() modelId!: number; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() systemPrompt?: string; @IsOptional() @IsBoolean() disabled?: boolean; }
 export class UpdateRagAgentDto extends CreateRagAgentDto {}
+export class ListRagAgentDto { @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number; @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number; @IsOptional() @IsString() keyword?: string; @IsOptional() @Type(() => Number) @IsInt() brandId?: number; @IsOptional() @Type(() => Number) @IsInt() modelId?: number; @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() disabled?: boolean; @IsOptional() @IsString() sortBy?: string; @IsOptional() @IsString() sortOrder?: string; }

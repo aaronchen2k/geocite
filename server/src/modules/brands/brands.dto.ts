@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -33,7 +33,7 @@ export class CreateBrandDto {
 
   @IsOptional()
   @IsBoolean()
-  enabled?: boolean;
+  disabled?: boolean;
 }
 
 export class UpdateBrandDto {
@@ -61,7 +61,7 @@ export class UpdateBrandDto {
 
   @IsOptional()
   @IsBoolean()
-  enabled?: boolean;
+  disabled?: boolean;
 }
 
 export class ListBrandDto {
@@ -81,4 +81,17 @@ export class ListBrandDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  disabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: string;
 }
