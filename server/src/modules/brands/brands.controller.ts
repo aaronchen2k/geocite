@@ -18,7 +18,7 @@ export class BrandsController {
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+    return this.service.detail(id);
   }
 
   @Patch(':id/default')

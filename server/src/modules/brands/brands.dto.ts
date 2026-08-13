@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsArray,
   IsUrl,
   Max,
   Min,
@@ -34,6 +35,12 @@ export class CreateBrandDto {
   @IsOptional()
   @IsBoolean()
   disabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  engineIds?: number[];
 }
 
 export class UpdateBrandDto {
@@ -62,6 +69,12 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsBoolean()
   disabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  engineIds?: number[];
 }
 
 export class ListBrandDto {

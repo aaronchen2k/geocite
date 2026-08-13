@@ -9,23 +9,34 @@ import {Link, usePathname, useRouter} from '@/i18n/navigation';
 import {routing} from '@/i18n/routing';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 
 addCollection(lucide);
 
 const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
-type Brand = { id: number; name: string; code: string; isDefault: boolean };
+const localeStorageKey = 'geocite.locale';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations('Shell');
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const brands = useWorkspaceStore((state) => state.brands);
+  const currentBrandId = useWorkspaceStore((state) => state.currentBrandId);
+  const setBrands = useWorkspaceStore((state) => state.setBrands);
+  const setCurrentBrandId = useWorkspaceStore((state) => state.setCurrentBrandId);
   const [open, setOpen] = useState<Record<string, boolean>>({ diagnosis: true, improvement: true, verification: true, admin: true });
-  useEffect(() => { fetch(`${api}/brands`).then((r) => r.ok ? r.json() : Promise.reject()).then((x) => setBrands(x.items ?? [])).catch(() => setBrands([])); }, []);
-  const selected = brands.find((x) => x.isDefault)?.id ?? '';
-  const select = async (id: number) => { const response = await fetch(`${api}/brands/${id}/default`, { method: 'PATCH' }); if (response.ok) setBrands(brands.map((x) => ({ ...x, isDefault: x.id === id }))); };
-  return <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--background)] text-[var(--foreground)]"><header className="flex h-[58px] items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-[22px] shadow-sm"><Link href="/dashboard" className="font-bold tracking-[.06em]">{t('appName')}</Link><div className="flex items-center gap-2"><select aria-label={t('brandLabel')} className="min-w-[230px] rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-[7px] text-[var(--foreground)]" value={selected} onChange={(e) => void select(Number(e.target.value))}><option value="">{brands.length ? t('chooseBrand') : t('noBrands')}</option>{brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name} · {brand.code}</option>)}</select><select aria-label={t('language')} className="h-9 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm" value={locale} onChange={(event) => router.replace(pathname, {locale: event.target.value as typeof routing.locales[number]})}><option value="zh">{t('chinese')}</option><option value="en">{t('english')}</option></select><ThemeToggle /><UserMenu /></div></header><div className="grid min-h-0 grid-cols-[224px_minmax(0,1fr)] overflow-hidden"><aside className="scroll-area scrollbar-hide min-h-0 overflow-y-auto border-r border-[var(--border)] bg-[var(--card)] p-2.5">{navigationTree.map((node) => <NavigationNodeView key={node.key} node={node} pathname={pathname} open={open[node.key] ?? false} onToggle={() => setOpen({ ...open, [node.key]: !open[node.key] })} />)}</aside><main className="scroll-area scrollbar-hide min-h-0 w-full overflow-y-auto p-[18px]">{children}</main></div></div>;
+  useEffect(() => { fetch(`${api}/brands`).then((r) => r.ok ? r.json() : Promise.reject()).then((x) => setBrands(x.items ?? [])).catch(() => setBrands([])); }, [setBrands]);
+  useEffect(() => {
+    const stored = window.localStorage.getItem(localeStorageKey);
+    const preferred = stored === 'zh' || stored === 'en' ? stored : navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+    if (!stored) window.localStorage.setItem(localeStorageKey, preferred);
+    if (preferred !== locale) router.replace(pathname, {locale: preferred});
+  }, [locale, pathname, router]);
+  const selected = currentBrandId ?? '';
+  const select = async (id: number) => { setCurrentBrandId(id); const response = await fetch(`${api}/brands/${id}/default`, { method: 'PATCH' }); if (response.ok) setBrands(brands.map((x) => ({ ...x, isDefault: x.id === id }))); };
+  const changeLocale = (nextLocale: typeof routing.locales[number]) => { window.localStorage.setItem(localeStorageKey, nextLocale); router.replace(pathname, {locale: nextLocale}); };
+  return <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--background)] text-[var(--foreground)]"><header className="flex h-[58px] items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-[22px] shadow-sm"><Link href="/dashboard" className="font-bold tracking-[.06em]">{t('appName')}</Link><div className="flex items-center gap-2"><select aria-label={t('brandLabel')} className="min-w-[230px] rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-[7px] text-[var(--foreground)]" value={selected} onChange={(e) => void select(Number(e.target.value))}><option value="">{brands.length ? t('chooseBrand') : t('noBrands')}</option>{brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name} · {brand.code}</option>)}</select><select aria-label={t('language')} className="h-9 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm" value={locale} onChange={(event) => changeLocale(event.target.value as typeof routing.locales[number])}><option value="zh">{t('chinese')}</option><option value="en">{t('english')}</option></select><ThemeToggle /><UserMenu /></div></header><div className="grid min-h-0 grid-cols-[224px_minmax(0,1fr)] overflow-hidden"><aside className="scroll-area scrollbar-hide min-h-0 overflow-y-auto border-r border-[var(--border)] bg-[var(--card)] p-2.5">{navigationTree.map((node) => <NavigationNodeView key={node.key} node={node} pathname={pathname} open={open[node.key] ?? false} onToggle={() => setOpen({ ...open, [node.key]: !open[node.key] })} />)}</aside><main className="scroll-area scrollbar-hide min-h-0 w-full overflow-y-auto p-[18px]">{children}</main></div></div>;
 }
 
 function NavigationNodeView({ node, pathname, open, onToggle }: { node: NavigationNode; pathname: string; open: boolean; onToggle: () => void }) {
