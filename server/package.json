@@ -6,6 +6,7 @@
     "build": "tsc -p tsconfig.json",
     "seed": "node --require ts-node/register src/database/seed.ts",
     "migrate:data": "node --require ts-node/register src/database/migrate-audit-data.ts",
+    "simulate:diagnosis": "node --require ts-node/register src/scripts/simulate-execution-diagnosis.ts",
     "test": "jest --runInBand"
   },
   "dependencies": {

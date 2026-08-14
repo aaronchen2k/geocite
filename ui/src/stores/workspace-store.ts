@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type WorkspaceBrand = { id: number; name: string; code: string; isDefault: boolean };
+export type WorkspaceBrand = { id: number; name: string; code: string; industry?: string | null; description?: string | null; isDefault: boolean };
 
 type WorkspaceState = {
   brands: WorkspaceBrand[];

@@ -1,5 +1,19 @@
 export type FetchedPage = { url: string; status: number; html: string; contentType: string | null };
 
+export function websiteUnavailableResult(website: string, status?: number, error?: unknown) {
+  const detail = status !== undefined
+    ? `服务器返回 HTTP ${status}。`
+    : error instanceof Error && error.message
+      ? `请求失败：${error.message}。`
+      : '请求失败，请检查域名、网络与 DNS 配置。';
+  return {
+    conclusion: 'failed' as const,
+    severity: 'P0',
+    evidence: { website, message: `网站无法访问：${detail}` },
+    recommendation: 'restore-site-access',
+  };
+}
+
 export function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((match) => match[1].trim()).filter((url) => /^https?:\/\//i.test(url));
 }

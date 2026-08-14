@@ -42,3 +42,53 @@ export class ExecutionDiagnosisEventEntity {
   @Column({ name: 'data_json', type: 'simple-json' }) data!: Record<string, unknown>;
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
 }
+
+@Entity('execution_diagnosis_pages')
+export class ExecutionDiagnosisPageEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'run_id' }) runId!: number;
+  @ManyToOne(() => ExecutionDiagnosisRunEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'run_id' }) run!: ExecutionDiagnosisRunEntity;
+  @Column({ type: 'text' }) url!: string;
+  @Column({ name: 'status_code', nullable: true }) statusCode!: number | null;
+  @Column({ name: 'content_type', nullable: true }) contentType!: string | null;
+  @Column({ type: 'text' }) body!: string;
+  @CreateDateColumn({ name: 'fetched_at', type: 'datetime' }) fetchedAt!: Date;
+}
+
+@Entity('execution_diagnosis_probes')
+export class ExecutionDiagnosisProbeEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'run_id' }) runId!: number;
+  @ManyToOne(() => ExecutionDiagnosisRunEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'run_id' }) run!: ExecutionDiagnosisRunEntity;
+  @Column({ name: 'user_agent', type: 'text' }) userAgent!: string;
+  @Column({ type: 'text' }) url!: string;
+  @Column({ name: 'status_code', nullable: true }) statusCode!: number | null;
+  @CreateDateColumn({ name: 'probed_at', type: 'datetime' }) probedAt!: Date;
+}
+
+@Entity('execution_diagnosis_samples')
+export class ExecutionDiagnosisSampleEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'run_id' }) runId!: number;
+  @ManyToOne(() => ExecutionDiagnosisRunEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'run_id' }) run!: ExecutionDiagnosisRunEntity;
+  @Column({ name: 'engine_id' }) engineId!: number;
+  @Column({ name: 'engine_name' }) engineName!: string;
+  @Column({ name: 'engine_code' }) engineCode!: string;
+  @Column({ name: 'model_name', nullable: true }) modelName!: string | null;
+  @Column({ name: 'base_url', type: 'text', nullable: true }) baseUrl!: string | null;
+  @Column({ type: 'text' }) prompt!: string;
+  @Column({ type: 'text' }) answer!: string;
+  @Column({ name: 'status_code', nullable: true }) statusCode!: number | null;
+  @Column({ type: 'text', nullable: true }) error!: string | null;
+  @CreateDateColumn({ name: 'sampled_at', type: 'datetime' }) sampledAt!: Date;
+}
+
+@Entity('brand_diagnosis_questions')
+export class BrandDiagnosisQuestionEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'brand_id' }) brandId!: number;
+  @ManyToOne(() => BrandEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'brand_id' }) brand!: BrandEntity;
+  @Column({ type: 'text' }) question!: string;
+  @Column({ default: 0 }) ordr!: number;
+  @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
+}

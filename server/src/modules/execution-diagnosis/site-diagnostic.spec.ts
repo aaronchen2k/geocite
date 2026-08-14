@@ -1,6 +1,15 @@
-import { inspectHtml, sitemapLocations } from './site-diagnostic';
+import { inspectHtml, sitemapLocations, websiteUnavailableResult } from './site-diagnostic';
 
 describe('site diagnostic helpers', () => {
+  it('将网站不可访问原因转换为页面可读的诊断结果', () => {
+    expect(websiteUnavailableResult('https://example.com', 403)).toEqual({
+      conclusion: 'failed',
+      severity: 'P0',
+      evidence: { website: 'https://example.com', message: '网站无法访问：服务器返回 HTTP 403。' },
+      recommendation: 'restore-site-access',
+    });
+  });
+
   it('提取 sitemap 中的页面地址', () => {
     expect(sitemapLocations('<urlset><url><loc>https://example.com/a</loc></url><url><loc>https://example.com/b</loc></url></urlset>')).toEqual(['https://example.com/a', 'https://example.com/b']);
   });

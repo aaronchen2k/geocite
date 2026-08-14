@@ -6,8 +6,8 @@ import { ArrowDown, ArrowUp, Pencil, Plus, RefreshCw, Search, Trash2 } from 'luc
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { requestJson } from '@/lib/api';
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
 const PAGE_SIZE = 20;
 type Item = Record<string, unknown> & { id: number; name?: string; disabled?: boolean };
 type Field = { key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'checkbox' | 'multiselect'; required?: boolean; optionsEndpoint?: string; inverse?: boolean };
@@ -45,11 +45,9 @@ export function ResourceManagementPage({ config }: { config: ResourceConfig }): 
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const response = await fetch(`${api}/${config.endpoint}?${query}`);
-      if (!response.ok) throw new Error('无法加载列表');
-      const body = await response.json();
-      setItems(body.items ?? []); setTotal(body.total ?? 0);
-      if ((body.items?.length ?? 0) === 0 && body.total > 0 && page > 1) setPage(page - 1);
+      const body = await requestJson<{ items: Item[]; total: number }>(`${config.endpoint}?${query}`);
+      setItems(body.items); setTotal(body.total);
+      if (body.items.length === 0 && body.total > 0 && page > 1) setPage(page - 1);
     } catch { setError(t('apiUnavailable')); }
     finally { setLoading(false); }
   };
@@ -58,8 +56,10 @@ export function ResourceManagementPage({ config }: { config: ResourceConfig }): 
   const loadFieldOptions = async () => {
     const fields = config.fields.filter((field) => field.type === 'multiselect' && field.optionsEndpoint);
     const results = await Promise.all(fields.map(async (field) => {
-      const response = await fetch(`${api}/${field.optionsEndpoint}?page=1&pageSize=100&disabled=false`);
-      return [field.key, response.ok ? ((await response.json()).items ?? []) : []] as const;
+      try {
+        const body = await requestJson<{ items?: Item[] }>(`${field.optionsEndpoint}?page=1&pageSize=100&disabled=false`);
+        return [field.key, body.items ?? []] as const;
+      } catch { return [field.key, []] as const; }
     }));
     setOptions(Object.fromEntries(results));
   };
@@ -73,12 +73,11 @@ export function ResourceManagementPage({ config }: { config: ResourceConfig }): 
     const payload: Record<string, string | boolean | number | number[]> = {};
     config.fields.forEach((field) => { const value = values[field.key]; if (field.type === 'checkbox') payload[field.key] = Boolean(value); else if (field.type === 'multiselect') payload[field.key] = Array.isArray(value) ? value.map(Number) : []; else if (value !== '') payload[field.key] = field.type === 'number' ? Number(value) : String(value).trim(); });
     try {
-      const response = await fetch(`${api}/${config.endpoint}${editing ? `/${editing.id}` : ''}`, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error('保存失败');
+      await requestJson(`${config.endpoint}${editing ? `/${editing.id}` : ''}`, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       setOpen(false); await load();
     } catch { setError(t('saveFailed')); }
   };
-  const remove = async (item: Item) => { if (!window.confirm(t('confirmDelete', {name: item.name ?? item.id}))) return; try { const response = await fetch(`${api}/${config.endpoint}/${item.id}`, { method: 'DELETE' }); if (!response.ok) throw new Error(); await load(); } catch { setError(t('deleteFailed')); } };
+  const remove = async (item: Item) => { if (!window.confirm(t('confirmDelete', {name: item.name ?? item.id}))) return; try { await requestJson(`${config.endpoint}/${item.id}`, { method: 'DELETE' }); await load(); } catch { setError(t('deleteFailed')); } };
 
   return <section>
     <header className="mb-[22px] border-b border-[var(--border)] pb-4"><h1 className="mb-[7px] text-[22px] font-semibold">{config.title}</h1><p className="text-[var(--muted-foreground)]">{config.description}</p></header>

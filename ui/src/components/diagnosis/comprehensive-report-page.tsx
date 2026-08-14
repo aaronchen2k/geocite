@@ -4,15 +4,15 @@ import {Icon} from '@iconify/react';
 import {useEffect, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
+import { requestJson } from '@/lib/api';
 
-const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
 type Brand = { id: number; name: string; isDefault: boolean };
 
 export function ComprehensiveReportPage(): React.JSX.Element {
   const t = useTranslations('ComprehensiveReport');
   const [brand, setBrand] = useState<Brand | null>(null);
 
-  useEffect(() => { void fetch(`${api}/brands`).then((response) => response.ok ? response.json() : Promise.reject()).then((payload: {items: Brand[]}) => setBrand(payload.items.find((item) => item.isDefault) ?? payload.items[0] ?? null)).catch(() => setBrand(null)); }, []);
+  useEffect(() => { void requestJson<{ items: Brand[] }>('brands').then((payload) => setBrand(payload.items.find((item) => item.isDefault) ?? payload.items[0] ?? null)).catch(() => setBrand(null)); }, []);
 
   return <section>
     <header className="mb-[22px] border-b border-[var(--border)] pb-4"><h1 className="mb-[7px] text-[22px] font-semibold">{t('title')}</h1><p className="text-[var(--muted-foreground)]">{t('description')}</p></header>

@@ -6,8 +6,9 @@ import {useLocale} from 'next-intl';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Button} from '@/components/ui/button';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { buildApiUrl, logSseRequest, logSseResponse, requestJson } from '@/lib/api';
 
-type StepStatus = 'succeeded' | 'running' | 'pending' | 'failed' | 'unmeasured' | 'cancelled';
+type StepStatus = 'succeeded' | 'running' | 'pending' | 'failed' | 'unmeasured' | 'cancelled' | 'skipped';
 type Translate = ReturnType<typeof useTranslations>;
 type DiagnosticStep = {
     id: number;
@@ -38,12 +39,12 @@ type ApiRun = {
     startedAt: string | null;
     finishedAt: string | null;
     steps: ApiStep[]
+    events?: Array<{ number: number; message: string; createdAt: string }>;
 };
-const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api/v1';
-
 function resultText(value: unknown): string {
     if (typeof value === 'string') return value;
     if (value === null || value === undefined) return '—';
+    if (typeof value === 'object' && 'message' in value && typeof value.message === 'string') return value.message;
     return JSON.stringify(value, null, 2);
 }
 
@@ -90,7 +91,8 @@ function getStatusMeta(t: Translate): Record<StepStatus, { label: string; icon: 
             label: t('status.cancelled'),
             icon: 'lucide:circle-slash',
             className: 'text-[var(--muted-foreground)]'
-        }
+        },
+        skipped: {label: t.has('status.skipped') ? t('status.skipped') : 'Skipped', icon: 'lucide:circle-minus', className: 'text-[var(--muted-foreground)]'}
     };
 }
 
@@ -102,6 +104,7 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
     const [selectedId, setSelectedId] = useState(1);
     const [running, setRunning] = useState(false);
     const [run, setRun] = useState<ApiRun | null>(null);
+    const [runError, setRunError] = useState('');
     const brand = useWorkspaceStore((state) => state.brands.find((item) => item.id === state.currentBrandId) ?? null);
     const hasBrands = useWorkspaceStore((state) => state.brands.length > 0);
     const source = useRef<EventSource | null>(null);
@@ -113,16 +116,20 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
     const applyRun = useCallback((nextRun: ApiRun) => {
         setRun(nextRun);
         setRunning(nextRun.status === 'queued' || nextRun.status === 'running');
-        setSteps(initialSteps.map((step) => {
+        setSteps((current) => initialSteps.map((step) => {
             const next = nextRun.steps.find((item) => item.number === step.id);
-            if (!next) return step;
+            const previous = current.find((item) => item.id === step.id);
+            const events = (nextRun.events ?? []).filter((event) => event.number === step.id).map((event) => event.message);
+            if (!next) return {...step, events: events.length ? events : previous?.events ?? []};
             return {
                 ...step,
+                events: events.length ? events : previous?.events ?? [],
                 status: next.status,
                 duration: next.status === 'running' ? t('status.running') : next.status === 'pending' ? t('status.pending') : next.status === 'cancelled' ? t('status.cancelled') : step.duration,
                 conclusion: next.result?.conclusion ?? step.conclusion,
                 severity: next.result?.severity ?? step.severity,
                 evidence: next.result ? resultText(next.result.evidence) : step.evidence,
+                impact: next.result?.conclusion === 'failed' ? resultText(next.result.evidence) : step.impact,
                 recommendation: next.result?.recommendation ?? step.recommendation,
             };
         }));
@@ -130,7 +137,9 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
     const subscribe = useCallback((runId: number) => {
         source.current?.close();
         if (poller.current) clearInterval(poller.current);
-        const eventSource = new EventSource(`${api}/execution-checks/${runId}/events`);
+        const eventUrl = buildApiUrl(`execution-checks/${runId}/events`);
+        logSseRequest(eventUrl);
+        const eventSource = new EventSource(eventUrl);
         source.current = eventSource;
         const onEvent = (event: MessageEvent<string>) => {
             const data = JSON.parse(event.data) as {
@@ -140,6 +149,8 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                 result?: ApiStep['result'];
                 summary?: ApiRun['summary']
             };
+            logSseResponse(eventUrl, data);
+            if (data.number && (data.status === 'running' || data.status === 'failed')) setSelectedId(data.number);
             if (data.status && data.number) setSteps((current) => current.map((step) => step.id === data.number ? {
                 ...step,
                 status: data.status ?? step.status,
@@ -147,6 +158,7 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                 conclusion: data.result?.conclusion ?? step.conclusion,
                 severity: data.result?.severity ?? step.severity,
                 evidence: data.result ? resultText(data.result.evidence) : step.evidence,
+                impact: data.result?.conclusion === 'failed' ? resultText(data.result.evidence) : step.impact,
                 recommendation: data.result?.recommendation ?? step.recommendation,
             } : step));
             const {message, number} = data;
@@ -161,11 +173,12 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
             }
         };
         ['run', 'step', 'log', 'summary'].forEach((type) => eventSource.addEventListener(type, onEvent as EventListener));
+        eventSource.onopen = () => logSseResponse(eventUrl, { connected: true });
         eventSource.onerror = () => {
             eventSource.close();
             if (poller.current) return;
             poller.current = setInterval(() => {
-                void fetch(`${api}/execution-checks/${runId}`).then((response) => response.ok ? response.json() : Promise.reject()).then((snapshot: ApiRun) => {
+                void requestJson<ApiRun>(`execution-checks/${runId}`).then((snapshot) => {
                     applyRun(snapshot);
                     if (!['queued', 'running'].includes(snapshot.status) && poller.current) {
                         clearInterval(poller.current);
@@ -179,21 +192,25 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
     useEffect(() => {
         source.current?.close();
         if (poller.current) clearInterval(poller.current);
-        setRun(null); setRunning(false); setSelectedId(1); setSteps(initialSteps);
+        setRun(null); setRunError(''); setRunning(false); setSelectedId(1); setSteps(initialSteps);
     }, [brand?.id, initialSteps]);
     const startRun = async () => {
         if (!brand) return;
-        const response = await fetch(`${api}/brands/${brand.id}/execution-checks`, {method: 'POST'});
-        if (!response.ok) return;
-        const nextRun = await response.json() as ApiRun;
-        setSelectedId(1);
-        applyRun(nextRun);
-        subscribe(nextRun.id);
+        setRunError('');
+        try {
+            const nextRun = await requestJson<ApiRun>(`brands/${brand.id}/execution-checks`, {method: 'POST'});
+            setSelectedId(1);
+            applyRun(nextRun);
+            subscribe(nextRun.id);
+        } catch (error) {
+            setRunError(error instanceof Error ? error.message : '无法启动执行诊断');
+        }
     };
     const stopRun = async () => {
         if (!run) return;
-        const response = await fetch(`${api}/execution-checks/${run.id}/cancel`, {method: 'POST'});
-        if (response.ok) applyRun(await response.json() as ApiRun);
+        setRunError('');
+        try { applyRun(await requestJson<ApiRun>(`execution-checks/${run.id}/cancel`, {method: 'POST'})); }
+        catch (error) { setRunError(error instanceof Error ? error.message : '无法停止执行诊断'); }
     };
 
     return <section className="pb-8">
@@ -218,6 +235,7 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                                                                                       aria-hidden="true"/>{t('start')}
             </Button>
         </div>
+        {runError && <p role="alert" className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">{runError}</p>}
 
         <div
             className="mb-5 flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

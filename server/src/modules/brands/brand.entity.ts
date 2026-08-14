@@ -21,6 +21,12 @@ export class BrandEntity extends AuditedEntity {
   @Column({ type: 'text', nullable: true })
   description!: string | null;
 
+  @Column({ type: 'simple-json', nullable: true })
+  questions!: string[] | null;
+
+  @Column({ type: 'text', nullable: true })
+  questionsPrompt!: string | null;
+
   @Column({ default: false })
   isDefault!: boolean;
 
