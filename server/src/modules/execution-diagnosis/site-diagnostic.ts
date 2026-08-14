@@ -14,8 +14,9 @@ export function websiteUnavailableResult(website: string, status?: number, error
   };
 }
 
-export function sitemapLocations(xml: string): string[] {
-  return [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((match) => match[1].trim()).filter((url) => /^https?:\/\//i.test(url));
+export function sitemapLocations(xml: string, limit?: number): string[] {
+  const locations = [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((match) => match[1].trim()).filter((url) => /^https?:\/\//i.test(url));
+  return limit === undefined ? locations : locations.slice(0, limit);
 }
 
 export function inspectHtml(html: string) {

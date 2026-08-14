@@ -27,6 +27,9 @@ export class BrandEntity extends AuditedEntity {
   @Column({ type: 'text', nullable: true })
   questionsPrompt!: string | null;
 
+  @Column({ type: 'integer', nullable: true })
+  sitemapUrlLimit!: number | null;
+
   @Column({ default: false })
   isDefault!: boolean;
 

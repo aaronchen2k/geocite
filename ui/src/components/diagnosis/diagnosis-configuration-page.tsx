@@ -25,7 +25,7 @@ import {Button} from '@/components/ui/button';
 import {requestJson} from '@/lib/api';
 import {useWorkspaceStore} from '@/stores/workspace-store';
 
-type Configuration = { questions: string[]; prompt: string };
+type Configuration = { questions: string[]; prompt: string; sitemapUrlLimit: number };
 type QuestionItem = { id: string; text: string };
 
 const createQuestion = (text = ''): QuestionItem => ({id: crypto.randomUUID(), text});
@@ -58,6 +58,7 @@ export function DiagnosisConfigurationPage(): React.JSX.Element {
     const brand = useWorkspaceStore((state) => state.brands.find((item) => item.id === state.currentBrandId) ?? null);
     const [questions, setQuestions] = useState<QuestionItem[]>([]);
     const [prompt, setPrompt] = useState('');
+    const [sitemapUrlLimit, setSitemapUrlLimit] = useState(10);
     const [generated, setGenerated] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -70,26 +71,33 @@ export function DiagnosisConfigurationPage(): React.JSX.Element {
         setError('');
         if (!brand) {
             setQuestions([]);
+            setSitemapUrlLimit(10);
             return;
         }
         void requestJson<Configuration>(`brands/${brand.id}/diagnosis-questions`).then((configuration) => {
             setQuestions(configuration.questions.map(createQuestion));
             setPrompt(configuration.prompt);
+            setSitemapUrlLimit(configuration.sitemapUrlLimit);
         }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t('loadFailed')));
     }, [brand?.id, t]);
 
     const save = async () => {
         if (!brand) return;
+        if (!Number.isInteger(sitemapUrlLimit) || sitemapUrlLimit < 1 || sitemapUrlLimit > 100) {
+            setError(t('sitemapUrlLimitInvalid'));
+            return;
+        }
         setSaving(true);
         setError('');
         try {
             const configuration = await requestJson<Configuration>(`brands/${brand.id}/diagnosis-questions`, {
                 method: 'PUT',
                 headers: {'content-type': 'application/json'},
-                body: JSON.stringify({questions: questions.map((item) => item.text), prompt})
+                body: JSON.stringify({questions: questions.map((item) => item.text), prompt, sitemapUrlLimit})
             });
             setQuestions(configuration.questions.map(createQuestion));
             setPrompt(configuration.prompt);
+            setSitemapUrlLimit(configuration.sitemapUrlLimit);
             setSaved(true);
         } catch (reason) {
             setError(reason instanceof Error ? reason.message : t('saveFailed'));
@@ -178,6 +186,16 @@ export function DiagnosisConfigurationPage(): React.JSX.Element {
                 className="text-[var(--muted-foreground)]">{t('brandLabel')}</span>{brand?.name ?? t('noBrand')}</div>
             {error && <p role="alert"
                          className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
+            <section className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+                <label className="grid max-w-sm gap-2 text-sm" htmlFor="sitemap-url-limit"><span
+                    className="font-semibold">{t('sitemapUrlLimit')}</span><input id="sitemap-url-limit" type="number"
+                                                                            min={1} max={100} step={1}
+                                                                            disabled={!brand || saving}
+                                                                            className="h-9 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                                                            value={sitemapUrlLimit}
+                                                                            onChange={(event) => setSitemapUrlLimit(Number(event.target.value))}/><span
+                    className="text-xs text-[var(--muted-foreground)]">{t('sitemapUrlLimitDescription')}</span></label>
+            </section>
             <div className="grid items-start gap-5 xl:grid-cols-2">
                 <section className="flex flex-col rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
                     <div className="mb-4 flex items-center justify-between gap-3">

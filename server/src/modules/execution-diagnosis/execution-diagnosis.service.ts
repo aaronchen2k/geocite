@@ -178,7 +178,7 @@ export class ExecutionDiagnosisService {
         try { const page = await fetchPage(`${origin}${path}`, browserUa, signal); context.pages.push(page); await this.savePageEvidence(runId, page); await this.log(runId, number, `${path} 返回 HTTP ${page.status}`); } catch (error) { await this.log(runId, number, `${path} 请求失败`); }
       }
       const sitemap = context.pages.find((page) => page.url.endsWith('/sitemap.xml'));
-      const urls = sitemap?.status === 200 ? sitemapLocations(sitemap.html).slice(0, 10) : [];
+      const urls = sitemap?.status === 200 ? sitemapLocations(sitemap.html, context.brand.sitemapUrlLimit ?? 10) : [];
       for (const url of urls) { try { const page = await fetchPage(url, browserUa, signal); context.pages.push(page); await this.savePageEvidence(runId, page); await this.log(runId, number, `抓取 ${url}：HTTP ${page.status}`); } catch { await this.log(runId, number, `抓取失败：${url}`); } }
       const okPages = context.pages.filter((page) => page.status >= 200 && page.status < 400).length;
       return { conclusion: root.status < 400 ? 'passed' : 'failed', severity: root.status < 400 ? 'info' : 'P0', evidence: { pages: context.pages.map(({ url, status }) => ({ url, status })), okPages }, recommendation: root.status < 400 ? 'continue' : 'restore-site-access' };

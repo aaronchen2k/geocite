@@ -8,6 +8,8 @@ import { parseGeneratedQuestions } from './diagnosis-questions';
 import { completionTokenLimit, temperatureSetting, upstreamErrorMessage } from './model-request';
 import { buildBrandQuestionPrompt } from './brand-question-prompt';
 
+const defaultSitemapUrlLimit = 10;
+
 @Injectable()
 export class DiagnosisConfigurationService {
   constructor(
@@ -15,11 +17,12 @@ export class DiagnosisConfigurationService {
     @InjectRepository(ModelEntity) private readonly models: Repository<ModelEntity>,
   ) {}
 
-  async list(brandId: number) { const brand = await this.brand(brandId); return { questions: brand.questions ?? [], prompt: brand.questionsPrompt ?? buildBrandQuestionPrompt(brand) }; }
-  async save(brandId: number, inputs: string[], prompt?: string) {
+  async list(brandId: number) { const brand = await this.brand(brandId); return { questions: brand.questions ?? [], prompt: brand.questionsPrompt ?? buildBrandQuestionPrompt(brand), sitemapUrlLimit: brand.sitemapUrlLimit ?? defaultSitemapUrlLimit }; }
+  async save(brandId: number, inputs: string[], prompt?: string, sitemapUrlLimit?: number) {
     const brand = await this.brand(brandId);
     brand.questions = normalizeDiagnosisQuestions(inputs);
     if (prompt !== undefined) brand.questionsPrompt = prompt.trim() || null;
+    if (sitemapUrlLimit !== undefined) brand.sitemapUrlLimit = sitemapUrlLimit;
     await this.brands.save(brand);
     return this.list(brandId);
   }
