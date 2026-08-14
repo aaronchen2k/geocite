@@ -187,7 +187,7 @@ export function DiagnosisConfigurationPage(): React.JSX.Element {
             {error && <p role="alert"
                          className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
             <section className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-                <div className="grid items-start gap-3 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]"><label
+                <div className="grid items-start gap-3 text-sm sm:grid-cols-[200px_minmax(280px,420px)]"><label
                     htmlFor="sitemap-url-limit" className="pt-2 font-semibold">{t('sitemapUrlLimit')}</label><div><input
                     id="sitemap-url-limit" type="number" min={1} max={100} step={1} disabled={!brand || saving}
                     className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
