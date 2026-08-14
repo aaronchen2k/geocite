@@ -4,6 +4,7 @@ import {Icon} from '@iconify/react';
 import {useTranslations} from 'next-intl';
 import {useLocale} from 'next-intl';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { Dialog } from 'radix-ui';
 import {Button} from '@/components/ui/button';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { buildApiUrl, logSseRequest, logSseResponse, requestJson } from '@/lib/api';
@@ -46,6 +47,18 @@ function resultText(value: unknown): string {
     if (value === null || value === undefined) return '—';
     if (typeof value === 'object' && 'message' in value && typeof value.message === 'string') return value.message;
     return JSON.stringify(value, null, 2);
+}
+
+function resultImpact(t: Translate, result: ApiStep['result'] | undefined): string {
+    if (!result) return t('noEvents');
+    if (result.conclusion === 'passed') return t('status.succeeded');
+    if (result.conclusion === 'unmeasured') return t('status.unmeasured');
+    return resultText(result.evidence);
+}
+
+function resultRecommendation(t: Translate, recommendation: string): string {
+    const key = `recommendations.${recommendation}`;
+    return t.has(key) ? t(key) : recommendation;
 }
 
 function getSteps(t: Translate): DiagnosticStep[] {
@@ -96,8 +109,8 @@ function getStatusMeta(t: Translate): Record<StepStatus, { label: string; icon: 
     };
 }
 
-export function ExecutionDiagnosisPage(): React.JSX.Element {
-  const t = useTranslations('ExecutionDiagnosis');
+export function DiagnosisExecutionPage(): React.JSX.Element {
+  const t = useTranslations('DiagnosisExecution');
   const locale = useLocale();
     const initialSteps = useMemo(() => getSteps(t), [t]);
     const [steps, setSteps] = useState(initialSteps);
@@ -105,6 +118,9 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
     const [running, setRunning] = useState(false);
     const [run, setRun] = useState<ApiRun | null>(null);
     const [runError, setRunError] = useState('');
+    const [loadingPrevious, setLoadingPrevious] = useState(false);
+    const [resultDialogOpen, setResultDialogOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
     const brand = useWorkspaceStore((state) => state.brands.find((item) => item.id === state.currentBrandId) ?? null);
     const hasBrands = useWorkspaceStore((state) => state.brands.length > 0);
     const source = useRef<EventSource | null>(null);
@@ -129,8 +145,8 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                 conclusion: next.result?.conclusion ?? step.conclusion,
                 severity: next.result?.severity ?? step.severity,
                 evidence: next.result ? resultText(next.result.evidence) : step.evidence,
-                impact: next.result?.conclusion === 'failed' ? resultText(next.result.evidence) : step.impact,
-                recommendation: next.result?.recommendation ?? step.recommendation,
+                impact: resultImpact(t, next.result),
+                recommendation: next.result ? resultRecommendation(t, next.result.recommendation) : step.recommendation,
             };
         }));
     }, [initialSteps, t]);
@@ -158,8 +174,8 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                 conclusion: data.result?.conclusion ?? step.conclusion,
                 severity: data.result?.severity ?? step.severity,
                 evidence: data.result ? resultText(data.result.evidence) : step.evidence,
-                impact: data.result?.conclusion === 'failed' ? resultText(data.result.evidence) : step.impact,
-                recommendation: data.result?.recommendation ?? step.recommendation,
+                impact: resultImpact(t, data.result),
+                recommendation: data.result ? resultRecommendation(t, data.result.recommendation) : step.recommendation,
             } : step));
             const {message, number} = data;
             if (message && number) setSteps((current) => current.map((step) => step.id === number ? {
@@ -212,6 +228,36 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
         try { applyRun(await requestJson<ApiRun>(`execution-checks/${run.id}/cancel`, {method: 'POST'})); }
         catch (error) { setRunError(error instanceof Error ? error.message : '无法停止执行诊断'); }
     };
+    const loadPreviousRun = async () => {
+        if (!brand || running) return;
+        setRunError('');
+        setLoadingPrevious(true);
+        try {
+            const runs = await requestJson<ApiRun[]>(`brands/${brand.id}/execution-checks`);
+            const previous = runs.find((item) => !['queued', 'running'].includes(item.status));
+            if (!previous) {
+                setRunError(t('noCompletedRun'));
+                return;
+            }
+            source.current?.close();
+            if (poller.current) {
+                clearInterval(poller.current);
+                poller.current = null;
+            }
+            applyRun(previous);
+            setSelectedId(1);
+        } catch (error) {
+            setRunError(error instanceof Error ? error.message : t('loadPreviousFailed'));
+        } finally {
+            setLoadingPrevious(false);
+        }
+    };
+    const resultContent = `${String(selectedStep.id).padStart(2, '0')} · ${selectedStep.title}\n\n${t('result.status')}\n${selectedStep.conclusion}\n\n${t('result.severity')}\n${selectedStep.severity}\n\n${t('result.impact')}\n${selectedStep.impact}\n\n${t('result.evidence')}\n${selectedStep.evidence}\n\n${t('result.recommendation')}\n${selectedStep.recommendation}`;
+    const copyResult = async () => {
+        await navigator.clipboard.writeText(selectedStep.evidence);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+    };
 
     return <section className="pb-8">
         <header
@@ -231,9 +277,11 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"><span><span
                 className="text-[var(--muted-foreground)]">{t('brandLabel')}</span>{brand?.name ?? t('brand')}</span><span><span
                 className="text-[var(--muted-foreground)]">{t('scopeLabel')}</span>{t('scope')}</span></div>
-            <Button size="sm" disabled={!brand} onClick={() => void startRun()}><Icon icon="lucide:play"
+            <div className="flex items-center gap-2"><Button size="sm" disabled={!brand || running || loadingPrevious} onClick={() => void startRun()}><Icon icon="lucide:play"
                                                                                       aria-hidden="true"/>{t('start')}
-            </Button>
+            </Button><Button size="sm" variant="outline" disabled={!brand || running || loadingPrevious} onClick={() => void loadPreviousRun()}><Icon icon={loadingPrevious ? 'lucide:loader-circle' : 'lucide:history'} className={loadingPrevious ? 'animate-spin' : undefined}
+                                                                                      aria-hidden="true"/>{t('usePrevious')}
+            </Button></div>
         </div>
         {runError && <p role="alert" className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">{runError}</p>}
 
@@ -282,14 +330,14 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
                     <p className="mb-4 text-sm leading-6 text-[var(--muted-foreground)]">{selectedStep.detail}</p>
                     <div className="rounded-md bg-[var(--muted)] p-3"><p
                         className="mb-2 text-xs font-medium text-[var(--muted-foreground)]">{t('liveEvents')}</p>{selectedStep.events.length ?
-                        <ul className="space-y-2">{selectedStep.events.map((event) => <li key={event}
+                        <ul className="space-y-2">{selectedStep.events.map((event, index) => <li key={`${selectedStep.id}-${index}`}
                                                                                           className="flex gap-2 text-xs leading-5">
                             <Icon icon="lucide:dot" className="mt-0.5 size-3 shrink-0 text-[var(--muted-foreground)]"
                                   aria-hidden="true"/>{event}</li>)}</ul> :
                         <p className="text-xs text-[var(--muted-foreground)]">{t('noEvents')}</p>}</div>
                 </div>
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><h2
-                    className="mb-4 text-sm font-semibold">{t('stepResult')}</h2>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><div className="mb-4 flex items-center justify-between gap-3"><h2
+                    className="text-sm font-semibold">{t('stepResult')}</h2><div className="flex items-center gap-1"><Button size="icon" variant="ghost" aria-label={t('copyResult')} title={t('copyResult')} onClick={() => void copyResult()}><Icon icon={copied ? 'lucide:check' : 'lucide:copy'} aria-hidden="true" /></Button><Button size="icon" variant="ghost" aria-label={t('fullscreenResult')} title={t('fullscreenResult')} onClick={() => setResultDialogOpen(true)}><Icon icon="lucide:maximize-2" aria-hidden="true" /></Button></div></div>
                     <dl className="grid gap-x-5 gap-y-4 sm:grid-cols-2"><ResultItem label={t('result.status')}
                                                                                     value={selectedStep.conclusion}/><ResultItem
                         label={t('result.severity')} value={selectedStep.severity}/><ResultItem
@@ -312,6 +360,7 @@ export function ExecutionDiagnosisPage(): React.JSX.Element {
             </div>
             <div className="text-sm text-[var(--muted-foreground)]">{t('history')}</div>
         </div>
+        <Dialog.Root open={resultDialogOpen} onOpenChange={setResultDialogOpen}><Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-50 bg-black/50"/><Dialog.Content className="fixed inset-4 z-50 flex flex-col rounded-lg border border-[var(--border)] bg-[var(--card)] p-5 shadow-lg outline-none"><div className="mb-4 flex items-center justify-between gap-4"><Dialog.Title className="text-base font-semibold">{String(selectedStep.id).padStart(2, '0')} · {selectedStep.title}</Dialog.Title><Dialog.Close asChild><Button size="icon" variant="ghost" aria-label={t('close')}><Icon icon="lucide:x" aria-hidden="true"/></Button></Dialog.Close></div><pre className="scroll-area min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--muted)] p-4 text-sm leading-6 text-[var(--foreground)]">{resultContent}</pre></Dialog.Content></Dialog.Portal></Dialog.Root>
     </section>;
 }
 

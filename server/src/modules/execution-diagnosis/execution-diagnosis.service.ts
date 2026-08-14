@@ -11,6 +11,7 @@ import { getExecutionDiagnosisLogger } from '../../logging/pino-logger';
 import { ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionRunStatus } from './execution-diagnosis.entity';
 import { fetchPage, inspectHtml, sitemapLocations, websiteUnavailableResult, type FetchedPage } from './site-diagnostic';
 import { toPageEvidence, toProbeEvidence, toSampleEvidence } from './evidence-records';
+import { EngineSamplingClient } from './engine-sampling-client';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']>;
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
@@ -22,6 +23,7 @@ export class ExecutionDiagnosisService {
   private readonly streams = new Map<number, Subject<MessageEvent>>();
   private readonly controllers = new Map<number, AbortController>();
   private readonly contexts = new Map<number, RunContext>();
+  private readonly engineSamplingClient = new EngineSamplingClient();
 
   constructor(
     @InjectRepository(BrandEntity) private readonly brands: Repository<BrandEntity>,
@@ -226,21 +228,35 @@ export class ExecutionDiagnosisService {
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
     const sampled: Array<Record<string, unknown>> = [];
     for (const engine of eligible) {
-      const prompt = `请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n${questions.map((item, index) => `${index + 1}. ${item}`).join('\n')}`;
-      if (!engine.baseUrl || !engine.modelName || !engine.apiKey) { await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, prompt, null, '', 'engine-config-incomplete'))); sampled.push({ id: engine.id, name: engine.name, status: 'skipped', reason: 'engine-config-incomplete' }); continue; }
-      await this.log(runId, 5, `向 ${engine.name} 发起品牌问答采样`);
-      try {
-        const timeout = AbortSignal.timeout(45_000);
-        const response = await fetch(`${engine.baseUrl.replace(/\/$/, '')}/chat/completions`, { method: 'POST', signal: signal ? AbortSignal.any([signal, timeout]) : timeout, headers: { 'content-type': 'application/json', authorization: `Bearer ${engine.apiKey}` }, body: JSON.stringify({ model: engine.modelName, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 400 }) });
-        const body = await response.json().catch(() => ({})) as { choices?: Array<{ message?: { content?: string } }> };
-        const answer = body.choices?.[0]?.message?.content ?? '';
-        await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, prompt, response.status, answer, response.ok ? null : 'engine-request-failed')));
-        sampled.push({ id: engine.id, name: engine.name, status: response.ok ? 'sampled' : 'failed', httpStatus: response.status, answerExcerpt: answer.slice(0, 500) });
-        await this.log(runId, 5, `${engine.name} 返回 HTTP ${response.status}`);
-      } catch (error) { const reason = error instanceof Error ? error.message : 'request-failed'; await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, prompt, null, '', reason))); sampled.push({ id: engine.id, name: engine.name, status: 'failed', reason }); await this.log(runId, 5, `${engine.name} 采样失败`); }
+      const results: Array<Record<string, unknown>> = [];
+      for (const question of questions) {
+        const prompt = `请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n问题：${question}`;
+        if (!engine.baseUrl || !engine.modelName || !engine.apiKey) {
+          await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, question, prompt, null, '', 'engine-config-incomplete')));
+          results.push({ question, status: 'skipped', reason: 'engine-config-incomplete' });
+          continue;
+        }
+        const nativeWebSearch = engine.webSearchEnabled === true;
+        await this.log(runId, 5, `向 ${engine.name} 发起${nativeWebSearch ? '原生联网' : ''}问题采样：${question}`);
+        try {
+          const response = await this.engineSamplingClient.sample(engine, prompt, { nativeWebSearch, signal });
+          await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, question, prompt, response.statusCode, response.answer, response.error, { adapter: response.adapter, nativeWebSearch: response.nativeWebSearch })));
+          results.push({ question, status: response.error ? 'failed' : 'sampled', httpStatus: response.statusCode, answerExcerpt: response.answer.slice(0, 500), adapter: response.adapter, nativeWebSearch: response.nativeWebSearch });
+          await this.log(runId, 5, `${engine.name} 的问题采样返回 HTTP ${response.statusCode}${nativeWebSearch && !response.nativeWebSearch ? '（该引擎暂未支持原生联网）' : ''}`);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : 'request-failed';
+          await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, question, prompt, null, '', reason)));
+          results.push({ question, status: 'failed', reason });
+          await this.log(runId, 5, `${engine.name} 的问题采样失败：${question}`);
+        }
+      }
+      const succeeded = results.filter((item) => item.status === 'sampled').length;
+      const failed = results.filter((item) => item.status === 'failed').length;
+      sampled.push({ id: engine.id, name: engine.name, status: succeeded ? 'sampled' : failed ? 'failed' : 'skipped', totalQuestions: questions.length, succeeded, failed, skipped: questions.length - succeeded - failed, questions: results });
     }
-    const succeeded = sampled.filter((item) => item.status === 'sampled').length;
-    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
+    const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
+    const total = eligible.length * questions.length;
+    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
   }
   private async savePageEvidence(runId: number, page: FetchedPage) { await this.pagesRepository.save(this.pagesRepository.create(toPageEvidence(runId, page))); }
   private async log(runId: number, number: number, message: string) { await this.publish(runId, 'log', { number, message }); const run = await this.getRun(runId); (await this.runLogger(run)).info({ step: number }, message); }

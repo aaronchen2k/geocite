@@ -11,8 +11,8 @@ const scoreCards = [
   { key: 'channels', icon: 'lucide:map', tone: 'text-violet-600 dark:text-violet-400', value: '6', delta: '覆盖渠道' },
 ];
 
-export function DiagnosisInsightsPage(): React.JSX.Element {
-  const t = useTranslations('DiagnosisInsights');
+export function DiagnosisReportPage(): React.JSX.Element {
+  const t = useTranslations('DiagnosisReport');
   const brand = useWorkspaceStore((state) => state.brands.find((item) => item.id === state.currentBrandId) ?? null);
   return <section className="pb-8">
     <header className="mb-6 border-b border-[var(--border)] pb-4"><h1 className="mb-2 text-[22px] font-semibold">{t('title')}</h1><p className="text-sm leading-6 text-[var(--muted-foreground)]">{t('description')}</p></header>

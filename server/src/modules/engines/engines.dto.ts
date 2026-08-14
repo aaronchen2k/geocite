@@ -9,6 +9,7 @@ export class CreateEngineDto {
   @IsOptional() @IsString() modelName?: string;
   @IsOptional() @IsString() baseUrl?: string;
   @IsOptional() @IsString() apiKey?: string;
+  @IsOptional() @IsBoolean() webSearchEnabled?: boolean;
   @IsOptional() @IsBoolean() disabled?: boolean;
 }
 export class UpdateEngineDto extends CreateEngineDto {}

@@ -23,10 +23,9 @@
     "competitorComparison": "竞品对比",
     "assetAudit": "资产审计",
     "channelMap": "渠道地图",
-    "comprehensiveReport": "综合报告",
-    "diagnosisConfiguration": "配置诊断",
-    "diagnosisInsights": "诊断洞察",
-    "executionDiagnosis": "执行诊断",
+    "diagnosisConfiguration": "诊断配置",
+    "diagnosisReport": "诊断报告",
+    "diagnosisExecution": "诊断执行",
     "improvement": "提升",
     "optimizationWorkOrders": "优化工单",
     "keywordMatrix": "破局矩阵",
@@ -66,12 +65,8 @@
       "title": "渠道地图",
       "description": "查看影响渠道。"
     },
-    "comprehensiveReport": {
-      "title": "综合报告",
-      "description": "汇总诊断结果。"
-    },
-    "executionDiagnosis": {
-      "title": "执行诊断",
+    "diagnosisExecution": {
+      "title": "诊断执行",
       "description": "验证已执行的优化是否真实生效。"
     },
     "optimizationWorkOrders": {
@@ -116,10 +111,11 @@
     },
     "placeholder": "此功能页面已准备就绪，后续 GEO 数据将在此呈现。"
   },
-  "ExecutionDiagnosis": {
-    "title": "执行诊断", "sampleData": "示例数据", "description": "验证已执行的优化是否对站点可访问性、内容可引用性和 AI 可见性产生结果。", "lastSuccess": "最近成功：{time}", "noCompletedRun": "暂无已完成运行", "notExecuted": "未执行", "completedRun": "运行已完成 · 可查看本次结果", "brandLabel": "品牌：", "brand": "乐堡论文", "scopeLabel": "范围：", "scope": "全部站点与已配置引擎", "start": "开始执行", "usePrevious": "使用上次数据", "stop": "停止检测", "runProgress": "运行中 · {completed} / 7 步完成 · 02:14", "stoppedRun": "示例运行已停止 · 已保留已采集证据", "stopped": "已停止", "stoppedDetail": "检测已由用户停止，保留当前已采集的证据。", "fromSnapshot": "来自快照", "snapshotDetail": "已加载最近成功运行的已保存结果。", "stepQueue": "步骤队列", "currentOperation": "当前操作", "liveEvents": "实时事件", "noEvents": "此步骤尚未开始，暂无事件。", "stepResult": "本步骤结果", "summary": "检测摘要", "summaryPassed": "通过 {count}", "summaryFailed": "未达标 {count}", "summaryManual": "待人工 {count}", "summaryUnmeasured": "未测 {count}", "history": "历史运行：今天 10:24（17 / 3 / 2 / 1） · 8 月 5 日（15 / 4 / 1 / 2）",
+  "DiagnosisExecution": {
+    "title": "诊断执行", "sampleData": "示例数据", "description": "验证已执行的优化是否对站点可访问性、内容可引用性和 AI 可见性产生结果。", "lastSuccess": "最近成功：{time}", "noCompletedRun": "暂无已完成运行", "notExecuted": "未执行", "completedRun": "运行已完成 · 可查看本次结果", "brandLabel": "品牌：", "brand": "乐堡论文", "scopeLabel": "范围：", "scope": "全部站点与已配置引擎", "start": "开始执行", "usePrevious": "加载上次执行", "loadPreviousFailed": "加载上次执行失败。", "stop": "停止检测", "runProgress": "运行中 · {completed} / 7 步完成 · 02:14", "stoppedRun": "示例运行已停止 · 已保留已采集证据", "stopped": "已停止", "stoppedDetail": "检测已由用户停止，保留当前已采集的证据。", "fromSnapshot": "来自快照", "snapshotDetail": "已加载最近成功运行的已保存结果。", "stepQueue": "步骤队列", "currentOperation": "当前操作", "liveEvents": "实时事件", "noEvents": "此步骤尚未开始，暂无事件。", "stepResult": "本步骤结果", "copyResult": "复制结果", "fullscreenResult": "全屏查看结果", "close": "关闭", "summary": "检测摘要", "summaryPassed": "通过 {count}", "summaryFailed": "未达标 {count}", "summaryManual": "待人工 {count}", "summaryUnmeasured": "未测 {count}", "history": "历史运行：今天 10:24（17 / 3 / 2 / 1） · 8 月 5 日（15 / 4 / 1 / 2）",
     "status": {"succeeded": "已完成", "running": "运行中", "pending": "待执行", "failed": "失败", "unmeasured": "未测", "cancelled": "已停止", "skipped": "已跳过"},
     "result": {"status": "状态", "severity": "严重度", "impact": "影响", "evidence": "证据", "recommendation": "建议"},
+    "recommendations": {"continue": "继续执行下一步诊断。", "configure-brand-website": "请在品牌管理中补充可访问的官网地址。", "restore-site-access": "恢复站点访问后，再重新执行诊断。", "allow-approved-ai-crawlers": "在 CDN 或 WAF 中放行已授权的 AI 爬虫 User-Agent。", "review-findings": "查看页面与内容体检发现，并安排优化。", "complete-site-crawl": "先完成站点内容抓取，再进行内容体检。", "configure-diagnosis-questions": "请先在诊断配置中保存品牌问题。", "configure-authorized-engine": "请为品牌关联已启用且已配置 API Key 的诊断引擎。", "review-samples": "查看各引擎对每个问题的采样回答与证据。", "verify-engine-configuration": "检查诊断引擎的接口地址、模型名称和 API Key。", "review-delta": "查看本次结果与历史基线之间的差异。", "use-this-run-as-baseline": "本次运行将作为后续诊断的对比基线。", "review-diagnosis-summary": "查看本次诊断汇总与关联发现。", "review-step-error": "查看步骤错误详情后重新执行诊断。"},
     "steps": {
       "1": {"title": "读取上次基线", "detail": "读取最近一次诊断快照和规则版本，建立本次诊断的对比基线。", "duration": "0.2 秒", "conclusion": "已建立可比较基线", "severity": "信息", "impact": "本次可比较 20 项检查规则", "evidence": "基线 RUN-20260812-1024，规则版本 v2.4", "recommendation": "本次运行将基于该快照计算变化。", "events": ["10:26:01 读取最近成功运行", "10:26:01 加载 20 项检查规则", "10:26:02 基线准备完成"]},
       "2": {"title": "抓取网站内容", "detail": "抓取入口页、robots.txt、sitemap 与站内关联页面，整理站点诊断证据。", "duration": "18 秒", "conclusion": "站点证据已刷新", "severity": "信息", "impact": "42 / 44 个页面抓取成功", "evidence": "sitemap.xml 可访问；2 个旧活动页返回 404", "recommendation": "将失效活动页重定向至对应的常青内容。", "events": ["10:26:03 请求 https://aurora-beauty.example", "10:26:11 读取 robots.txt 与 sitemap.xml", "10:26:21 保存 42 条页面证据"]},
@@ -143,11 +139,13 @@
     "empty": "暂未配置问题。",
     "save": "保存问题",
     "saving": "保存中",
+    "saved": "保存成功",
     "saveFailed": "保存问题失败。",
     "loadFailed": "加载品牌问题失败。",
     "generateTitle": "让 AI 生成问题",
     "generateDescription": "让大模型协助生成品牌问题，勾选后加入问题列表。",
     "prompt": "补充提示词",
+    "resetPrompt": "重置",
     "promptPlaceholder": "例如：重点覆盖论文服务选择、可信度与价格相关问题。",
     "generate": "生成候选问题",
     "generating": "生成中",
@@ -158,8 +156,8 @@
     "deselectAll": "全不选",
     "suggestionHint": "勾选候选问题会加入左侧列表；取消勾选会从列表移除。保存后才会用于下一次执行诊断。"
   },
-  "DiagnosisInsights": {
-    "title": "诊断洞察",
+  "DiagnosisReport": {
+    "title": "诊断报告",
     "description": "将引用表现、竞品差距、内容资产和渠道覆盖汇总为一页，便于确定下一步优先级。",
     "brandLabel": "品牌：",
     "noBrand": "示例 Brand",
@@ -174,16 +172,6 @@
     "channelTitle": "渠道覆盖",
     "covered": "已覆盖",
     "gap": "待建设"
-  },
-  "ComprehensiveReport": {
-    "title": "综合报告",
-    "description": "汇总诊断结果。",
-    "brandLabel": "品牌：",
-    "noBrand": "暂无 Brand",
-    "scopeLabel": "范围：",
-    "scope": "全部诊断结果",
-    "viewHistory": "翻看历史",
-    "placeholder": "当前综合报告将在此呈现。"
   },
   "Management": {
     "brands": {
@@ -217,6 +205,7 @@
     "provider": "提供商",
     "baseUrl": "基础地址",
     "apiKey": "API Key",
+    "nativeWebSearch": "启用原生联网搜索",
     "diagnosticEngines": "诊断引擎",
     "brandId": "Brand ID",
     "modelId": "Model ID",

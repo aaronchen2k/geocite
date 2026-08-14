@@ -23,10 +23,9 @@
     "competitorComparison": "Competitor comparison",
     "assetAudit": "Asset audit",
     "channelMap": "Channel map",
-    "comprehensiveReport": "Comprehensive report",
-    "diagnosisConfiguration": "Configure diagnosis",
-    "diagnosisInsights": "Diagnosis insights",
-    "executionDiagnosis": "Execution diagnosis",
+    "diagnosisConfiguration": "Diagnosis configuration",
+    "diagnosisReport": "Diagnosis report",
+    "diagnosisExecution": "Diagnosis execution",
     "improvement": "Improve",
     "optimizationWorkOrders": "Optimization work orders",
     "keywordMatrix": "Breakthrough matrix",
@@ -66,12 +65,8 @@
       "title": "Channel map",
       "description": "Review influential channels."
     },
-    "comprehensiveReport": {
-      "title": "Comprehensive report",
-      "description": "Summarize diagnostic results."
-    },
-    "executionDiagnosis": {
-      "title": "Execution diagnosis",
+    "diagnosisExecution": {
+      "title": "Diagnosis execution",
       "description": "Verify whether completed optimization work has taken effect."
     },
     "optimizationWorkOrders": {
@@ -116,10 +111,11 @@
     },
     "placeholder": "This page is ready. GEO data will be presented here."
   },
-  "ExecutionDiagnosis": {
-    "title": "Execution diagnosis", "sampleData": "Sample data", "description": "Verify whether completed optimization work has improved site accessibility, citation readiness, and AI visibility.", "lastSuccess": "Last successful run: {time}", "noCompletedRun": "No completed run yet", "notExecuted": "Not run", "completedRun": "Run complete · View this run's results", "brandLabel": "Brand: ", "brand": "Lepao Thesis", "scopeLabel": "Scope: ", "scope": "Entire site and configured engines", "start": "Start run", "usePrevious": "Use previous data", "stop": "Stop check", "runProgress": "Running · {completed} / 7 steps complete · 02:14", "stoppedRun": "Sample run stopped · Collected evidence has been retained", "stopped": "Stopped", "stoppedDetail": "The check was stopped by the user; collected evidence has been retained.", "fromSnapshot": "From snapshot", "snapshotDetail": "Loaded saved results from the latest successful run.", "stepQueue": "Step queue", "currentOperation": "Current operation", "liveEvents": "Live events", "noEvents": "This step has not started yet.", "stepResult": "Step result", "summary": "Check summary", "summaryPassed": "Passed {count}", "summaryFailed": "Failed {count}", "summaryManual": "Manual review {count}", "summaryUnmeasured": "Unmeasured {count}", "history": "Run history: Today 10:24 (17 / 3 / 2 / 1) · Aug 5 (15 / 4 / 1 / 2)",
+  "DiagnosisExecution": {
+    "title": "Diagnosis execution", "sampleData": "Sample data", "description": "Verify whether completed optimization work has improved site accessibility, citation readiness, and AI visibility.", "lastSuccess": "Last successful run: {time}", "noCompletedRun": "No completed run yet", "notExecuted": "Not run", "completedRun": "Run complete · View this run's results", "brandLabel": "Brand: ", "brand": "Lepao Thesis", "scopeLabel": "Scope: ", "scope": "Entire site and configured engines", "start": "Start run", "usePrevious": "Load previous run", "loadPreviousFailed": "Failed to load the previous run.", "stop": "Stop check", "runProgress": "Running · {completed} / 7 steps complete · 02:14", "stoppedRun": "Sample run stopped · Collected evidence has been retained", "stopped": "Stopped", "stoppedDetail": "The check was stopped by the user; collected evidence has been retained.", "fromSnapshot": "From snapshot", "snapshotDetail": "Loaded saved results from the latest successful run.", "stepQueue": "Step queue", "currentOperation": "Current operation", "liveEvents": "Live events", "noEvents": "This step has not started yet.", "stepResult": "Step result", "copyResult": "Copy result", "fullscreenResult": "View result fullscreen", "close": "Close", "summary": "Check summary", "summaryPassed": "Passed {count}", "summaryFailed": "Failed {count}", "summaryManual": "Manual review {count}", "summaryUnmeasured": "Unmeasured {count}", "history": "Run history: Today 10:24 (17 / 3 / 2 / 1) · Aug 5 (15 / 4 / 1 / 2)",
     "status": {"succeeded": "Complete", "running": "Running", "pending": "Pending", "failed": "Failed", "unmeasured": "Unmeasured", "cancelled": "Stopped", "skipped": "Skipped"},
     "result": {"status": "Status", "severity": "Severity", "impact": "Impact", "evidence": "Evidence", "recommendation": "Recommendation"},
+    "recommendations": {"continue": "Continue to the next diagnostic step.", "configure-brand-website": "Add an accessible website URL in Brand management.", "restore-site-access": "Restore site access, then run the diagnosis again.", "allow-approved-ai-crawlers": "Allow approved AI crawler user agents in the CDN or WAF.", "review-findings": "Review page and content findings, then plan improvements.", "complete-site-crawl": "Complete the site crawl before auditing content.", "configure-diagnosis-questions": "Save brand questions in Diagnosis configuration first.", "configure-authorized-engine": "Associate an enabled diagnostic engine with a configured API key.", "review-samples": "Review sampled answers and evidence for every engine and question.", "verify-engine-configuration": "Check the diagnostic engine base URL, model name, and API key.", "review-delta": "Review differences between this run and the historical baseline.", "use-this-run-as-baseline": "Use this run as the baseline for future diagnoses.", "review-diagnosis-summary": "Review this diagnosis summary and related findings.", "review-step-error": "Review the step error details, then run the diagnosis again."},
     "steps": {
       "1": {"title": "Load previous baseline", "detail": "Read the latest diagnostic snapshot and rule version to establish this run's comparison baseline.", "duration": "0.2 sec", "conclusion": "Comparable baseline established", "severity": "Info", "impact": "20 rules are comparable in this run", "evidence": "Baseline RUN-20260812-1024, rule version v2.4", "recommendation": "This run will calculate changes against this snapshot.", "events": ["10:26:01 Read the latest successful run", "10:26:01 Load 20 check rules", "10:26:02 Baseline ready"]},
       "2": {"title": "Recrawl site evidence", "detail": "Crawl the entry page, robots.txt, sitemap, and linked site pages to collect diagnostic evidence.", "duration": "18 sec", "conclusion": "Site evidence refreshed", "severity": "Info", "impact": "42 / 44 pages crawled successfully", "evidence": "sitemap.xml is available; 2 legacy campaign pages returned 404", "recommendation": "Redirect retired campaign pages to the corresponding evergreen content.", "events": ["10:26:03 Request https://aurora-beauty.example", "10:26:11 Read robots.txt and sitemap.xml", "10:26:21 Save 42 page evidence records"]},
@@ -143,11 +139,13 @@
     "empty": "No questions configured yet.",
     "save": "Save questions",
     "saving": "Saving",
+    "saved": "Saved successfully",
     "saveFailed": "Failed to save questions.",
     "loadFailed": "Failed to load brand questions.",
     "generateTitle": "Generate questions with AI",
     "generateDescription": "The system sends the brand name, industry, description, and your extra instructions to the default model. Select candidates before saving them.",
     "prompt": "Additional prompt",
+    "resetPrompt": "Reset",
     "promptPlaceholder": "For example: focus on service selection, credibility, and pricing.",
     "generate": "Generate candidates",
     "generating": "Generating",
@@ -158,8 +156,8 @@
     "deselectAll": "Clear all",
     "suggestionHint": "Select a candidate to add it to the list on the left, or clear it to remove it. Save before it is used in the next diagnosis."
   },
-  "DiagnosisInsights": {
-    "title": "Diagnosis insights",
+  "DiagnosisReport": {
+    "title": "Diagnosis report",
     "description": "Bring citation performance, competitor gaps, content assets, and channel coverage into one page to set the next priority.",
     "brandLabel": "Brand: ",
     "noBrand": "Sample Brand",
@@ -174,16 +172,6 @@
     "channelTitle": "Channel coverage",
     "covered": "Covered",
     "gap": "To build"
-  },
-  "ComprehensiveReport": {
-    "title": "Comprehensive report",
-    "description": "Summarize diagnostic results.",
-    "brandLabel": "Brand: ",
-    "noBrand": "No Brand",
-    "scopeLabel": "Scope: ",
-    "scope": "All diagnostic results",
-    "viewHistory": "View history",
-    "placeholder": "The current comprehensive report will be shown here."
   },
   "Management": {
     "brands": {
@@ -217,6 +205,7 @@
     "provider": "Provider",
     "baseUrl": "Base URL",
     "apiKey": "API key",
+    "nativeWebSearch": "Enable native web search",
     "diagnosticEngines": "Diagnostic engines",
     "brandId": "Brand ID",
     "modelId": "Model ID",

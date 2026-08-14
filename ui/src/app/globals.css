@@ -11,6 +11,13 @@
 @media (prefers-reduced-motion: no-preference) { .scroll-area::-webkit-scrollbar-thumb { transition: background-color 160ms ease-out; } }
 .scrollbar-hide { scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+.diagnosis-toast { border-color: oklch(.72 .15 155); background: oklch(.96 .04 155); color: oklch(.29 .07 155); box-shadow: 0 6px 8px rgb(0 0 0 / .14); }
+.dark .diagnosis-toast { border-color: oklch(.66 .14 155); background: oklch(.27 .06 155); color: oklch(.93 .04 155); }
+.diagnosis-toast[data-state="open"] { animation: diagnosis-toast-enter 200ms cubic-bezier(.16, 1, .3, 1); }
+.diagnosis-toast[data-state="closed"] { animation: diagnosis-toast-exit 220ms ease-in; }
+@keyframes diagnosis-toast-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes diagnosis-toast-exit { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-16px); } }
+@media (prefers-reduced-motion: reduce) { .diagnosis-toast[data-state] { animation: none; } }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .brand-picker { color: var(--foreground); }
 .theme-toggle { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 7px; color: var(--foreground); background: var(--card); }

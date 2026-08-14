@@ -11,6 +11,7 @@ export class EngineEntity extends AuditedEntity {
   @Column({ nullable: true }) modelName!: string | null;
   @Column({ type: 'text', nullable: true }) baseUrl!: string | null;
   @Column({ type: 'text', nullable: true }) apiKey!: string | null;
+  @Column({ default: false }) webSearchEnabled!: boolean;
   @Column({ default: false }) disabled!: boolean;
   @Column({ default: 0 }) ordr!: number;
 }

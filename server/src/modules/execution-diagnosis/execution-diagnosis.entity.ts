@@ -76,9 +76,12 @@ export class ExecutionDiagnosisSampleEntity {
   @Column({ name: 'engine_code' }) engineCode!: string;
   @Column({ name: 'model_name', nullable: true }) modelName!: string | null;
   @Column({ name: 'base_url', type: 'text', nullable: true }) baseUrl!: string | null;
+  @Column({ type: 'text', nullable: true }) question!: string | null;
   @Column({ type: 'text' }) prompt!: string;
   @Column({ type: 'text' }) answer!: string;
   @Column({ name: 'status_code', nullable: true }) statusCode!: number | null;
+  @Column({ type: 'text', nullable: true }) adapter!: string | null;
+  @Column({ name: 'native_web_search', default: false }) nativeWebSearch!: boolean;
   @Column({ type: 'text', nullable: true }) error!: string | null;
   @CreateDateColumn({ name: 'sampled_at', type: 'datetime' }) sampledAt!: Date;
 }

@@ -9,6 +9,6 @@ export function toProbeEvidence(runId: number, userAgent: string, url: string, s
   return { runId, userAgent, url, statusCode };
 }
 
-export function toSampleEvidence(runId: number, engine: Pick<EngineEntity, 'id' | 'name' | 'code' | 'modelName' | 'baseUrl' | 'apiKey' | 'disabled'>, prompt: string, statusCode: number | null, answer: string, error: string | null = null) {
-  return { runId, engineId: engine.id, engineName: engine.name, engineCode: engine.code, modelName: engine.modelName, baseUrl: engine.baseUrl, prompt, answer, statusCode, error };
+export function toSampleEvidence(runId: number, engine: Pick<EngineEntity, 'id' | 'name' | 'code' | 'modelName' | 'baseUrl' | 'apiKey' | 'disabled'>, question: string, prompt: string, statusCode: number | null, answer: string, error: string | null = null, metadata: { adapter?: string; nativeWebSearch?: boolean } = {}) {
+  return { runId, engineId: engine.id, engineName: engine.name, engineCode: engine.code, modelName: engine.modelName, baseUrl: engine.baseUrl, question, prompt, answer, statusCode, error, adapter: metadata.adapter ?? null, nativeWebSearch: metadata.nativeWebSearch ?? false };
 }
