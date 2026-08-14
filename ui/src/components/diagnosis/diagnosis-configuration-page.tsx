@@ -187,14 +187,12 @@ export function DiagnosisConfigurationPage(): React.JSX.Element {
             {error && <p role="alert"
                          className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
             <section className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-                <label className="grid max-w-sm gap-2 text-sm" htmlFor="sitemap-url-limit"><span
-                    className="font-semibold">{t('sitemapUrlLimit')}</span><input id="sitemap-url-limit" type="number"
-                                                                            min={1} max={100} step={1}
-                                                                            disabled={!brand || saving}
-                                                                            className="h-9 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                                                                            value={sitemapUrlLimit}
-                                                                            onChange={(event) => setSitemapUrlLimit(Number(event.target.value))}/><span
-                    className="text-xs text-[var(--muted-foreground)]">{t('sitemapUrlLimitDescription')}</span></label>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"><label htmlFor="sitemap-url-limit"
+                                                                                       className="font-semibold">{t('sitemapUrlLimit')}</label><input
+                    id="sitemap-url-limit" type="number" min={1} max={100} step={1} disabled={!brand || saving}
+                    className="h-9 w-24 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    value={sitemapUrlLimit} onChange={(event) => setSitemapUrlLimit(Number(event.target.value))}/></div>
+                <p className="mt-2 text-xs text-[var(--muted-foreground)]">{t('sitemapUrlLimitDescription')}</p>
             </section>
             <div className="grid items-start gap-5 xl:grid-cols-2">
                 <section className="flex flex-col rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
