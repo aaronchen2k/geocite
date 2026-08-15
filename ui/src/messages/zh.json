@@ -72,7 +72,7 @@
     "loadFailed": "加载基础配置失败。",
     "saveFailed": "保存基础配置失败。"
   },
-  "Competitors": {"title":"竞品品牌","description":"维护当前品牌参与诊断和比较的竞品。","noBrand":"请先在顶部选择 Brand。","add":"新增竞品","name":"名称","aliases":"别名","aliasesHint":"每行一个别名","market":"市场","status":"状态","enabled":"已启用","disabled":"已停用","enable":"启用","disable":"停用","empty":"暂未配置竞品品牌。"},
+  "Competitors": {"title":"竞品品牌","description":"维护当前品牌参与诊断和比较的竞品。","noBrand":"请先在顶部选择 Brand。","add":"新增竞品","edit":"编辑","editTitle":"编辑竞品","cancel":"取消","save":"保存修改","name":"名称","aliases":"别名","aliasesHint":"每行一个别名","market":"市场","marketPlaceholder":"选择市场","marketCn":"国内","marketGlobal":"海外","marketBoth":"通用（国内和海外）","status":"状态","enabled":"已启用","disabled":"已停用","enable":"启用","disable":"停用","empty":"暂未配置竞品品牌。"},
   "BrandFacts": {"title":"事实库","description":"沉淀诊断提取并可人工校正的品牌事实。","noBrand":"请先在顶部选择 Brand。","emptyTitle":"尚未沉淀品牌事实","emptyDescription":"完成首次诊断后系统会自动生成候选事实；首期暂不支持手动新增。","add":"新增事实"},
   "ProblemSummary": {"title":"问题总结","description":"按检索问题汇总诊断中的差距与关联证据。","emptyTitle":"暂无可总结的问题诊断结果","emptyDescription":"完成首次诊断后，这里会按品牌问题呈现可追溯的诊断结论。","action":"发起诊断"},
   "PositioningMap": {"title":"阵地地图","description":"根据诊断结果识别品牌与竞品的主题占位。","emptyTitle":"等待首份诊断结果","emptyDescription":"完成诊断并配置品牌问题与启用竞品后，这里将生成阵地地图。","action":"发起诊断"},
@@ -195,7 +195,7 @@
     "deselectAll": "全不选",
     "suggestionHint": "勾选候选问题会加入左侧列表；取消勾选会从列表移除。保存后才会用于下一次执行诊断。"
   },
-  "QuestionBank": {"title":"检索问题","description":"问题库决定诊断采样什么、后续分析什么。每题固定类别与市场；品牌验证题单独标记，不混入可见性指标。","noBrand":"请先在顶部选择 Brand。","count":"当前 {count} 个问题","groupCount":"{count} 题","groupHint":"点击筛选该类别","probeHint":"点名题不计入提及率","question":"问题","group":"类别","market":"市场","probe":"品牌验证","cn":"中国市场","global":"海外市场","both":"通用市场","add":"添加问题","remove":"移除问题","empty":"当前筛选条件下没有问题。","save":"保存问题库","saving":"保存中","saved":"问题库已保存。","loadFailed":"加载问题库失败。","saveFailed":"保存问题库失败。","generateTitle":"AI 补充选题","generateDescription":"根据当前品牌资料生成候选问题；确认加入后才会进入问题库。","generate":"生成候选题","generateFailed":"生成候选题失败。","prompt":"补充提示词","promptPlaceholder":"例如：补充高意图的价格、比较和替代问题。"},
+  "QuestionBank": {"title":"检索问题","description":"问题库决定诊断采样什么、后续分析什么。每题固定类别与市场；品牌验证题单独标记，不混入可见性指标。","noBrand":"请先在顶部选择 Brand。","count":"当前 {count} 个问题","groupCount":"{count} 题","groupHint":"点击筛选该类别","probeHint":"点名题不计入提及率","question":"问题","group":"类别","market":"市场","marketPlaceholder":"选择市场","marketCn":"国内","marketGlobal":"海外","marketBoth":"通用（国内和海外）","probe":"品牌验证","cn":"中国市场","global":"海外市场","both":"通用市场","add":"添加问题","remove":"移除问题","empty":"当前筛选条件下没有问题。","save":"保存问题库","saving":"保存中","saved":"问题库已保存。","loadFailed":"加载问题库失败。","saveFailed":"保存问题库失败。","generateTitle":"AI 补充选题","generateDescription":"根据当前品牌资料生成候选问题；确认加入后才会进入问题库。","generate":"生成候选题","generateFailed":"生成候选题失败。","prompt":"补充提示词","promptPlaceholder":"例如：补充高意图的价格、比较和替代问题。"},
   "DiagnosisReport": {
     "title": "诊断报告",
     "description": "将引用表现、竞品差距、内容资产和渠道覆盖汇总为一页，便于确定下一步优先级。",
