@@ -24,6 +24,7 @@
     "assetAudit": "Asset audit",
     "channelMap": "Channel map",
     "diagnosisConfiguration": "Diagnosis configuration",
+    "diagnosisSamples": "Sample library",
     "diagnosisReport": "Diagnosis report",
     "diagnosisExecution": "Diagnosis execution",
     "improvement": "Improve",
@@ -56,6 +57,10 @@
     "competitorComparison": {
       "title": "Competitor comparison",
       "description": "Compare competitor visibility."
+    },
+    "diagnosisSamples": {
+      "title": "Sample library",
+      "description": "Review AI answer samples and interpretation evidence collected during diagnosis runs."
     },
     "assetAudit": {
       "title": "Asset audit",

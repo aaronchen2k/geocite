@@ -24,6 +24,7 @@
     "assetAudit": "资产审计",
     "channelMap": "渠道地图",
     "diagnosisConfiguration": "诊断配置",
+    "diagnosisSamples": "样本库",
     "diagnosisReport": "诊断报告",
     "diagnosisExecution": "诊断执行",
     "improvement": "提升",
@@ -56,6 +57,10 @@
     "competitorComparison": {
       "title": "竞品对比",
       "description": "比较竞品的可见性表现。"
+    },
+    "diagnosisSamples": {
+      "title": "样本库",
+      "description": "查看诊断运行中采集的 AI 回答样本及其判读证据。"
     },
     "assetAudit": {
       "title": "资产审计",
