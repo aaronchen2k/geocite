@@ -7,6 +7,7 @@ import { EnginesModule } from './modules/engines/engines.module';
 import { ModelsModule } from './modules/models/models.module';
 import { RagAgentsModule } from './modules/rag-agents/rag-agents.module';
 import { ExecutionDiagnosisModule } from './modules/execution-diagnosis/execution-diagnosis.module';
+import { CompetitorsModule } from './modules/competitors/competitors.module';
 
 @Controller('health')
 class HealthController {
@@ -17,7 +18,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forRoot(dataSourceOptions), BrandsModule, EnginesModule, ModelsModule, RagAgentsModule, ExecutionDiagnosisModule],
+  imports: [TypeOrmModule.forRoot(dataSourceOptions), BrandsModule, EnginesModule, ModelsModule, RagAgentsModule, ExecutionDiagnosisModule, CompetitorsModule],
   controllers: [HealthController],
   providers: [
     {

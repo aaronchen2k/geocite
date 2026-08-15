@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const reservedRoutes = [
   { path: '/zh/dashboard', title: '仪表盘' },
-  { path: '/zh/diagnosis/execution-diagnosis', title: '执行诊断' },
+  { path: '/zh/diagnosis/diagnosis-execution', title: '执行诊断' },
   { path: '/zh/admin/brands', title: '品牌管理' },
   { path: '/zh/admin/engines', title: '目标引擎' },
   { path: '/zh/admin/models', title: '模型管理' },
@@ -40,6 +40,23 @@ test('hides only the AppShell vertical scrollbars', async ({ page }) => {
     await expect(locator).toHaveClass(/scrollbar-hide/);
     await expect(locator).toHaveCSS('scrollbar-width', 'none');
   }
+});
+
+test('separates configuration from the diagnosis room', async ({ page }) => {
+  await page.goto('/zh/dashboard');
+
+  await expect(page.getByRole('button', { name: '配置' })).toBeVisible();
+  await page.getByRole('link', { name: '基础配置' }).click();
+
+  await expect(page).toHaveURL(/\/configuration\/basic$/);
+  await expect(page.getByRole('heading', { name: /基础配置|Basic configuration/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /诊断室|Diagnosis room/ })).toBeVisible();
+});
+
+test('keeps the sitemap crawl limit out of brand questions', async ({ page }) => {
+  await page.goto('/zh/configuration/questions');
+
+  await expect(page.getByText(/最多抓取URL数|Maximum sitemap\.xml URLs to crawl/)).toHaveCount(0);
 });
 
 for (const route of reservedRoutes) {

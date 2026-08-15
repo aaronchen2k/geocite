@@ -18,7 +18,13 @@
   },
   "Navigation": {
     "dashboard": "Dashboard",
+    "configuration": "Configuration",
+    "basicConfiguration": "Basic configuration",
+    "brandQuestions": "Brand questions",
+    "competitors": "Competitor brands",
+    "brandFacts": "Brand facts",
     "diagnosis": "Diagnosis",
+    "diagnosisRoom": "Diagnosis room",
     "citationDetection": "Citation results",
     "competitorComparison": "Competitor comparison",
     "assetAudit": "Asset audit",
@@ -27,6 +33,8 @@
     "diagnosisSamples": "Sample library",
     "diagnosisReport": "Diagnosis report",
     "diagnosisExecution": "Diagnosis execution",
+    "problemSummary": "Question summary",
+    "positioningMap": "Positioning map",
     "improvement": "Improve",
     "optimizationWorkOrders": "Optimization work orders",
     "keywordMatrix": "Breakthrough matrix",
@@ -45,6 +53,29 @@
     "models": "Model management",
     "ragAgents": "RAG agents"
   },
+  "BasicConfiguration": {
+    "title": "Basic configuration",
+    "description": "Maintain the selected brand's basic details and diagnosis crawl scope.",
+    "noBrand": "Select a Brand from the header first.",
+    "brandSection": "Brand details",
+    "crawlSection": "Crawl scope",
+    "name": "Name",
+    "website": "Website",
+    "industry": "Industry",
+    "descriptionField": "Description",
+    "sitemapUrlLimit": "Maximum URLs to crawl",
+    "sitemapUrlLimitDescription": "The number of sitemap.xml URLs to crawl in order, from 1 to 100.",
+    "sitemapUrlLimitInvalid": "The crawl limit must be an integer between 1 and 100.",
+    "save": "Save configuration",
+    "saving": "Saving",
+    "saved": "Configuration saved.",
+    "loadFailed": "Failed to load basic configuration.",
+    "saveFailed": "Failed to save basic configuration."
+  },
+  "Competitors": {"title":"Competitor brands","description":"Maintain competitors for the selected brand's diagnosis and comparisons.","noBrand":"Select a Brand from the header first.","add":"Add competitor","name":"Name","aliases":"Aliases","aliasesHint":"One alias per line","market":"Market","status":"Status","enabled":"Enabled","disabled":"Disabled","enable":"Enable","disable":"Disable","empty":"No competitor brands configured yet."},
+  "BrandFacts": {"title":"Brand facts","description":"Store diagnostic facts that can be reviewed and corrected.","noBrand":"Select a Brand from the header first.","emptyTitle":"No brand facts yet","emptyDescription":"The first completed diagnosis will generate candidate facts; manual creation is not available in this first release.","add":"Add fact"},
+  "ProblemSummary": {"title":"Question summary","description":"Summarize diagnosis gaps and linked evidence by brand question.","emptyTitle":"No question diagnosis results to summarize","emptyDescription":"After the first diagnosis, this page will show traceable findings by brand question.","action":"Start diagnosis"},
+  "PositioningMap": {"title":"Positioning map","description":"Identify brand and competitor positions by topic from diagnosis results.","emptyTitle":"Waiting for the first diagnosis result","emptyDescription":"After diagnosis, configured questions and enabled competitors are available, this page will generate a positioning map.","action":"Start diagnosis"},
   "Pages": {
     "dashboard": {
       "title": "Dashboard",
@@ -164,6 +195,7 @@
     "deselectAll": "Clear all",
     "suggestionHint": "Select a candidate to add it to the list on the left, or clear it to remove it. Save before it is used in the next diagnosis."
   },
+  "QuestionBank": {"title":"Brand questions","description":"The question bank defines what diagnosis samples and later analyzes. Each question has a fixed group and market; brand-validation questions stay outside visibility metrics.","noBrand":"Select a Brand from the header first.","count":"{count} questions shown","groupCount":"{count} questions","groupHint":"Click to filter this group","probeHint":"Named probes do not count toward mention rate","question":"Question","group":"Group","market":"Market","probe":"Brand validation","cn":"China","global":"Global","both":"Both markets","add":"Add question","remove":"Remove question","empty":"No questions match this filter.","save":"Save question bank","saving":"Saving","saved":"Question bank saved.","loadFailed":"Failed to load question bank.","saveFailed":"Failed to save question bank.","generateTitle":"AI question suggestions","generateDescription":"Generate candidates from the selected brand details; they enter the bank only after you add them.","generate":"Generate candidates","generateFailed":"Failed to generate candidates.","prompt":"Additional prompt","promptPlaceholder":"For example: add high-intent price, comparison, and alternative questions."},
   "DiagnosisReport": {
     "title": "Diagnosis report",
     "description": "Bring citation performance, competitor gaps, content assets, and channel coverage into one page to set the next priority.",
