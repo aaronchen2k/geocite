@@ -9,6 +9,9 @@ import { DiagnosisConfigurationController } from './diagnosis-configuration.cont
 import { DiagnosisConfigurationService } from './diagnosis-configuration.service';
 import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity } from './execution-diagnosis.entity';
 import { ExecutionDiagnosisService } from './execution-diagnosis.service';
+import { DiagnosisInsightsService } from './diagnosis-insights.service';
+import { DiagnosisInsightsController } from './diagnosis-insights.controller';
+import { CompetitorEntity } from '../competitors/competitor.entity';
 
-@Module({ imports: [TypeOrmModule.forFeature([BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity])], controllers: [ExecutionDiagnosisController, DiagnosisConfigurationController], providers: [ExecutionDiagnosisService, DiagnosisConfigurationService] })
+@Module({ imports: [TypeOrmModule.forFeature([BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, CompetitorEntity, BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity])], controllers: [ExecutionDiagnosisController, DiagnosisConfigurationController, DiagnosisInsightsController], providers: [ExecutionDiagnosisService, DiagnosisConfigurationService, DiagnosisInsightsService] })
 export class ExecutionDiagnosisModule {}

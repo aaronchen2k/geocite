@@ -83,6 +83,9 @@ export class ExecutionDiagnosisSampleEntity {
   @Column({ type: 'text', nullable: true }) adapter!: string | null;
   @Column({ name: 'native_web_search', default: false }) nativeWebSearch!: boolean;
   @Column({ type: 'text', nullable: true }) error!: string | null;
+  @Column({ name: 'reviewed_brand_mention', type: 'boolean', nullable: true }) reviewedBrandMention!: boolean | null;
+  @Column({ name: 'review_note', type: 'text', nullable: true }) reviewNote!: string | null;
+  @Column({ name: 'reviewed_at', type: 'datetime', nullable: true }) reviewedAt!: Date | null;
   @CreateDateColumn({ name: 'sampled_at', type: 'datetime' }) sampledAt!: Date;
 }
 

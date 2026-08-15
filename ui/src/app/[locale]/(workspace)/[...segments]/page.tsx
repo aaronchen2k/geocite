@@ -8,6 +8,7 @@ import {BasicConfigurationPage} from '@/components/configuration/basic-configura
 import {CompetitorBrandsPage} from '@/components/configuration/competitor-brands-page';
 import {BrandFactsPage} from '@/components/configuration/brand-facts-page';
 import {DiagnosisEmptyPage} from '@/components/diagnosis/diagnosis-empty-page';
+import {DiagnosisInsightsPage} from '@/components/diagnosis/diagnosis-insights-page';
 
 const pages: Record<string, string> = {
   dashboard: 'dashboard', 'configuration/questions': 'diagnosisConfiguration', 'diagnosis/diagnosis-execution': 'diagnosisExecution', 'diagnosis/competitor-comparison': 'competitorComparison', 'diagnosis/samples': 'diagnosisSamples', 'diagnosis/diagnosis-report': 'diagnosisReport', 'improvement/optimization-work-orders': 'optimizationWorkOrders', 'improvement/keyword-matrix': 'keywordMatrix', 'improvement/source-building': 'sourceBuilding', 'improvement/technical-adaptation': 'technicalAdaptation', 'improvement/content-production': 'contentProduction', 'verification/visibility-trend': 'visibilityTrend', 'verification/rank-tracking': 'rankTracking', 'verification/attribution': 'attribution', 'verification/comparison-test': 'comparisonTest', 'verification/periodic-retest': 'periodicRetest',
@@ -22,9 +23,11 @@ export default async function Page({params}: {params: Promise<{locale: string; s
   if (key === 'configuration/basic') return <BasicConfigurationPage />;
   if (key === 'configuration/competitors') return <CompetitorBrandsPage />;
   if (key === 'configuration/brand-facts') return <BrandFactsPage />;
-  if (key === 'diagnosis/problem-summary') return <DiagnosisEmptyPage kind="ProblemSummary" />;
-  if (key === 'diagnosis/positioning-map') return <DiagnosisEmptyPage kind="PositioningMap" />;
-  if (key === 'diagnosis/diagnosis-report') return <DiagnosisReportPage />;
+  if (key === 'diagnosis/problem-summary') return <DiagnosisInsightsPage variant="summary" />;
+  if (key === 'diagnosis/positioning-map') return <DiagnosisInsightsPage variant="map" />;
+  if (key === 'diagnosis/competitor-comparison') return <DiagnosisInsightsPage variant="competitors" />;
+  if (key === 'diagnosis/samples') return <DiagnosisInsightsPage variant="samples" />;
+  if (key === 'diagnosis/diagnosis-report') return <DiagnosisInsightsPage variant="report" />;
   if (key.startsWith('admin/')) return <WorkspacePage admin={key.slice(6)} />;
   const pageKey = pages[key];
   if (!pageKey) notFound();

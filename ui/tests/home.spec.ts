@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const reservedRoutes = [
   { path: '/zh/dashboard', title: '仪表盘' },
-  { path: '/zh/diagnosis/diagnosis-execution', title: '执行诊断' },
+  { path: '/zh/diagnosis/diagnosis-execution', title: '诊断执行' },
   { path: '/zh/admin/brands', title: '品牌管理' },
   { path: '/zh/admin/engines', title: '目标引擎' },
   { path: '/zh/admin/models', title: '模型管理' },
@@ -43,6 +43,7 @@ test('hides only the AppShell vertical scrollbars', async ({ page }) => {
 });
 
 test('separates configuration from the diagnosis room', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.goto('/zh/dashboard');
 
   await expect(page.getByRole('button', { name: '配置' })).toBeVisible();
@@ -54,6 +55,7 @@ test('separates configuration from the diagnosis room', async ({ page }) => {
 });
 
 test('keeps the sitemap crawl limit out of brand questions', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.goto('/zh/configuration/questions');
 
   await expect(page.getByText(/最多抓取URL数|Maximum sitemap\.xml URLs to crawl/)).toHaveCount(0);
@@ -61,6 +63,7 @@ test('keeps the sitemap crawl limit out of brand questions', async ({ page }) =>
 
 for (const route of reservedRoutes) {
   test(`${route.path} displays its reserved page`, async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
     const response = await page.goto(route.path);
 
     expect(response?.status()).toBe(200);
