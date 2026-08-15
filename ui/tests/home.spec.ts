@@ -61,6 +61,42 @@ test('keeps the sitemap crawl limit out of brand questions', async ({ page }) =>
   await expect(page.getByText(/最多抓取URL数|Maximum sitemap\.xml URLs to crawl/)).toHaveCount(0);
 });
 
+test('opens AI question suggestions from the brand-question modal', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
+  await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
+    await route.fulfill({ json: { items: [{id: 91, name: '测试品牌', code: 'test-brand', isDefault: true}] } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/91/diagnosis-questions**', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({json: {questions: [{text: '适合哪些团队使用？', group: '适用场景'}]}});
+      return;
+    }
+    if (route.request().method() === 'PUT') {
+      const payload = route.request().postDataJSON() as {questions: Array<Record<string, unknown>>};
+      expect(payload.questions[0]).not.toHaveProperty('id');
+      await route.fulfill({json: {questions: [{id: 101, text: '适合哪些团队使用？', group: '适用场景', market: 'cn', brandProbe: false}], prompt: ''}});
+      return;
+    }
+    await route.fulfill({ json: {questions: [], prompt: ''} });
+  });
+  await page.goto('/zh/configuration/questions');
+
+  await expect(page.getByRole('heading', {name: '问题分类'})).toBeVisible();
+  await expect(page.getByRole('heading', {name: '问题列表'})).toBeVisible();
+  await expect(page.getByLabel('补充提示词')).toHaveCount(0);
+  await page.getByRole('button', {name: 'AI补充问题'}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByLabel('补充提示词')).toBeVisible();
+  await page.getByLabel('补充提示词').fill('补充真实用户问题');
+  await page.getByRole('button', {name: '生成候选题'}).click();
+  await expect(page.getByRole('link', {name: '全选'})).toBeVisible();
+  await expect(page.getByLabel('适合哪些团队使用？')).toBeVisible();
+  await page.getByLabel('适合哪些团队使用？').check();
+  await page.getByRole('button', {name: '关闭'}).click();
+  await page.getByRole('button', {name: '保存问题库'}).click();
+  await expect(page.getByText('问题库已保存。')).toBeVisible();
+});
+
 for (const route of reservedRoutes) {
   test(`${route.path} displays its reserved page`, async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));

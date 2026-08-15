@@ -8,7 +8,7 @@ import { BrandEngineEntity } from '../brands/brand-engine.entity';
 import { EngineEntity } from '../engines/engine.entity';
 import { selectDiagnosticEngines } from '../engines/diagnostic-engine-selector';
 import { getExecutionDiagnosisLogger } from '../../logging/pino-logger';
-import { ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionRunStatus } from './execution-diagnosis.entity';
+import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionRunStatus } from './execution-diagnosis.entity';
 import { fetchPage, inspectHtml, sitemapLocations, websiteUnavailableResult, type FetchedPage } from './site-diagnostic';
 import { toPageEvidence, toProbeEvidence, toSampleEvidence } from './evidence-records';
 import { EngineSamplingClient } from './engine-sampling-client';
@@ -35,6 +35,7 @@ export class ExecutionDiagnosisService {
     @InjectRepository(ExecutionDiagnosisPageEntity) private readonly pagesRepository: Repository<ExecutionDiagnosisPageEntity>,
     @InjectRepository(ExecutionDiagnosisProbeEntity) private readonly probesRepository: Repository<ExecutionDiagnosisProbeEntity>,
     @InjectRepository(ExecutionDiagnosisSampleEntity) private readonly samplesRepository: Repository<ExecutionDiagnosisSampleEntity>,
+    @InjectRepository(BrandDiagnosisQuestionEntity) private readonly diagnosisQuestions: Repository<BrandDiagnosisQuestionEntity>,
   ) {}
 
   async create(brandId: number) {
@@ -223,7 +224,8 @@ export class ExecutionDiagnosisService {
 
   private async sampleEngines(runId: number, brand: BrandEntity, signal?: AbortSignal): Promise<StepResult> {
     const { eligible, skipped } = await this.samplingEngines(brand.id);
-    const questions = brand.questions ?? [];
+    const configured = await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } });
+    const questions = configured.map((item) => item.question);
     if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
     const sampled: Array<Record<string, unknown>> = [];

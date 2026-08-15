@@ -47,7 +47,7 @@ async function waitForTerminalRun(service: { findOne(id: number): Promise<{ stat
 export async function runExecutionDiagnosisSimulation(): Promise<SimulationResult> {
   process.env.NODE_ENV = 'test';
   const { server, baseUrl } = await startSimulationSite();
-  const [{ appDataSource }, { BrandEntity }, { BrandEngineEntity }, { EngineEntity }, { ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity }, { ExecutionDiagnosisService }, { flushLoggers }] = await Promise.all([
+  const [{ appDataSource }, { BrandEntity }, { BrandEngineEntity }, { EngineEntity }, { BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity }, { ExecutionDiagnosisService }, { flushLoggers }] = await Promise.all([
     import('../database/data-source'),
     import('../modules/brands/brand.entity'),
     import('../modules/brands/brand-engine.entity'),
@@ -67,11 +67,13 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     const pages = appDataSource.getRepository(ExecutionDiagnosisPageEntity);
     const probes = appDataSource.getRepository(ExecutionDiagnosisProbeEntity);
     const samples = appDataSource.getRepository(ExecutionDiagnosisSampleEntity);
+    const diagnosisQuestions = appDataSource.getRepository(BrandDiagnosisQuestionEntity);
     const suffix = Date.now().toString(36);
-    const brand = await brands.save(brands.create({ code: `diagnosis-simulation-${suffix}`, name: '执行诊断模拟品牌', website: baseUrl, industry: null, description: null, questions: ['模拟品牌提供什么服务？'], questionsPrompt: null, isDefault: false, disabled: false, deleted: false, deletedAt: null }));
+    const brand = await brands.save(brands.create({ code: `diagnosis-simulation-${suffix}`, name: '执行诊断模拟品牌', website: baseUrl, industry: null, description: null, questions: null, questionsPrompt: null, isDefault: false, disabled: false, deleted: false, deletedAt: null }));
+    await diagnosisQuestions.save(diagnosisQuestions.create({ brandId: brand.id, question: '模拟品牌提供什么服务？', group: '推荐', market: 'cn', brandProbe: false, ordr: 0 }));
     const engine = await engines.save(engines.create({ code: `simulation-${suffix}`, name: '模拟问答引擎', vendor: 'GeoCite', description: null, modelName: 'simulation-model', baseUrl: `${baseUrl}/openai/v1`, apiKey: 'simulation-key', disabled: false, ordr: 1, deleted: false, deletedAt: null }));
     await brandEngines.save(brandEngines.create({ brandId: brand.id, engineId: engine.id }));
-    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples);
+    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions);
     const createdRun = await service.create(brand.id);
     const completedRun = await waitForTerminalRun(service, createdRun.id);
     if (completedRun.status !== 'succeeded') throw new Error(`模拟执行诊断未成功完成：${completedRun.status}`);

@@ -7,6 +7,6 @@ describe('品牌问答默认提示词', () => {
     expect(prompt).toContain('品牌名称：乐堡论文');
     expect(prompt).toContain('所属行业：教育服务');
     expect(prompt).toContain('品牌简介：一站式论文服务平台');
-    expect(prompt).toContain('只输出 JSON，不要 Markdown、解释或诊断执行建议');
+    expect(prompt).toContain('只输出一个可直接解析的 JSON 对象');
   });
 });
