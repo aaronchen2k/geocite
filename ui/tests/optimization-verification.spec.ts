@@ -88,7 +88,7 @@ test('work orders retain persisted actions and guide the valid retest workflow',
   await expect(page.getByRole('button', { name: '取消工单' })).toBeVisible();
 });
 
-test('periodic retests require explicit scope, notification and a manual trigger', async ({ page }) => {
+test('periodic retests use the fixed full configuration scope and require a manual trigger', async ({ page }) => {
   await page.addInitScript(() => { window.localStorage.setItem('geocite.locale', 'zh'); window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 })); });
   await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
     await route.fulfill({ json: { items: [{ id: 5, name: 'Acme', code: 'acme', isDefault: true }] } });
@@ -100,8 +100,9 @@ test('periodic retests require explicit scope, notification and a manual trigger
   await page.goto('/zh/verification/periodic-retest');
 
   await expect(page.getByRole('heading', { name: '周期复测' })).toBeVisible();
-  await expect(page.getByText('不会在后台无感执行', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('复测范围')).toBeVisible();
+  await expect(page.getByText('复测始终覆盖当前品牌的全部已启用问题和诊断引擎，不会在后台自动执行；每次仍需人工明确发起。', { exact: true })).toBeVisible();
+  await expect(page.getByText('复测范围：全部当前已启用的问题和诊断引擎（固定）。', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('复测范围')).toHaveCount(0);
   await expect(page.getByLabel('通知方式')).toBeVisible();
   await expect(page.getByRole('button', { name: '创建复测计划' })).toBeVisible();
 });

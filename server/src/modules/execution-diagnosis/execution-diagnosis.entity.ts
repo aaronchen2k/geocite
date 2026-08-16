@@ -11,6 +11,7 @@ export type ExecutionDiagnosisConfigurationSnapshot = {
   skippedEngines: Array<{ id: number; code: string; reason: string }>;
   samplingMethod: 'api';
   rulesVersion: string;
+  executionScope?: 'all_configured';
 };
 
 @Entity('execution_diagnosis_runs')

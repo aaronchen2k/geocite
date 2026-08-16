@@ -362,7 +362,19 @@ describe('OptimizationVerificationService', () => {
       .rejects.toThrow('实验缺少成功指标');
   });
 
-  it('只会由人工触发已完整配置的周期复测计划创建诊断', async () => {
+  it('不允许人工创建可能关联归因', async () => {
+    const service = advancedVerificationService();
+
+    await expect((service as any).createAttribution(5, {
+      workOrderId: 9,
+      comparisonId: 2,
+      conclusion: 'possible',
+      rationale: '人工不能写入系统建议结论',
+      confirmedBy: '审核人',
+    })).rejects.toThrow('可能关联只能由系统建议生成');
+  });
+
+  it('只会由人工触发全量范围的周期复测，并将范围冻结到运行快照', async () => {
     const plans: any[] = [];
     const planRepository = {
       create: jest.fn((value) => ({ id: 21, ...value })),
@@ -370,15 +382,21 @@ describe('OptimizationVerificationService', () => {
       find: jest.fn(async () => plans),
       findOne: jest.fn(async ({ where }) => plans.find((plan) => plan.id === where.id && plan.brandId === where.brandId) ?? null),
     };
-    const execution = { create: jest.fn(async () => ({ id: 88 })) };
+    const execution = { create: jest.fn(async (_brandId, options) => ({
+      id: 88,
+      configurationSnapshot: { ...frozenComparisonSnapshot(), executionScope: options.scope },
+    })) };
     const service = advancedServiceWith({ retestPlans: planRepository, execution });
 
-    await expect(service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: {}, notification: { channel: '站内通知' } }))
+    await expect(service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: {} as never, notification: { channel: '站内通知' } }))
       .rejects.toThrow('复测计划必须明确频率、范围和通知');
-    const plan = await service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: { questions: 'all' }, notification: { channel: '站内通知' } });
+    await expect(service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: { questions: 'all' } as never, notification: { channel: '站内通知' } }))
+      .rejects.toThrow('当前仅支持复测全部当前已启用的问题和诊断引擎');
+    const plan = await service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: { mode: 'all_configured' }, notification: { channel: '站内通知' } });
     const result = await service.triggerPeriodicRetest(5, plan.id);
 
-    expect(execution.create).toHaveBeenCalledWith(5);
+    expect(execution.create).toHaveBeenCalledWith(5, { scope: 'all_configured' });
+    expect((result.run.configurationSnapshot as { executionScope?: string }).executionScope).toBe(plan.scope.mode);
     expect(result.plan).toEqual(expect.objectContaining({ lastRunId: 88, enabled: true }));
   });
 
@@ -397,6 +415,27 @@ describe('OptimizationVerificationService', () => {
 
     expect(saved[0]).toEqual(expect.objectContaining({ id: 31, status: 'superseded' }));
     expect(next).toEqual(expect.objectContaining({ version: 2, supersedesExperimentId: 31, controlScope: { market: 'global' }, status: 'draft' }));
+  });
+
+  it.each(['completed', 'superseded', 'cancelled'] as const)('不允许向 %s 实验版本写入运行关联', async (status) => {
+    const experiments = {
+      create: jest.fn((value) => value),
+      save: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(async ({ where }) => where.id === 3 && where.brandId === 5 ? {
+        id: 3,
+        brandId: 5,
+        status,
+        successMetrics: { visibility: 'up' },
+        controlRunId: null,
+        treatmentRunId: null,
+      } : null),
+    };
+    const service = advancedServiceWith({ experiments });
+
+    await expect(service.evaluateExperiment(5, 3, { controlRunId: 7, treatmentRunId: 8 }))
+      .rejects.toThrow('只有草稿或运行中的实验可以关联诊断运行');
+    expect(experiments.save).not.toHaveBeenCalled();
   });
 });
 

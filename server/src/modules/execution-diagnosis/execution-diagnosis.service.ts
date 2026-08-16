@@ -42,10 +42,10 @@ export class ExecutionDiagnosisService {
     @InjectRepository(DiagnosisFindingEntity) private readonly findings: Repository<DiagnosisFindingEntity>,
   ) {}
 
-  async create(brandId: number) {
+  async create(brandId: number, options: { scope?: 'all_configured' } = {}) {
     const brand = await this.brands.findOne({ where: { id: brandId, deleted: false } });
     if (!brand) throw new NotFoundException(`Brand ${brandId} 不存在`);
-    const configurationSnapshot = await this.freezeConfiguration(brandId, 'v1');
+    const configurationSnapshot = await this.freezeConfiguration(brandId, 'v1', options.scope ?? 'all_configured');
     const run = await this.runs.save(this.runs.create({ brandId, status: 'queued', rulesVersion: 'v1', configurationSnapshot, summary: null, startedAt: null, finishedAt: null }));
     await this.steps.save(Array.from({ length: 7 }, (_, index) => this.steps.create({ runId: run.id, number: index + 1, status: 'pending', startedAt: null, finishedAt: null, errorCode: null, result: null })));
     getExecutionDiagnosisLogger(brand.code, run.id, run.createdAt).info({ brandId, status: run.status, rulesVersion: run.rulesVersion }, 'execution diagnosis created');
@@ -168,7 +168,7 @@ export class ExecutionDiagnosisService {
     const engines = await this.engines.findBy(links.map((link) => ({ id: link.engineId, deleted: false })));
     return selectDiagnosticEngines(engines);
   }
-  private async freezeConfiguration(brandId: number, rulesVersion: string): Promise<ExecutionDiagnosisConfigurationSnapshot> {
+  private async freezeConfiguration(brandId: number, rulesVersion: string, executionScope: 'all_configured'): Promise<ExecutionDiagnosisConfigurationSnapshot> {
     const [questions, engines] = await Promise.all([
       this.diagnosisQuestions.find({ where: { brandId }, order: { ordr: 'ASC', id: 'ASC' } }),
       this.samplingEngines(brandId),
@@ -182,6 +182,7 @@ export class ExecutionDiagnosisService {
       skippedEngines: engines.skipped,
       samplingMethod: 'api',
       rulesVersion,
+      executionScope,
     };
   }
   private async performStep(runId: number, number: number): Promise<StepResult> {

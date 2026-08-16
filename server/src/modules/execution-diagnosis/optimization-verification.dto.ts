@@ -35,14 +35,14 @@ export class CompareDiagnosisRunsDto {
 export class CreateAttributionDto {
   @Type(() => Number) @IsInt() @Min(1) workOrderId!: number;
   @Type(() => Number) @IsInt() @Min(1) comparisonId!: number;
-  @IsIn(['confirmed', 'possible', 'inconclusive', 'no_impact']) conclusion!: AttributionConclusion;
+  @IsIn(['confirmed', 'inconclusive', 'no_impact']) conclusion!: Exclude<AttributionConclusion, 'possible'>;
   @IsOptional() @IsString() @MaxLength(5_000) rationale?: string;
   @IsOptional() @IsString() @MaxLength(200) confirmedBy?: string;
 }
 
 export class CreatePeriodicRetestPlanDto {
   @IsIn(['weekly', 'monthly', 'quarterly']) frequency!: 'weekly' | 'monthly' | 'quarterly';
-  @IsObject() scope!: Record<string, unknown>;
+  @IsObject() scope!: { mode: 'all_configured' };
   @IsObject() notification!: Record<string, unknown>;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) baselineRunId?: number;
   @IsOptional() @IsBoolean() enabled?: boolean;
@@ -50,7 +50,7 @@ export class CreatePeriodicRetestPlanDto {
 
 export class UpdatePeriodicRetestPlanDto {
   @IsOptional() @IsIn(['weekly', 'monthly', 'quarterly']) frequency?: 'weekly' | 'monthly' | 'quarterly';
-  @IsOptional() @IsObject() scope?: Record<string, unknown>;
+  @IsOptional() @IsObject() scope?: { mode: 'all_configured' };
   @IsOptional() @IsObject() notification?: Record<string, unknown>;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) baselineRunId?: number;
   @IsOptional() @IsBoolean() enabled?: boolean;

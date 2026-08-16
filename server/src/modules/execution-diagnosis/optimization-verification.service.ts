@@ -248,7 +248,11 @@ export class OptimizationVerificationService {
     const plan = await this.retestPlan(brandId, planId);
     if (!plan.enabled) throw new BadRequestException('复测计划已停用，不能手动发起复测');
     if (!this.executionDiagnosis) throw new BadRequestException('诊断执行服务不可用');
-    const run = await this.executionDiagnosis.create(brandId);
+    this.requireExplicitPlanScope(plan.scope, plan.notification);
+    const run = await this.executionDiagnosis.create(brandId, { scope: 'all_configured' });
+    if (run.configurationSnapshot?.executionScope !== plan.scope.mode) {
+      throw new BadRequestException('复测运行快照与计划范围不一致');
+    }
     plan.lastRunId = run.id;
     plan.lastTriggeredAt = new Date();
     await this.retestPlanRepository.save(plan);
@@ -301,6 +305,9 @@ export class OptimizationVerificationService {
   async evaluateExperiment(brandId: number, experimentId: number, dto: EvaluateComparisonExperimentDto = {}) {
     const experiment = await this.experiment(brandId, experimentId);
     if (!this.hasFields(experiment.successMetrics)) throw new BadRequestException('实验缺少成功指标');
+    if (experiment.status !== 'draft' && experiment.status !== 'running') {
+      throw new BadRequestException('只有草稿或运行中的实验可以关联诊断运行');
+    }
     const controlRunId = dto.controlRunId ?? experiment.controlRunId;
     const treatmentRunId = dto.treatmentRunId ?? experiment.treatmentRunId;
     if (!controlRunId || !treatmentRunId) throw new BadRequestException('实验必须关联对照和实验运行');
@@ -481,13 +488,17 @@ export class OptimizationVerificationService {
   }
 
   private requireHumanAttributionEvidence(conclusion: AttributionConclusion, rationale?: string, confirmedBy?: string) {
-    if (conclusion !== 'possible' && (!rationale?.trim() || !confirmedBy?.trim())) {
+    if (conclusion === 'possible') throw new BadRequestException('可能关联只能由系统建议生成');
+    if (!rationale?.trim() || !confirmedBy?.trim()) {
       throw new BadRequestException('确认归因必须填写人工依据和确认人');
     }
   }
 
   private requireExplicitPlanScope(scope: Record<string, unknown>, notification: Record<string, unknown>) {
     if (!this.hasFields(scope) || !this.hasFields(notification)) throw new BadRequestException('复测计划必须明确频率、范围和通知');
+    if (scope.mode !== 'all_configured' || Object.keys(scope).length !== 1) {
+      throw new BadRequestException('当前仅支持复测全部当前已启用的问题和诊断引擎');
+    }
   }
 
   private requireExperimentDefinition(dto: CreateComparisonExperimentDto) {
