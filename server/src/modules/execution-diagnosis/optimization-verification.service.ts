@@ -248,7 +248,7 @@ export class OptimizationVerificationService {
 
   private canonicalEngines(snapshot: ExecutionDiagnosisConfigurationSnapshot) {
     return snapshot.engines
-      .map((engine) => ({ id: engine.id, modelName: engine.modelName ?? null, baseUrl: engine.baseUrl ?? null, webSearchEnabled: engine.nativeWebSearch === true }))
+      .map((engine) => ({ id: engine.id, code: engine.code, vendor: engine.vendor, modelName: engine.modelName ?? null, baseUrl: engine.baseUrl ?? null, webSearchEnabled: engine.nativeWebSearch === true }))
       .sort((left, right) => left.id - right.id);
   }
 
