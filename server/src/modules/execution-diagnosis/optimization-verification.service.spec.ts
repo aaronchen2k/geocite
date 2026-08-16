@@ -352,6 +352,52 @@ describe('OptimizationVerificationService', () => {
       order: { completedAt: 'ASC', id: 'ASC' },
     });
   });
+
+  it('拒绝没有人工依据的确认归因和没有成功指标的对比实验', async () => {
+    const service = advancedVerificationService();
+
+    await expect((service as any).createAttribution(5, { workOrderId: 9, comparisonId: 2, conclusion: 'confirmed' }))
+      .rejects.toThrow('确认归因必须填写人工依据');
+    await expect((service as any).evaluateExperiment(5, 3))
+      .rejects.toThrow('实验缺少成功指标');
+  });
+
+  it('只会由人工触发已完整配置的周期复测计划创建诊断', async () => {
+    const plans: any[] = [];
+    const planRepository = {
+      create: jest.fn((value) => ({ id: 21, ...value })),
+      save: jest.fn(async (value) => { const stored = {...value}; if (!plans.some((item) => item.id === stored.id)) plans.push(stored); return stored; }),
+      find: jest.fn(async () => plans),
+      findOne: jest.fn(async ({ where }) => plans.find((plan) => plan.id === where.id && plan.brandId === where.brandId) ?? null),
+    };
+    const execution = { create: jest.fn(async () => ({ id: 88 })) };
+    const service = advancedServiceWith({ retestPlans: planRepository, execution });
+
+    await expect(service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: {}, notification: { channel: '站内通知' } }))
+      .rejects.toThrow('复测计划必须明确频率、范围和通知');
+    const plan = await service.createPeriodicRetestPlan(5, { frequency: 'monthly', scope: { questions: 'all' }, notification: { channel: '站内通知' } });
+    const result = await service.triggerPeriodicRetest(5, plan.id);
+
+    expect(execution.create).toHaveBeenCalledWith(5);
+    expect(result.plan).toEqual(expect.objectContaining({ lastRunId: 88, enabled: true }));
+  });
+
+  it('变更对比实验定义时封存旧版并创建冻结的新版本', async () => {
+    const previous = { id: 31, brandId: 5, name: '旧实验', controlScope: { market: 'cn' }, treatmentScope: { market: 'cn' }, successMetrics: { visibility: 'up' }, version: 1, status: 'draft' };
+    const saved: any[] = [];
+    const experiments = {
+      create: jest.fn((value) => ({ id: 32, ...value })),
+      save: jest.fn(async (value) => { saved.push({...value}); return value; }),
+      find: jest.fn(),
+      findOne: jest.fn(async ({ where }) => where.id === 31 && where.brandId === 5 ? previous : null),
+    };
+    const service = advancedServiceWith({ experiments });
+
+    const next = await service.replaceComparisonExperiment(5, 31, { name: '新实验', controlScope: { market: 'global' }, treatmentScope: { market: 'global' }, successMetrics: { visibility: 'up' } });
+
+    expect(saved[0]).toEqual(expect.objectContaining({ id: 31, status: 'superseded' }));
+    expect(next).toEqual(expect.objectContaining({ version: 2, supersedesExperimentId: 31, controlScope: { market: 'global' }, status: 'draft' }));
+  });
 });
 
 function frozenComparisonSnapshot() {
@@ -414,6 +460,38 @@ function verificationComparisonService(runs: { findOne: jest.Mock }, comparisons
     {} as never,
     {} as never,
     samples as never,
+  );
+}
+
+function advancedVerificationService() {
+  return advancedServiceWith({});
+}
+
+function advancedServiceWith({
+  retestPlans = { create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(), findOne: jest.fn() },
+  experiments = { create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(), findOne: jest.fn(async ({ where }) => where.id === 3 && where.brandId === 5 ? { id: 3, brandId: 5, successMetrics: {} } : null) },
+  execution,
+}: {
+  retestPlans?: { create: jest.Mock; save: jest.Mock; find: jest.Mock; findOne: jest.Mock };
+  experiments?: { create: jest.Mock; save: jest.Mock; find: jest.Mock; findOne: jest.Mock };
+  execution?: { create: jest.Mock };
+}) {
+  const workOrders = { findOne: jest.fn(async ({ where }) => where.id === 9 && where.brandId === 5 ? { id: 9, brandId: 5, status: 'in_progress' } : null), find: jest.fn(), create: jest.fn(), save: jest.fn() };
+  const comparisons = { findOne: jest.fn(async ({ where }) => where.id === 2 && where.brandId === 5 ? { id: 2, brandId: 5, baselineRunId: 7, retestRunId: 8, comparability: 'comparable' } : null), create: jest.fn(), save: jest.fn() };
+  return new OptimizationVerificationService(
+    { findOne: jest.fn().mockResolvedValue({ id: 5, deleted: false }) } as never,
+    { findOne: jest.fn() } as never,
+    { findOne: jest.fn() } as never,
+    workOrders as never,
+    { find: jest.fn(), count: jest.fn(), create: jest.fn(), save: jest.fn() } as never,
+    comparisons as never,
+    { find: jest.fn(), create: jest.fn(), save: jest.fn() } as never,
+    { transaction: jest.fn() } as never,
+    { find: jest.fn() } as never,
+    { create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(), findOne: jest.fn() } as never,
+    retestPlans as never,
+    experiments as never,
+    execution as never,
   );
 }
 

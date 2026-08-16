@@ -3,8 +3,9 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
 import { ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, type ExecutionDiagnosisConfigurationSnapshot } from './execution-diagnosis.entity';
-import { CreateOptimizationActionDto, CreateOptimizationWorkOrderDto, TransitionOptimizationWorkOrderDto } from './optimization-verification.dto';
-import { DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, type RunComparability, type WorkOrderStatus } from './optimization-verification.entity';
+import { CompareDiagnosisRunsDto, CreateAttributionDto, CreateComparisonExperimentDto, CreateOptimizationActionDto, CreateOptimizationWorkOrderDto, CreatePeriodicRetestPlanDto, EvaluateComparisonExperimentDto, TransitionOptimizationWorkOrderDto, UpdatePeriodicRetestPlanDto } from './optimization-verification.dto';
+import { AttributionRecordEntity, ComparisonExperimentEntity, DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, PeriodicRetestPlanEntity, type AttributionConclusion, type RunComparability, type WorkOrderStatus } from './optimization-verification.entity';
+import { ExecutionDiagnosisService } from './execution-diagnosis.service';
 
 const transitions: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   pending: ['in_progress', 'cancelled'],
@@ -27,6 +28,10 @@ export class OptimizationVerificationService {
     @InjectRepository(OptimizationWorkOrderTransitionEntity) private readonly transitionHistory: Repository<OptimizationWorkOrderTransitionEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(ExecutionDiagnosisSampleEntity) private readonly samples: Repository<ExecutionDiagnosisSampleEntity>,
+    @InjectRepository(AttributionRecordEntity) private readonly attributions?: Repository<AttributionRecordEntity>,
+    @InjectRepository(PeriodicRetestPlanEntity) private readonly retestPlans?: Repository<PeriodicRetestPlanEntity>,
+    @InjectRepository(ComparisonExperimentEntity) private readonly experiments?: Repository<ComparisonExperimentEntity>,
+    private readonly executionDiagnosis?: ExecutionDiagnosisService,
   ) {}
 
   async compareRuns(brandId: number, baselineRunId: number, retestRunId: number) {
@@ -162,6 +167,155 @@ export class OptimizationVerificationService {
     });
   }
 
+  async listAttributions(brandId: number) {
+    await this.brand(brandId);
+    return this.attributionRepository.find({ where: { brandId }, order: { createdAt: 'DESC', id: 'DESC' } });
+  }
+
+  async createAttribution(brandId: number, dto: CreateAttributionDto) {
+    await Promise.all([this.workOrder(brandId, dto.workOrderId), this.comparison(brandId, dto.comparisonId)]);
+    this.requireHumanAttributionEvidence(dto.conclusion, dto.rationale, dto.confirmedBy);
+    return this.attributionRepository.save(this.attributionRepository.create({
+      brandId,
+      workOrderId: dto.workOrderId,
+      comparisonId: dto.comparisonId,
+      conclusion: dto.conclusion,
+      rationale: this.optionalText(dto.rationale),
+      confirmedBy: this.optionalText(dto.confirmedBy),
+    }));
+  }
+
+  async suggestPossibleAttributions(brandId: number, comparisonId: number) {
+    const comparison = await this.comparison(brandId, comparisonId);
+    const [baseline, retest] = await Promise.all([
+      this.run(brandId, comparison.baselineRunId),
+      this.run(brandId, comparison.retestRunId),
+    ]);
+    const start = baseline.finishedAt ?? baseline.createdAt;
+    const end = retest.createdAt;
+    const actions = await this.actions.find({ where: { brandId }, order: { completedAt: 'ASC', id: 'ASC' } });
+    const candidates = actions.filter((action) => action.completedAt >= start && action.completedAt <= end);
+    return Promise.all(candidates.map(async (action) => {
+      const existing = await this.attributionRepository.findOne({ where: { brandId, workOrderId: action.workOrderId, comparisonId } });
+      if (existing) return existing;
+      return this.attributionRepository.save(this.attributionRepository.create({
+        brandId,
+        workOrderId: action.workOrderId,
+        comparisonId,
+        conclusion: 'possible',
+        rationale: `系统根据完成动作时间窗标记为可能关联：${action.completedAt.toISOString()}`,
+        confirmedBy: null,
+      }));
+    }));
+  }
+
+  async listPeriodicRetestPlans(brandId: number) {
+    await this.brand(brandId);
+    return this.retestPlanRepository.find({ where: { brandId }, order: { updatedAt: 'DESC', id: 'DESC' } });
+  }
+
+  async createPeriodicRetestPlan(brandId: number, dto: CreatePeriodicRetestPlanDto) {
+    await this.brand(brandId);
+    this.requireExplicitPlanScope(dto.scope, dto.notification);
+    if (dto.baselineRunId) await this.sourceRun(brandId, dto.baselineRunId);
+    return this.retestPlanRepository.save(this.retestPlanRepository.create({
+      brandId,
+      baselineRunId: dto.baselineRunId ?? null,
+      frequency: dto.frequency,
+      scope: dto.scope,
+      notification: dto.notification,
+      enabled: dto.enabled ?? true,
+      lastRunId: null,
+      lastTriggeredAt: null,
+    }));
+  }
+
+  async updatePeriodicRetestPlan(brandId: number, planId: number, dto: UpdatePeriodicRetestPlanDto) {
+    const plan = await this.retestPlan(brandId, planId);
+    const scope = dto.scope ?? plan.scope;
+    const notification = dto.notification ?? plan.notification;
+    this.requireExplicitPlanScope(scope, notification);
+    if (dto.baselineRunId !== undefined) await this.sourceRun(brandId, dto.baselineRunId);
+    if (dto.frequency !== undefined) plan.frequency = dto.frequency;
+    plan.scope = scope;
+    plan.notification = notification;
+    if (dto.baselineRunId !== undefined) plan.baselineRunId = dto.baselineRunId;
+    if (dto.enabled !== undefined) plan.enabled = dto.enabled;
+    return this.retestPlanRepository.save(plan);
+  }
+
+  async triggerPeriodicRetest(brandId: number, planId: number) {
+    const plan = await this.retestPlan(brandId, planId);
+    if (!plan.enabled) throw new BadRequestException('复测计划已停用，不能手动发起复测');
+    if (!this.executionDiagnosis) throw new BadRequestException('诊断执行服务不可用');
+    const run = await this.executionDiagnosis.create(brandId);
+    plan.lastRunId = run.id;
+    plan.lastTriggeredAt = new Date();
+    await this.retestPlanRepository.save(plan);
+    return { plan, run };
+  }
+
+  async listComparisonExperiments(brandId: number) {
+    await this.brand(brandId);
+    return this.experimentRepository.find({ where: { brandId }, order: { createdAt: 'DESC', id: 'DESC' } });
+  }
+
+  async createComparisonExperiment(brandId: number, dto: CreateComparisonExperimentDto) {
+    await this.brand(brandId);
+    this.requireExperimentDefinition(dto);
+    return this.experimentRepository.save(this.experimentRepository.create({
+      brandId,
+      name: dto.name.trim(),
+      controlScope: dto.controlScope,
+      treatmentScope: dto.treatmentScope,
+      successMetrics: dto.successMetrics,
+      version: 1,
+      supersedesExperimentId: null,
+      controlRunId: null,
+      treatmentRunId: null,
+      status: 'draft',
+    }));
+  }
+
+  async replaceComparisonExperiment(brandId: number, experimentId: number, dto: CreateComparisonExperimentDto) {
+    const previous = await this.experiment(brandId, experimentId);
+    this.requireExperimentDefinition(dto);
+    if (previous.status !== 'superseded') {
+      previous.status = 'superseded';
+      await this.experimentRepository.save(previous);
+    }
+    return this.experimentRepository.save(this.experimentRepository.create({
+      brandId,
+      name: dto.name.trim(),
+      controlScope: dto.controlScope,
+      treatmentScope: dto.treatmentScope,
+      successMetrics: dto.successMetrics,
+      version: previous.version + 1,
+      supersedesExperimentId: previous.id,
+      controlRunId: null,
+      treatmentRunId: null,
+      status: 'draft',
+    }));
+  }
+
+  async evaluateExperiment(brandId: number, experimentId: number, dto: EvaluateComparisonExperimentDto = {}) {
+    const experiment = await this.experiment(brandId, experimentId);
+    if (!this.hasFields(experiment.successMetrics)) throw new BadRequestException('实验缺少成功指标');
+    const controlRunId = dto.controlRunId ?? experiment.controlRunId;
+    const treatmentRunId = dto.treatmentRunId ?? experiment.treatmentRunId;
+    if (!controlRunId || !treatmentRunId) throw new BadRequestException('实验必须关联对照和实验运行');
+    if (controlRunId === treatmentRunId) throw new BadRequestException('对照和实验运行必须不同');
+    await Promise.all([this.run(brandId, controlRunId), this.run(brandId, treatmentRunId)]);
+    experiment.controlRunId = controlRunId;
+    experiment.treatmentRunId = treatmentRunId;
+    experiment.status = 'running';
+    await this.experimentRepository.save(experiment);
+    const comparison = await this.compareRuns(brandId, controlRunId, treatmentRunId);
+    experiment.status = 'completed';
+    await this.experimentRepository.save(experiment);
+    return { experiment, comparison, note: '系统仅提供对照数据，不自动确认因果结论。' };
+  }
+
   private async verifiedComparison(brandId: number, dto: TransitionOptimizationWorkOrderDto) {
     if (!dto.comparisonId || !dto.acceptanceNote?.trim()) {
       throw new BadRequestException('必须关联可比验证比较和验收说明');
@@ -194,6 +348,24 @@ export class OptimizationVerificationService {
     const finding = await this.findings.findOne({ where: { id, brandId } });
     if (!finding) throw new NotFoundException(`诊断发现 ${id} 不存在`);
     return finding;
+  }
+
+  private async comparison(brandId: number, id: number) {
+    const comparison = await this.comparisons.findOne({ where: { id, brandId } });
+    if (!comparison) throw new NotFoundException(`诊断比较 ${id} 不存在`);
+    return comparison;
+  }
+
+  private async retestPlan(brandId: number, id: number) {
+    const plan = await this.retestPlanRepository.findOne({ where: { id, brandId } });
+    if (!plan) throw new NotFoundException(`周期复测计划 ${id} 不存在`);
+    return plan;
+  }
+
+  private async experiment(brandId: number, id: number) {
+    const experiment = await this.experimentRepository.findOne({ where: { id, brandId } });
+    if (!experiment) throw new NotFoundException(`对比实验 ${id} 不存在`);
+    return experiment;
   }
 
   private async run(brandId: number, id: number) {
@@ -292,6 +464,39 @@ export class OptimizationVerificationService {
   }
 
   private isCompleted(run: ExecutionDiagnosisRunEntity) { return run.status === 'succeeded' || run.status === 'partial'; }
+
+  private get attributionRepository() {
+    if (!this.attributions) throw new BadRequestException('归因服务不可用');
+    return this.attributions;
+  }
+
+  private get retestPlanRepository() {
+    if (!this.retestPlans) throw new BadRequestException('复测计划服务不可用');
+    return this.retestPlans;
+  }
+
+  private get experimentRepository() {
+    if (!this.experiments) throw new BadRequestException('对比实验服务不可用');
+    return this.experiments;
+  }
+
+  private requireHumanAttributionEvidence(conclusion: AttributionConclusion, rationale?: string, confirmedBy?: string) {
+    if (conclusion !== 'possible' && (!rationale?.trim() || !confirmedBy?.trim())) {
+      throw new BadRequestException('确认归因必须填写人工依据和确认人');
+    }
+  }
+
+  private requireExplicitPlanScope(scope: Record<string, unknown>, notification: Record<string, unknown>) {
+    if (!this.hasFields(scope) || !this.hasFields(notification)) throw new BadRequestException('复测计划必须明确频率、范围和通知');
+  }
+
+  private requireExperimentDefinition(dto: CreateComparisonExperimentDto) {
+    if (!this.hasFields(dto.controlScope) || !this.hasFields(dto.treatmentScope) || !this.hasFields(dto.successMetrics)) {
+      throw new BadRequestException('实验必须定义对照范围、实验范围和成功指标');
+    }
+  }
+
+  private hasFields(value: Record<string, unknown> | null | undefined) { return !!value && !Array.isArray(value) && Object.keys(value).length > 0; }
 
   private optionalText(value?: string) { return value?.trim() || null; }
 }

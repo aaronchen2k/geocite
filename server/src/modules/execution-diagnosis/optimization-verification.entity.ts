@@ -94,9 +94,11 @@ export class PeriodicRetestPlanEntity {
   @Column({ name: 'brand_id' }) brandId!: number;
   @Column({ name: 'baseline_run_id', nullable: true }) baselineRunId!: number | null;
   @Column() frequency!: string;
-  @Column({ name: 'scope_json', type: 'simple-json', nullable: true }) scope!: Record<string, unknown> | null;
+  @Column({ name: 'scope_json', type: 'simple-json' }) scope!: Record<string, unknown>;
+  @Column({ name: 'notification_json', type: 'simple-json' }) notification!: Record<string, unknown>;
   @Column({ default: true }) enabled!: boolean;
   @Column({ name: 'last_run_id', nullable: true }) lastRunId!: number | null;
+  @Column({ name: 'last_triggered_at', type: 'datetime', nullable: true }) lastTriggeredAt!: Date | null;
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'datetime' }) updatedAt!: Date;
 }
@@ -109,9 +111,11 @@ export class ComparisonExperimentEntity {
   @Column({ name: 'control_scope_json', type: 'simple-json' }) controlScope!: Record<string, unknown>;
   @Column({ name: 'treatment_scope_json', type: 'simple-json' }) treatmentScope!: Record<string, unknown>;
   @Column({ name: 'success_metrics_json', type: 'simple-json' }) successMetrics!: Record<string, unknown>;
+  @Column({ default: 1 }) version!: number;
+  @Column({ name: 'supersedes_experiment_id', nullable: true }) supersedesExperimentId!: number | null;
   @Column({ name: 'control_run_id', nullable: true }) controlRunId!: number | null;
   @Column({ name: 'treatment_run_id', nullable: true }) treatmentRunId!: number | null;
-  @Column({ default: 'draft' }) status!: 'draft' | 'running' | 'completed' | 'cancelled';
+  @Column({ default: 'draft' }) status!: 'draft' | 'running' | 'completed' | 'cancelled' | 'superseded';
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'datetime' }) updatedAt!: Date;
 }

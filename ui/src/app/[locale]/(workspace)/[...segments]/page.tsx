@@ -37,7 +37,9 @@ export default async function Page({params}: {params: Promise<{locale: string; s
   const pageKey = pages[key];
   if (key === 'verification/visibility-trend') return <VerificationPages variant="trend" />;
   if (key === 'verification/rank-tracking') return <VerificationPages variant="questions" />;
-  if (key === 'verification/comparison-test') return <VerificationPages variant="comparison" />;
+  if (key === 'verification/comparison-test') return <VerificationPages variant="comparison-test" />;
+  if (key === 'verification/attribution') return <VerificationPages variant="attribution" />;
+  if (key === 'verification/periodic-retest') return <VerificationPages variant="periodic-retest" />;
   if (!pageKey) notFound();
   const t = await getTranslations('Pages');
   return <WorkspacePage title={t(`${pageKey}.title`)} description={t(`${pageKey}.description`)} />;
