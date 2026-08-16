@@ -417,6 +417,24 @@ describe('OptimizationVerificationService', () => {
     expect(next).toEqual(expect.objectContaining({ version: 2, supersedesExperimentId: 31, controlScope: { market: 'global' }, status: 'draft' }));
   });
 
+  it.each(['completed', 'cancelled', 'superseded'] as const)('不允许替换已结束的 %s 对比实验版本', async (status) => {
+    const previous = { id: 31, brandId: 5, name: '旧实验', controlScope: { market: 'cn' }, treatmentScope: { market: 'cn' }, successMetrics: { visibility: 'up' }, version: 1, status };
+    const experiments = {
+      create: jest.fn((value) => ({ id: 32, ...value })),
+      save: jest.fn(async (value) => value),
+      find: jest.fn(),
+      findOne: jest.fn(async ({ where }) => where.id === 31 && where.brandId === 5 ? previous : null),
+    };
+    const service = advancedServiceWith({ experiments });
+
+    await expect(service.replaceComparisonExperiment(5, 31, {
+      name: '新实验', controlScope: { market: 'global' }, treatmentScope: { market: 'global' }, successMetrics: { visibility: 'up' },
+    })).rejects.toThrow('只有草稿或运行中的实验可以被替换');
+
+    expect(experiments.save).not.toHaveBeenCalled();
+    expect(experiments.create).not.toHaveBeenCalled();
+  });
+
   it.each(['completed', 'superseded', 'cancelled'] as const)('不允许向 %s 实验版本写入运行关联', async (status) => {
     const experiments = {
       create: jest.fn((value) => value),

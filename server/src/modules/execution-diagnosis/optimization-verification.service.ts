@@ -283,11 +283,12 @@ export class OptimizationVerificationService {
 
   async replaceComparisonExperiment(brandId: number, experimentId: number, dto: CreateComparisonExperimentDto) {
     const previous = await this.experiment(brandId, experimentId);
-    this.requireExperimentDefinition(dto);
-    if (previous.status !== 'superseded') {
-      previous.status = 'superseded';
-      await this.experimentRepository.save(previous);
+    if (previous.status !== 'draft' && previous.status !== 'running') {
+      throw new BadRequestException('只有草稿或运行中的实验可以被替换');
     }
+    this.requireExperimentDefinition(dto);
+    previous.status = 'superseded';
+    await this.experimentRepository.save(previous);
     return this.experimentRepository.save(this.experimentRepository.create({
       brandId,
       name: dto.name.trim(),
