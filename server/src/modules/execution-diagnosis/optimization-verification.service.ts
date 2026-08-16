@@ -217,21 +217,48 @@ export class OptimizationVerificationService {
     const baselineSnapshot = baseline.configurationSnapshot;
     const retestSnapshot = retest.configurationSnapshot;
     if (!baselineSnapshot || !retestSnapshot) return { comparability: 'incomparable' as const, reasons: [...reasons, 'missing_snapshot'], questionIds: [] as number[], engineIds: [] as number[] };
-    if (baselineSnapshot.market !== retestSnapshot.market) reasons.push('market');
+    if (!this.sameValue(this.normalizedMarkets(baselineSnapshot), this.normalizedMarkets(retestSnapshot))) reasons.push('market');
     if (baselineSnapshot.samplingMethod !== retestSnapshot.samplingMethod) reasons.push('sampling_method');
     if (baselineSnapshot.rulesVersion !== retestSnapshot.rulesVersion) reasons.push('rules_version');
-    const questionIds = this.sharedIds(baselineSnapshot.questions, retestSnapshot.questions);
-    const engineIds = this.sharedIds(baselineSnapshot.engines, retestSnapshot.engines);
+    if (reasons.some((reason) => ['brand', 'not_completed', 'market', 'sampling_method', 'rules_version'].includes(reason))) {
+      return { comparability: 'incomparable' as const, reasons, questionIds: [] as number[], engineIds: [] as number[] };
+    }
+    const baselineQuestions = this.canonicalQuestions(baselineSnapshot);
+    const retestQuestions = this.canonicalQuestions(retestSnapshot);
+    const baselineEngines = this.canonicalEngines(baselineSnapshot);
+    const retestEngines = this.canonicalEngines(retestSnapshot);
+    const questionIds = this.sharedEntryIds(baselineQuestions, retestQuestions);
+    const engineIds = this.sharedEntryIds(baselineEngines, retestEngines);
     if (questionIds.length !== baselineSnapshot.questions.length || questionIds.length !== retestSnapshot.questions.length) reasons.push('question_set');
     if (engineIds.length !== baselineSnapshot.engines.length || engineIds.length !== retestSnapshot.engines.length) reasons.push('engine_set');
-    const incompatible = reasons.some((reason) => ['brand', 'not_completed', 'market', 'sampling_method', 'rules_version'].includes(reason)) || !questionIds.length || !engineIds.length;
+    const incompatible = !questionIds.length || !engineIds.length;
     if (incompatible) return { comparability: 'incomparable' as const, reasons, questionIds: [] as number[], engineIds: [] as number[] };
     return { comparability: (reasons.length ? 'partial' : 'comparable') as RunComparability, reasons, questionIds, engineIds };
   }
 
-  private sharedIds<T extends { id: number }>(baseline: T[], retest: T[]) {
-    const retestIds = new Set(retest.map((item) => item.id));
-    return baseline.map((item) => item.id).filter((id) => retestIds.has(id));
+  private normalizedMarkets(snapshot: ExecutionDiagnosisConfigurationSnapshot) {
+    return [...new Set(snapshot.markets)].sort();
+  }
+
+  private canonicalQuestions(snapshot: ExecutionDiagnosisConfigurationSnapshot) {
+    return snapshot.questions
+      .map((question) => ({ id: question.id, text: question.question, group: question.group, market: question.market, brandProbe: question.brandProbe === true }))
+      .sort((left, right) => left.id - right.id);
+  }
+
+  private canonicalEngines(snapshot: ExecutionDiagnosisConfigurationSnapshot) {
+    return snapshot.engines
+      .map((engine) => ({ id: engine.id, modelName: engine.modelName ?? null, baseUrl: engine.baseUrl ?? null, webSearchEnabled: engine.nativeWebSearch === true }))
+      .sort((left, right) => left.id - right.id);
+  }
+
+  private sharedEntryIds<T extends { id: number }>(baseline: T[], retest: T[]) {
+    const retestEntries = new Set(retest.map((entry) => JSON.stringify(entry)));
+    return baseline.filter((entry) => retestEntries.has(JSON.stringify(entry))).map((entry) => entry.id);
+  }
+
+  private sameValue(left: unknown, right: unknown) {
+    return JSON.stringify(left) === JSON.stringify(right);
   }
 
   private async comparisonMetrics(brandName: string, baseline: ExecutionDiagnosisRunEntity, retest: ExecutionDiagnosisRunEntity, questionIds: number[], engineIds: number[]) {

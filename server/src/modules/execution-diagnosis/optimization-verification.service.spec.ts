@@ -101,6 +101,34 @@ describe('OptimizationVerificationService', () => {
     expect(result).toMatchObject({ comparability: 'incomparable', reasons: ['market'] });
   });
 
+  it.each([
+    ['question text', (snapshot: ReturnType<typeof frozenComparisonSnapshot>) => ({ ...snapshot, questions: [{ ...snapshot.questions[0], question: '更新后的问题' }] }), 'question_set'],
+    ['question market', (snapshot: ReturnType<typeof frozenComparisonSnapshot>) => ({ ...snapshot, questions: [{ ...snapshot.questions[0], market: 'global' as const }] }), 'question_set'],
+    ['same-ID engine configuration', (snapshot: ReturnType<typeof frozenComparisonSnapshot>) => ({ ...snapshot, engines: [{ ...snapshot.engines[0], modelName: 'new-model' }] }), 'engine_set'],
+    ['normalized markets', (snapshot: ReturnType<typeof frozenComparisonSnapshot>) => ({ ...snapshot, markets: ['global' as const, 'cn' as const] }), 'market'],
+  ])('does not share an entry when its frozen %s changes', async (_change, change, reason) => {
+    const baselineSnapshot = frozenComparisonSnapshot();
+    const retestSnapshot = change(frozenComparisonSnapshot());
+    const runs = {
+      findOne: jest.fn(async ({ where }) => ({
+        id: where.id,
+        brandId: where.brandId,
+        status: 'succeeded',
+        configurationSnapshot: where.id === 7 ? baselineSnapshot : retestSnapshot,
+        createdAt: new Date('2026-08-01T00:00:00.000Z'),
+        finishedAt: new Date('2026-08-01T01:00:00.000Z'),
+      })),
+    };
+    const samples = { find: jest.fn() };
+    const comparisons = { create: jest.fn((value) => value), save: jest.fn(async (value) => ({ id: 15, ...value })) };
+    const service = verificationComparisonService(runs, comparisons, samples);
+
+    const result = await service.compareRuns(5, 7, 8);
+
+    expect(result).toMatchObject({ comparability: 'incomparable', reasons: expect.arrayContaining([reason]), metrics: null });
+    expect(samples.find).not.toHaveBeenCalled();
+  });
+
   it('uses only shared frozen questions and engines for a partial comparison', async () => {
     const snapshot = (questions: number[], engines: number[]) => ({
       market: 'cn' as const,
@@ -299,6 +327,18 @@ describe('OptimizationVerificationService', () => {
     });
   });
 });
+
+function frozenComparisonSnapshot() {
+  return {
+    market: 'cn' as const,
+    markets: ['cn' as const],
+    questions: [{ id: 1, question: '品牌表现如何？', group: '品牌', market: 'cn' as const, brandProbe: true }],
+    engines: [{ id: 2, name: 'Search', code: 'search', vendor: 'vendor', modelName: 'model', baseUrl: 'https://engine.example/v1', apiKey: 'secret', nativeWebSearch: false }],
+    skippedEngines: [],
+    samplingMethod: 'api' as const,
+    rulesVersion: 'v1',
+  };
+}
 
 function workflowService(
   workOrder: { id?: number; brandId?: number; status: 'pending' | 'in_progress' | 'pending_verification' | 'verified' | 'ineffective' | 'cancelled' } | undefined = { status: 'pending' },
