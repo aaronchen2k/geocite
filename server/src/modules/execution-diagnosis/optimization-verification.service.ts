@@ -92,6 +92,10 @@ export class OptimizationVerificationService {
     const workOrders = await this.workOrders.find({ where: { brandId }, order: { updatedAt: 'DESC', id: 'DESC' } });
     return Promise.all(workOrders.map(async (workOrder) => ({
       ...workOrder,
+      actions: await this.actions.find({
+        where: { brandId, workOrderId: workOrder.id },
+        order: { completedAt: 'ASC', id: 'ASC' },
+      }),
       transitionHistory: await this.transitionHistory.find({
         where: { brandId, workOrderId: workOrder.id },
         order: { transitionedAt: 'ASC', id: 'ASC' },

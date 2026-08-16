@@ -71,3 +71,19 @@ test('planning routes preserve their discovery context and funnel planning into 
   await expect(page.getByText('来源：诊断报告')).toBeVisible();
   await expect(page.getByText('发起复测')).toHaveCount(0);
 });
+
+test('work orders retain persisted actions and guide the valid retest workflow', async ({ page }) => {
+  await page.addInitScript(() => { window.localStorage.setItem('geocite.locale', 'zh'); window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 })); });
+  await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
+    await route.fulfill({ json: { items: [{ id: 5, name: 'Acme', code: 'acme', isDefault: true }] } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/5/optimization-work-orders', async (route) => {
+    await route.fulfill({ json: [{ id: 17, title: '修复结构化数据', description: '补齐 Product JSON-LD', acceptanceCriteria: '通过校验', status: 'in_progress', sourceRunId: 42, sourceFindingId: 8, ownerName: null, dueAt: null, actions: [{ id: 19, brandId: 5, workOrderId: 17, description: '已发布并验证 JSON-LD', completedAt: '2026-08-16T12:00:00.000Z' }] }] });
+  });
+
+  await page.goto('/zh/improvement/optimization-work-orders');
+
+  await expect(page.getByText('已发布并验证 JSON-LD')).toBeVisible();
+  await expect(page.getByRole('button', { name: '发起复测' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '取消工单' })).toBeVisible();
+});

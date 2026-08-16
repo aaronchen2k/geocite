@@ -328,6 +328,30 @@ describe('OptimizationVerificationService', () => {
       order: { transitionedAt: 'ASC', id: 'ASC' },
     });
   });
+
+  it('returns only the persisted actions belonging to each brand-scoped work order', async () => {
+    const actions = {
+      count: jest.fn().mockResolvedValue(1),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+      find: jest.fn(async ({ where }) => where.brandId === 5 && where.workOrderId === 9 ? [{
+        id: 31, brandId: 5, workOrderId: 9, description: '已修复结构化数据', scope: null, evidence: null,
+        completedAt: new Date('2026-08-16T12:00:00.000Z'),
+      }] : []),
+    };
+    const service = workflowService({ status: 'in_progress' }, actions);
+
+    const [workOrder] = await service.listWorkOrders(5);
+
+    expect(workOrder).toEqual(expect.objectContaining({
+      id: 9,
+      actions: [expect.objectContaining({ id: 31, brandId: 5, workOrderId: 9, description: '已修复结构化数据' })],
+    }));
+    expect(actions.find).toHaveBeenCalledWith({
+      where: { brandId: 5, workOrderId: 9 },
+      order: { completedAt: 'ASC', id: 'ASC' },
+    });
+  });
 });
 
 function frozenComparisonSnapshot() {
@@ -344,7 +368,7 @@ function frozenComparisonSnapshot() {
 
 function workflowService(
   workOrder: { id?: number; brandId?: number; status: 'pending' | 'in_progress' | 'pending_verification' | 'verified' | 'ineffective' | 'cancelled' } | undefined = { status: 'pending' },
-  actions = { count: jest.fn().mockResolvedValue(1), create: jest.fn((value) => value), save: jest.fn(async (value) => value) },
+  actions: { count: jest.Mock; create: jest.Mock; save: jest.Mock; find?: jest.Mock } = { count: jest.fn().mockResolvedValue(1), create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(async () => []) },
   comparisons = { findOne: jest.fn().mockResolvedValue({ id: 4, brandId: 5, comparability: 'comparable' }) },
   workOrders = {
     findOne: jest.fn(),
