@@ -5,7 +5,7 @@ import { ExecutionDiagnosisService } from './execution-diagnosis.service';
 describe('ExecutionDiagnosisService events', () => {
   it('运行快照包含已持久化的步骤日志', () => {
     const service = new ExecutionDiagnosisService(
-      {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
     );
     const snapshot = (service as unknown as { serialize(run: unknown): unknown }).serialize({
       id: 7, brandId: 3, status: 'succeeded', rulesVersion: 'v1', summary: null,
@@ -21,7 +21,7 @@ describe('ExecutionDiagnosisService events', () => {
       find: jest.fn().mockResolvedValue([{ sequence: 1, type: 'run', data: { status: 'partial' }, createdAt: new Date('2026-08-14T00:00:00.000Z') }]),
     };
     const service = new ExecutionDiagnosisService(
-      {} as never, {} as never, {} as never, {} as never, {} as never, eventsRepository as never, {} as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never, {} as never, {} as never, eventsRepository as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
     );
     const completed = new Subject();
     completed.complete();
@@ -37,7 +37,7 @@ describe('ExecutionDiagnosisService events', () => {
     const brandEngines = { find: jest.fn().mockResolvedValue([]) };
     const diagnosisQuestions = { find: jest.fn().mockResolvedValue([{question: '独立表问题'}]) };
     const service = new ExecutionDiagnosisService(
-      {} as never, brandEngines as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, diagnosisQuestions as never,
+      {} as never, brandEngines as never, {} as never, { findOne: jest.fn().mockResolvedValue({ configurationSnapshot: null }) } as never, {} as never, {} as never, {} as never, {} as never, {} as never, diagnosisQuestions as never, {} as never, {} as never,
     );
 
     await (service as unknown as { sampleEngines(runId: number, brand: {id: number; questions: string[]}): Promise<unknown> }).sampleEngines(7, {id: 5, questions: ['旧主表问题']});

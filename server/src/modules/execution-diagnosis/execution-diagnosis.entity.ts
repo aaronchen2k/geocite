@@ -3,6 +3,15 @@ import { BrandEntity } from '../brands/brand.entity';
 
 export type ExecutionRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'partial';
 export type ExecutionStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'unmeasured' | 'cancelled';
+export type ExecutionDiagnosisConfigurationSnapshot = {
+  questions: Array<{ id: number; question: string; group: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
+  market: 'cn' | 'global' | 'both' | 'mixed' | null;
+  markets: Array<'cn' | 'global' | 'both'>;
+  engines: Array<{ id: number; name: string; code: string; modelName: string | null; nativeWebSearch: boolean }>;
+  skippedEngines: Array<{ id: number; code: string; reason: string }>;
+  samplingMethod: 'api';
+  rulesVersion: string;
+};
 
 @Entity('execution_diagnosis_runs')
 export class ExecutionDiagnosisRunEntity {
@@ -11,6 +20,7 @@ export class ExecutionDiagnosisRunEntity {
   @ManyToOne(() => BrandEntity, { onDelete: 'CASCADE' }) brand!: BrandEntity;
   @Column({ type: 'varchar', default: 'queued' }) status!: ExecutionRunStatus;
   @Column({ name: 'rules_version', default: 'v1' }) rulesVersion!: string;
+  @Column({ name: 'configuration_snapshot_json', type: 'simple-json', nullable: true }) configurationSnapshot!: ExecutionDiagnosisConfigurationSnapshot | null;
   @Column({ name: 'summary_json', type: 'simple-json', nullable: true }) summary!: { passed: number; failed: number; manual: number; unmeasured: number } | null;
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
   @Column({ name: 'started_at', type: 'datetime', nullable: true }) startedAt!: Date | null;

@@ -6,12 +6,14 @@ import { Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
 import { BrandEngineEntity } from '../brands/brand-engine.entity';
 import { EngineEntity } from '../engines/engine.entity';
+import { CompetitorEntity } from '../competitors/competitor.entity';
 import { selectDiagnosticEngines } from '../engines/diagnostic-engine-selector';
 import { getExecutionDiagnosisLogger } from '../../logging/pino-logger';
-import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionRunStatus } from './execution-diagnosis.entity';
+import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionDiagnosisConfigurationSnapshot, type ExecutionRunStatus } from './execution-diagnosis.entity';
 import { fetchPage, inspectHtml, sitemapLocations, websiteUnavailableResult, type FetchedPage } from './site-diagnostic';
 import { toPageEvidence, toProbeEvidence, toSampleEvidence } from './evidence-records';
 import { EngineSamplingClient } from './engine-sampling-client';
+import { DiagnosisFindingEntity, type DiagnosisFindingType } from './optimization-verification.entity';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']>;
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
@@ -36,12 +38,15 @@ export class ExecutionDiagnosisService {
     @InjectRepository(ExecutionDiagnosisProbeEntity) private readonly probesRepository: Repository<ExecutionDiagnosisProbeEntity>,
     @InjectRepository(ExecutionDiagnosisSampleEntity) private readonly samplesRepository: Repository<ExecutionDiagnosisSampleEntity>,
     @InjectRepository(BrandDiagnosisQuestionEntity) private readonly diagnosisQuestions: Repository<BrandDiagnosisQuestionEntity>,
+    @InjectRepository(CompetitorEntity) private readonly competitors: Repository<CompetitorEntity>,
+    @InjectRepository(DiagnosisFindingEntity) private readonly findings: Repository<DiagnosisFindingEntity>,
   ) {}
 
   async create(brandId: number) {
     const brand = await this.brands.findOne({ where: { id: brandId, deleted: false } });
     if (!brand) throw new NotFoundException(`Brand ${brandId} 不存在`);
-    const run = await this.runs.save(this.runs.create({ brandId, status: 'queued', rulesVersion: 'v1', summary: null, startedAt: null, finishedAt: null }));
+    const configurationSnapshot = await this.freezeConfiguration(brandId, 'v1');
+    const run = await this.runs.save(this.runs.create({ brandId, status: 'queued', rulesVersion: 'v1', configurationSnapshot, summary: null, startedAt: null, finishedAt: null }));
     await this.steps.save(Array.from({ length: 7 }, (_, index) => this.steps.create({ runId: run.id, number: index + 1, status: 'pending', startedAt: null, finishedAt: null, errorCode: null, result: null })));
     getExecutionDiagnosisLogger(brand.code, run.id, run.createdAt).info({ brandId, status: run.status, rulesVersion: run.rulesVersion }, 'execution diagnosis created');
     this.streams.set(run.id, new Subject<MessageEvent>());
@@ -136,8 +141,9 @@ export class ExecutionDiagnosisService {
     const run = await this.getRun(id);
     if (run.status === 'cancelled') return;
     const stepCounts = run.steps.reduce((counts, step) => ({ ...counts, [step.status]: (counts[step.status] ?? 0) + 1 }), {} as Record<string, number>);
-    run.status = (stepCounts.failed || stepCounts.unmeasured) ? 'partial' : 'succeeded'; run.finishedAt = new Date(); run.summary = { passed: stepCounts.succeeded ?? 0, failed: stepCounts.failed ?? 0, manual: 0, unmeasured: stepCounts.unmeasured ?? 0 };
-    await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
+    run.finishedAt = new Date(); run.summary = { passed: stepCounts.succeeded ?? 0, failed: stepCounts.failed ?? 0, manual: 0, unmeasured: stepCounts.unmeasured ?? 0 };
+    await this.generateFindings(run);
+    run.status = (stepCounts.failed || stepCounts.unmeasured) ? 'partial' : 'succeeded'; await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
     (await this.runLogger(run)).info({ status: run.status, summary: run.summary, finishedAt: run.finishedAt }, 'execution diagnosis completed');
     this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete();
   }
@@ -155,6 +161,22 @@ export class ExecutionDiagnosisService {
     if (!links.length) return selectDiagnosticEngines([]);
     const engines = await this.engines.findBy(links.map((link) => ({ id: link.engineId, deleted: false })));
     return selectDiagnosticEngines(engines);
+  }
+  private async freezeConfiguration(brandId: number, rulesVersion: string): Promise<ExecutionDiagnosisConfigurationSnapshot> {
+    const [questions, engines] = await Promise.all([
+      this.diagnosisQuestions.find({ where: { brandId }, order: { ordr: 'ASC', id: 'ASC' } }),
+      this.samplingEngines(brandId),
+    ]);
+    const markets = [...new Set(questions.map((item) => item.market))];
+    return {
+      questions: questions.map((item) => ({ id: item.id, question: item.question, group: item.group, market: item.market, brandProbe: item.brandProbe })),
+      market: markets.length === 1 ? markets[0] : markets.length ? 'mixed' : null,
+      markets,
+      engines: engines.eligible.map((item) => ({ id: item.id, name: item.name, code: item.code, modelName: item.modelName, nativeWebSearch: item.webSearchEnabled === true })),
+      skippedEngines: engines.skipped,
+      samplingMethod: 'api',
+      rulesVersion,
+    };
   }
   private async performStep(runId: number, number: number): Promise<StepResult> {
     const context = this.contexts.get(runId);
@@ -216,7 +238,7 @@ export class ExecutionDiagnosisService {
       await this.publish(id, 'step', { number: step.number, status: step.status, result: step.result });
     }
     run.status = 'failed'; run.finishedAt = stoppedAt; run.summary = { passed: 1, failed: 1, manual: 0, unmeasured: pending.length };
-    await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
+    await this.runs.save(run); await this.generateFindings(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
     await this.log(id, 2, reason);
     (await this.runLogger(run)).warn({ status: run.status, summary: run.summary }, reason);
     this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete();
@@ -224,8 +246,8 @@ export class ExecutionDiagnosisService {
 
   private async sampleEngines(runId: number, brand: BrandEntity, signal?: AbortSignal): Promise<StepResult> {
     const { eligible, skipped } = await this.samplingEngines(brand.id);
-    const configured = await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } });
-    const questions = configured.map((item) => item.question);
+    const run = await this.getRun(runId);
+    const questions = run.configurationSnapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
     if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
     const sampled: Array<Record<string, unknown>> = [];
@@ -261,13 +283,40 @@ export class ExecutionDiagnosisService {
     return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
   }
   private async savePageEvidence(runId: number, page: FetchedPage) { await this.pagesRepository.save(this.pagesRepository.create(toPageEvidence(runId, page))); }
+  private async generateFindings(run: ExecutionDiagnosisRunEntity) {
+    const findings: Array<Omit<DiagnosisFindingEntity, 'id' | 'createdAt'>> = [];
+    const add = (type: DiagnosisFindingType, priority: string, scope: Record<string, unknown>, evidence: Record<string, unknown>, recommendation: string) => findings.push({ brandId: run.brandId, sourceRunId: run.id, type, priority, scope, evidence, recommendation, status: 'open' });
+    const websiteFailure = run.steps.find((step) => step.number === 2 && step.status === 'failed');
+    if (websiteFailure) add('site_failure', 'P0', { step: 2 }, { result: websiteFailure.result, errorCode: websiteFailure.errorCode }, 'restore-site-access');
+    const samples = await this.samplesRepository.find({ where: { runId: run.id } });
+    const failedSamples = samples.filter((sample) => sample.error);
+    if (failedSamples.length) add('sampling_failure', 'P1', { step: 5 }, { failedSamples: failedSamples.map((sample) => ({ id: sample.id, engineCode: sample.engineCode, question: sample.question, error: sample.error })) }, 'verify-engine-configuration');
+    const successfulSamples = samples.filter((sample) => !sample.error && sample.answer.trim());
+    if (!successfulSamples.length) {
+      await Promise.all(findings.map((finding) => this.findings.save(this.findings.create(finding))));
+      return;
+    }
+    const brand = await this.brands.findOne({ where: { id: run.brandId, deleted: false } });
+    if (!brand) return;
+    const competitors = (await this.competitors.find({ where: { brandId: run.brandId, deleted: false } })).filter((competitor) => competitor.enabled);
+    const byQuestion = new Map<string, ExecutionDiagnosisSampleEntity[]>();
+    successfulSamples.forEach((sample) => { if (sample.question) byQuestion.set(sample.question, [...(byQuestion.get(sample.question) ?? []), sample]); });
+    for (const [question, answers] of byQuestion) {
+      const brandMentioned = answers.some((sample) => this.mentions(sample.answer, brand.name));
+      if (!brandMentioned) add('brand_absent', 'P1', { question }, { sampleIds: answers.map((sample) => sample.id), answerCount: answers.length }, 'improve-brand-coverage');
+      const dominantCompetitor = competitors.find((competitor) => answers.some((sample) => [competitor.name, ...competitor.aliases].some((name) => this.mentions(sample.answer, name))));
+      if (!brandMentioned && dominantCompetitor) add('competitor_dominated', 'P1', { question, competitor: dominantCompetitor.name }, { sampleIds: answers.map((sample) => sample.id), competitor: dominantCompetitor.name }, 'address-competitor-gap');
+    }
+    await Promise.all(findings.map((finding) => this.findings.save(this.findings.create(finding))));
+  }
+  private mentions(answer: string, name: string) { return name.trim() !== '' && answer.toLocaleLowerCase().includes(name.trim().toLocaleLowerCase()); }
   private async log(runId: number, number: number, message: string) { await this.publish(runId, 'log', { number, message }); const run = await this.getRun(runId); (await this.runLogger(run)).info({ step: number }, message); }
   private async failRun(id: number, error: unknown) { const run = await this.getRun(id); if (this.isTerminal(run.status)) return; run.status = 'failed'; run.finishedAt = new Date(); run.summary = { passed: 0, failed: 1, manual: 0, unmeasured: 0 }; await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary }); (await this.runLogger(run)).error({ error: error instanceof Error ? error.message : String(error) }, 'execution diagnosis failed'); this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete(); }
   private async runLogger(run: ExecutionDiagnosisRunEntity) { const brand = await this.brands.findOne({ where: { id: run.brandId } }); return getExecutionDiagnosisLogger(brand?.code ?? `brand-${run.brandId}`, run.id, run.createdAt); }
   private isTerminal(status: ExecutionRunStatus) { return ['succeeded', 'failed', 'cancelled', 'partial'].includes(status); }
   private serialize(run: ExecutionDiagnosisRunEntity) {
     return {
-      id: run.id, brandId: run.brandId, status: run.status, rulesVersion: run.rulesVersion, summary: run.summary, createdAt: run.createdAt, startedAt: run.startedAt, finishedAt: run.finishedAt,
+      id: run.id, brandId: run.brandId, status: run.status, rulesVersion: run.rulesVersion, configurationSnapshot: run.configurationSnapshot, summary: run.summary, createdAt: run.createdAt, startedAt: run.startedAt, finishedAt: run.finishedAt,
       steps: [...(run.steps ?? [])].sort((a, b) => a.number - b.number).map((step) => ({ number: step.number, status: step.status, startedAt: step.startedAt, finishedAt: step.finishedAt, errorCode: step.errorCode, result: step.result })),
       events: [...(run.events ?? [])].sort((a, b) => a.sequence - b.sequence).flatMap((event) => event.type === 'log' && typeof event.data.number === 'number' && typeof event.data.message === 'string' ? [{ number: event.data.number, message: event.data.message, createdAt: event.createdAt.toISOString() }] : []),
     };
