@@ -6,12 +6,12 @@ import { ModelEntity } from '../modules/models/model.entity';
 import { RagAgentEntity } from '../modules/rag-agents/rag-agent.entity';
 import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity } from '../modules/execution-diagnosis/execution-diagnosis.entity';
 import { CompetitorEntity } from '../modules/competitors/competitor.entity';
-import { AttributionRecordEntity, ComparisonExperimentEntity, DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, PeriodicRetestPlanEntity } from '../modules/execution-diagnosis/optimization-verification.entity';
+import { AttributionRecordEntity, ComparisonExperimentEntity, DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, PeriodicRetestPlanEntity } from '../modules/execution-diagnosis/optimization-verification.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'sqlite',
   database: process.env.NODE_ENV === 'test' ? ':memory:' : 'data/geocite.sqlite',
-  entities: [BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, RagAgentEntity, CompetitorEntity, BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity, DiagnosisFindingEntity, OptimizationWorkOrderEntity, OptimizationActionEntity, DiagnosisComparisonEntity, AttributionRecordEntity, PeriodicRetestPlanEntity, ComparisonExperimentEntity],
+  entities: [BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, RagAgentEntity, CompetitorEntity, BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity, DiagnosisFindingEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, OptimizationActionEntity, DiagnosisComparisonEntity, AttributionRecordEntity, PeriodicRetestPlanEntity, ComparisonExperimentEntity],
   synchronize: true,
 };
 

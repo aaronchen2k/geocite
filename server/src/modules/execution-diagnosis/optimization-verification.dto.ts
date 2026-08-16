@@ -24,4 +24,5 @@ export class TransitionOptimizationWorkOrderDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) comparisonId?: number;
   @IsOptional() @IsString() @MaxLength(5_000) acceptanceNote?: string;
   @IsOptional() @IsString() @MaxLength(2_000) reason?: string;
+  @IsOptional() @IsString() @MaxLength(200) actor?: string;
 }

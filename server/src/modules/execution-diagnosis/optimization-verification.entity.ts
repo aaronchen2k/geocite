@@ -34,6 +34,21 @@ export class OptimizationWorkOrderEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'datetime' }) updatedAt!: Date;
 }
 
+@Entity('optimization_work_order_transitions')
+@Index(['brandId', 'workOrderId', 'transitionedAt'])
+export class OptimizationWorkOrderTransitionEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'brand_id' }) brandId!: number;
+  @Column({ name: 'work_order_id' }) workOrderId!: number;
+  @Column({ name: 'previous_status' }) previousStatus!: WorkOrderStatus;
+  @Column({ name: 'new_status' }) newStatus!: WorkOrderStatus;
+  @Column({ name: 'comparison_id', nullable: true }) comparisonId!: number | null;
+  @Column({ name: 'acceptance_note', type: 'text', nullable: true }) acceptanceNote!: string | null;
+  @Column({ name: 'cancellation_reason', type: 'text', nullable: true }) cancellationReason!: string | null;
+  @Column({ default: 'system' }) actor!: string;
+  @CreateDateColumn({ name: 'transitioned_at', type: 'datetime' }) transitionedAt!: Date;
+}
+
 @Entity('optimization_actions')
 @Index(['brandId', 'workOrderId'])
 export class OptimizationActionEntity {

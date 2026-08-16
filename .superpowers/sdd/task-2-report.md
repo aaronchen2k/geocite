@@ -34,5 +34,17 @@
 
 ## 注意事项
 
-- 工作单实体尚未存储“验收说明/取消原因/比较 ID”字段；当前任务按既有实体模型在状态切换时校验这些输入和当前品牌比较记录。若后续需要展示或审计这些值，应在后续数据模型任务中增加持久化字段或使用归因记录。
+- 工单当前状态仍保持精简；验收说明、取消原因、比较 ID 和操作者属于不可变的流转审计历史，而非可被后续流转覆盖的工单字段。
 - 仓库原有的 UI、诊断洞察和系统文件脏改动均未修改或暂存。
+
+## 审核修复：持久化状态流转审计历史
+
+- 新增 `optimization_work_order_transitions` 表与 `OptimizationWorkOrderTransitionEntity`。每一次成功状态流转追加一条带品牌和工单范围的历史记录，保存前后状态、比较 ID、验收说明、取消原因、操作者（未提供时为 `system`）和 `transitioned_at` 时间戳。
+- 工单列表读取为每个同品牌工单附带按时间正序排列的 `transitionHistory`；历史查询同时以 `brandId` 和 `workOrderId` 过滤，避免跨品牌暴露。
+- `TransitionOptimizationWorkOrderDto` 增加受限的可选 `actor` 字段，供已知操作者标注审计记录。
+
+### 审核修复验证证据
+
+1. RED：新增验证完成和取消审计历史测试后，聚焦测试以缺少 `actor`、历史实体/仓储和检索字段的 TS 错误失败。
+2. GREEN：`pnpm --filter @geocite/server test -- optimization-verification.service.spec.ts` 通过：1 个套件、7 个测试、0 失败。其中新增测试验证已验证流转和取消流转均保存并读取所有要求的审计元数据与时间戳，且品牌 6 读取不返回品牌 5 的工单或历史。
+3. 构建：`pnpm --filter @geocite/server build` 通过。

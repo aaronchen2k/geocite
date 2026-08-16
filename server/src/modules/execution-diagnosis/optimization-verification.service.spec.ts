@@ -99,6 +99,97 @@ describe('OptimizationVerificationService', () => {
 
     await expect(service.transitionWorkOrder(5, 9, { status: 'cancelled' })).rejects.toThrow('取消工单必须提供原因');
   });
+
+  it('retrieves a verified transition with its immutable verification audit metadata', async () => {
+    const transitionHistory = {
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: 17, transitionedAt: new Date('2026-08-16T10:00:00.000Z'), ...value })),
+      find: jest.fn(async ({ where }) => where.brandId === 5 && where.workOrderId === 9 ? [{
+        id: 17,
+        brandId: 5,
+        workOrderId: 9,
+        previousStatus: 'pending_verification',
+        newStatus: 'verified',
+        comparisonId: 4,
+        acceptanceNote: '复测结果符合验收标准',
+        cancellationReason: null,
+        actor: 'quality-reviewer',
+        transitionedAt: new Date('2026-08-16T10:00:00.000Z'),
+      }] : []),
+    };
+    const service = workflowService({ status: 'pending_verification' }, undefined, undefined, undefined, transitionHistory);
+
+    await service.transitionWorkOrder(5, 9, {
+      status: 'verified', comparisonId: 4, acceptanceNote: '复测结果符合验收标准', actor: 'quality-reviewer',
+    });
+    const [workOrder] = await service.listWorkOrders(5);
+
+    expect(transitionHistory.save).toHaveBeenCalledWith(expect.objectContaining({
+      brandId: 5,
+      workOrderId: 9,
+      previousStatus: 'pending_verification',
+      newStatus: 'verified',
+      comparisonId: 4,
+      acceptanceNote: '复测结果符合验收标准',
+      cancellationReason: null,
+      actor: 'quality-reviewer',
+    }));
+    expect(workOrder).toEqual(expect.objectContaining({
+      transitionHistory: [expect.objectContaining({
+        previousStatus: 'pending_verification', newStatus: 'verified', comparisonId: 4,
+        acceptanceNote: '复测结果符合验收标准', actor: 'quality-reviewer', transitionedAt: expect.any(Date),
+      })],
+    }));
+  });
+
+  it('keeps cancellation audit data brand-scoped and marks an unauthenticated transition as system', async () => {
+    const transitionHistory = {
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: 18, transitionedAt: new Date('2026-08-16T11:00:00.000Z'), ...value })),
+      find: jest.fn(async ({ where }) => where.brandId === 5 && where.workOrderId === 9 ? [{
+        id: 18,
+        brandId: 5,
+        workOrderId: 9,
+        previousStatus: 'pending',
+        newStatus: 'cancelled',
+        comparisonId: null,
+        acceptanceNote: null,
+        cancellationReason: '需求已撤回',
+        actor: 'system',
+        transitionedAt: new Date('2026-08-16T11:00:00.000Z'),
+      }] : []),
+    };
+    const workOrders = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    };
+    const service = workflowService({ status: 'pending' }, undefined, undefined, workOrders, transitionHistory);
+
+    await service.transitionWorkOrder(5, 9, { status: 'cancelled', reason: '需求已撤回' });
+    const [workOrder] = await service.listWorkOrders(5);
+
+    expect(transitionHistory.save).toHaveBeenCalledWith(expect.objectContaining({
+      brandId: 5,
+      workOrderId: 9,
+      previousStatus: 'pending',
+      newStatus: 'cancelled',
+      cancellationReason: '需求已撤回',
+      comparisonId: null,
+      acceptanceNote: null,
+      actor: 'system',
+    }));
+    expect((workOrder as { transitionHistory: unknown[] }).transitionHistory).toEqual([expect.objectContaining({
+      brandId: 5, cancellationReason: '需求已撤回', actor: 'system', transitionedAt: expect.any(Date),
+    })]);
+    await expect(service.listWorkOrders(6)).resolves.toEqual([]);
+    expect(workOrders.find).toHaveBeenLastCalledWith({ where: { brandId: 6 }, order: { updatedAt: 'DESC', id: 'DESC' } });
+    expect(transitionHistory.find).toHaveBeenCalledWith({
+      where: { brandId: 5, workOrderId: 9 },
+      order: { transitionedAt: 'ASC', id: 'ASC' },
+    });
+  });
 });
 
 function workflowService(
@@ -111,10 +202,14 @@ function workflowService(
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
   },
+  transitionHistory: { create: jest.Mock; save: jest.Mock; find: jest.Mock } = { create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(async () => []) },
 ) {
   const savedWorkOrder = workOrder ? { id: 9, brandId: 5, ...workOrder } : null;
   if (!workOrders.findOne.getMockImplementation?.()) {
     workOrders.findOne.mockImplementation(async ({ where }) => savedWorkOrder && where.id === 9 && where.brandId === 5 ? savedWorkOrder : null);
+  }
+  if (!workOrders.find.getMockImplementation?.()) {
+    workOrders.find.mockImplementation(async ({ where }) => savedWorkOrder && where.brandId === savedWorkOrder.brandId ? [savedWorkOrder] : []);
   }
   return new OptimizationVerificationService(
     { findOne: jest.fn().mockResolvedValue({ id: 5, deleted: false }) } as never,
@@ -123,6 +218,7 @@ function workflowService(
     workOrders as never,
     actions as never,
     comparisons as never,
+    transitionHistory as never,
   );
 }
 

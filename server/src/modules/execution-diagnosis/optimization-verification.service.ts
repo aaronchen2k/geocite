@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
 import { ExecutionDiagnosisRunEntity } from './execution-diagnosis.entity';
 import { CreateOptimizationActionDto, CreateOptimizationWorkOrderDto, TransitionOptimizationWorkOrderDto } from './optimization-verification.dto';
-import { DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, type WorkOrderStatus } from './optimization-verification.entity';
+import { DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, type WorkOrderStatus } from './optimization-verification.entity';
 
 const transitions: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   pending: ['in_progress', 'cancelled'],
@@ -24,11 +24,19 @@ export class OptimizationVerificationService {
     @InjectRepository(OptimizationWorkOrderEntity) private readonly workOrders: Repository<OptimizationWorkOrderEntity>,
     @InjectRepository(OptimizationActionEntity) private readonly actions: Repository<OptimizationActionEntity>,
     @InjectRepository(DiagnosisComparisonEntity) private readonly comparisons: Repository<DiagnosisComparisonEntity>,
+    @InjectRepository(OptimizationWorkOrderTransitionEntity) private readonly transitionHistory: Repository<OptimizationWorkOrderTransitionEntity>,
   ) {}
 
   async listWorkOrders(brandId: number) {
     await this.brand(brandId);
-    return this.workOrders.find({ where: { brandId }, order: { updatedAt: 'DESC', id: 'DESC' } });
+    const workOrders = await this.workOrders.find({ where: { brandId }, order: { updatedAt: 'DESC', id: 'DESC' } });
+    return Promise.all(workOrders.map(async (workOrder) => ({
+      ...workOrder,
+      transitionHistory: await this.transitionHistory.find({
+        where: { brandId, workOrderId: workOrder.id },
+        order: { transitionedAt: 'ASC', id: 'ASC' },
+      }),
+    })));
   }
 
   async createWorkOrder(brandId: number, dto: CreateOptimizationWorkOrderDto) {
@@ -70,8 +78,20 @@ export class OptimizationVerificationService {
     }
     if (dto.status === 'verified') await this.verifiedComparison(brandId, dto);
     if (dto.status === 'cancelled' && !dto.reason?.trim()) throw new BadRequestException('取消工单必须提供原因');
+    const previousStatus = workOrder.status;
     workOrder.status = dto.status;
-    return this.workOrders.save(workOrder);
+    const savedWorkOrder = await this.workOrders.save(workOrder);
+    await this.transitionHistory.save(this.transitionHistory.create({
+      brandId,
+      workOrderId,
+      previousStatus,
+      newStatus: dto.status,
+      comparisonId: dto.status === 'verified' ? dto.comparisonId! : null,
+      acceptanceNote: dto.status === 'verified' ? this.optionalText(dto.acceptanceNote) : null,
+      cancellationReason: dto.status === 'cancelled' ? this.optionalText(dto.reason) : null,
+      actor: this.optionalText(dto.actor) ?? 'system',
+    }));
+    return savedWorkOrder;
   }
 
   private async verifiedComparison(brandId: number, dto: TransitionOptimizationWorkOrderDto) {
