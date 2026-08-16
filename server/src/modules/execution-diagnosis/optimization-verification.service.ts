@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
 import { ExecutionDiagnosisRunEntity } from './execution-diagnosis.entity';
 import { CreateOptimizationActionDto, CreateOptimizationWorkOrderDto, TransitionOptimizationWorkOrderDto } from './optimization-verification.dto';
@@ -25,6 +25,7 @@ export class OptimizationVerificationService {
     @InjectRepository(OptimizationActionEntity) private readonly actions: Repository<OptimizationActionEntity>,
     @InjectRepository(DiagnosisComparisonEntity) private readonly comparisons: Repository<DiagnosisComparisonEntity>,
     @InjectRepository(OptimizationWorkOrderTransitionEntity) private readonly transitionHistory: Repository<OptimizationWorkOrderTransitionEntity>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async listWorkOrders(brandId: number) {
@@ -79,19 +80,23 @@ export class OptimizationVerificationService {
     if (dto.status === 'verified') await this.verifiedComparison(brandId, dto);
     if (dto.status === 'cancelled' && !dto.reason?.trim()) throw new BadRequestException('取消工单必须提供原因');
     const previousStatus = workOrder.status;
-    workOrder.status = dto.status;
-    const savedWorkOrder = await this.workOrders.save(workOrder);
-    await this.transitionHistory.save(this.transitionHistory.create({
-      brandId,
-      workOrderId,
-      previousStatus,
-      newStatus: dto.status,
-      comparisonId: dto.status === 'verified' ? dto.comparisonId! : null,
-      acceptanceNote: dto.status === 'verified' ? this.optionalText(dto.acceptanceNote) : null,
-      cancellationReason: dto.status === 'cancelled' ? this.optionalText(dto.reason) : null,
-      actor: this.optionalText(dto.actor) ?? 'system',
-    }));
-    return savedWorkOrder;
+    return this.dataSource.transaction(async (manager) => {
+      workOrder.status = dto.status;
+      const savedWorkOrder = await manager.getRepository(OptimizationWorkOrderEntity).save(workOrder);
+      await manager.getRepository(OptimizationWorkOrderTransitionEntity).save(
+        manager.getRepository(OptimizationWorkOrderTransitionEntity).create({
+          brandId,
+          workOrderId,
+          previousStatus,
+          newStatus: dto.status,
+          comparisonId: dto.status === 'verified' ? dto.comparisonId! : null,
+          acceptanceNote: dto.status === 'verified' ? this.optionalText(dto.acceptanceNote) : null,
+          cancellationReason: dto.status === 'cancelled' ? this.optionalText(dto.reason) : null,
+          actor: this.optionalText(dto.actor) ?? 'system',
+        }),
+      );
+      return savedWorkOrder;
+    });
   }
 
   private async verifiedComparison(brandId: number, dto: TransitionOptimizationWorkOrderDto) {

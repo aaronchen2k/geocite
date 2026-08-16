@@ -48,3 +48,14 @@
 1. RED：新增验证完成和取消审计历史测试后，聚焦测试以缺少 `actor`、历史实体/仓储和检索字段的 TS 错误失败。
 2. GREEN：`pnpm --filter @geocite/server test -- optimization-verification.service.spec.ts` 通过：1 个套件、7 个测试、0 失败。其中新增测试验证已验证流转和取消流转均保存并读取所有要求的审计元数据与时间戳，且品牌 6 读取不返回品牌 5 的工单或历史。
 3. 构建：`pnpm --filter @geocite/server build` 通过。
+
+## 审核修复：状态流转与审计历史原子性
+
+- `transitionWorkOrder` 通过注入的 TypeORM `DataSource.transaction`，使用同一事务 manager 保存工单状态与不可变审计历史；审计写入失败会回滚状态更新。
+- 新增回归测试：模拟审计保存失败，断言已持久化的工单状态仍为 `pending`。
+
+### 原子性修复验证证据
+
+1. RED：新增回归测试后，聚焦测试以构造函数缺少 `DataSource` 依赖的 TS2554 错误失败。
+2. GREEN：`pnpm --filter @geocite/server test -- optimization-verification.service.spec.ts` 通过：1 个套件、8 个测试、0 失败。
+3. 构建：`pnpm --filter @geocite/server build` 通过。

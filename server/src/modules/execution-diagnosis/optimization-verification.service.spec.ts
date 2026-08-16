@@ -100,6 +100,40 @@ describe('OptimizationVerificationService', () => {
     await expect(service.transitionWorkOrder(5, 9, { status: 'cancelled' })).rejects.toThrow('取消工单必须提供原因');
   });
 
+  it('rolls back the work-order status when saving its audit history fails', async () => {
+    const persistedWorkOrder = { id: 9, brandId: 5, status: 'pending' as const };
+    const workOrders = {
+      findOne: jest.fn(async ({ where }) => where.id === 9 && where.brandId === 5 ? { ...persistedWorkOrder } : null),
+      find: jest.fn(),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => Object.assign(persistedWorkOrder, value)),
+    };
+    const transitionHistory = {
+      create: jest.fn((value) => value),
+      save: jest.fn().mockRejectedValue(new Error('audit insert failed')),
+      find: jest.fn(async () => []),
+    };
+    const dataSource = {
+      transaction: jest.fn(async (operation) => {
+        const stagedWorkOrder = { ...persistedWorkOrder };
+        const manager = {
+          getRepository: jest.fn((entity: { name: string }) => entity.name === 'OptimizationWorkOrderEntity'
+            ? { save: jest.fn(async (value) => Object.assign(stagedWorkOrder, value)) }
+            : transitionHistory),
+        };
+        const result = await operation(manager);
+        Object.assign(persistedWorkOrder, stagedWorkOrder);
+        return result;
+      }),
+    };
+    const service = workflowService(persistedWorkOrder, undefined, undefined, workOrders, transitionHistory, dataSource);
+
+    await expect(service.transitionWorkOrder(5, 9, { status: 'cancelled', reason: 'audit failure' }))
+      .rejects.toThrow('audit insert failed');
+
+    expect(persistedWorkOrder.status).toBe('pending');
+  });
+
   it('retrieves a verified transition with its immutable verification audit metadata', async () => {
     const transitionHistory = {
       create: jest.fn((value) => value),
@@ -203,6 +237,11 @@ function workflowService(
     save: jest.fn(async (value) => value),
   },
   transitionHistory: { create: jest.Mock; save: jest.Mock; find: jest.Mock } = { create: jest.fn((value) => value), save: jest.fn(async (value) => value), find: jest.fn(async () => []) },
+  dataSource = {
+    transaction: jest.fn(async (operation) => operation({
+      getRepository: jest.fn((entity) => entity.name === 'OptimizationWorkOrderEntity' ? workOrders : transitionHistory),
+    })),
+  },
 ) {
   const savedWorkOrder = workOrder ? { id: 9, brandId: 5, ...workOrder } : null;
   if (!workOrders.findOne.getMockImplementation?.()) {
@@ -219,6 +258,7 @@ function workflowService(
     actions as never,
     comparisons as never,
     transitionHistory as never,
+    dataSource as never,
   );
 }
 
