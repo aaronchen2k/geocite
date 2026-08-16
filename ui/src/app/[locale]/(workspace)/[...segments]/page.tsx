@@ -10,6 +10,10 @@ import {BrandFactsPage} from '@/components/configuration/brand-facts-page';
 import {DiagnosisEmptyPage} from '@/components/diagnosis/diagnosis-empty-page';
 import {DiagnosisInsightsPage} from '@/components/diagnosis/diagnosis-insights-page';
 import {VerificationPages} from '@/components/verification/verification-pages';
+import {OptimizationWorkOrdersPage} from '@/components/optimization/optimization-work-orders-page';
+import {OptimizationPlanningPage} from '@/components/optimization/optimization-planning-pages';
+
+type VerificationGuidance = {purposeTitle: string; automaticTitle: string; manualTitle: string; purpose: string; automatic: string; manual: string};
 
 const pages: Record<string, string> = {
   dashboard: 'dashboard', 'configuration/questions': 'diagnosisConfiguration', 'diagnosis/diagnosis-execution': 'diagnosisExecution', 'diagnosis/competitor-comparison': 'competitorComparison', 'diagnosis/samples': 'diagnosisSamples', 'diagnosis/diagnosis-report': 'diagnosisReport', 'improvement/optimization-work-orders': 'optimizationWorkOrders', 'improvement/keyword-matrix': 'keywordMatrix', 'improvement/source-building': 'sourceBuilding', 'improvement/technical-adaptation': 'technicalAdaptation', 'improvement/content-production': 'contentProduction', 'verification/visibility-trend': 'visibilityTrend', 'verification/rank-tracking': 'rankTracking', 'verification/attribution': 'attribution', 'verification/comparison-test': 'comparisonTest', 'verification/periodic-retest': 'periodicRetest',
