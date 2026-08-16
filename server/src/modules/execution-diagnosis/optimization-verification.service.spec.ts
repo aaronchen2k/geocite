@@ -63,6 +63,80 @@ describe('ExecutionDiagnosisService optimization verification', () => {
 });
 
 describe('OptimizationVerificationService', () => {
+  it('marks runs with different frozen markets as incomparable', async () => {
+    const snapshot = (market: 'cn' | 'global') => ({
+      market,
+      markets: [market],
+      questions: [{ id: 1, question: '品牌表现如何？', group: '品牌', market, brandProbe: true }],
+      engines: [{ id: 2, name: 'Search', code: 'search', vendor: 'vendor', modelName: 'model', baseUrl: null, apiKey: null, nativeWebSearch: false }],
+      skippedEngines: [],
+      samplingMethod: 'api' as const,
+      rulesVersion: 'v1',
+    });
+    const runs = {
+      findOne: jest.fn(async ({ where }) => ({
+        id: where.id,
+        brandId: where.brandId,
+        status: 'succeeded',
+        configurationSnapshot: snapshot(where.id === 7 ? 'cn' : 'global'),
+        createdAt: new Date('2026-08-01T00:00:00.000Z'),
+        finishedAt: new Date('2026-08-01T01:00:00.000Z'),
+      })),
+    };
+    const comparisons = { create: jest.fn((value) => value), save: jest.fn(async (value) => ({ id: 12, ...value })) };
+    const service = new OptimizationVerificationService(
+      { findOne: jest.fn().mockResolvedValue({ id: 5, name: 'Acme', deleted: false }) } as never,
+      runs as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      comparisons as never,
+      {} as never,
+      {} as never,
+      { find: jest.fn() } as never,
+    );
+
+    const result = await service.compareRuns(5, 7, 8);
+
+    expect(result).toMatchObject({ comparability: 'incomparable', reasons: ['market'] });
+  });
+
+  it('uses only shared frozen questions and engines for a partial comparison', async () => {
+    const snapshot = (questions: number[], engines: number[]) => ({
+      market: 'cn' as const,
+      markets: ['cn' as const],
+      questions: questions.map((id) => ({ id, question: `问题 ${id}`, group: '品牌', market: 'cn' as const, brandProbe: true })),
+      engines: engines.map((id) => ({ id, name: `Engine ${id}`, code: `engine-${id}`, vendor: 'vendor', modelName: 'model', baseUrl: null, apiKey: null, nativeWebSearch: false })),
+      skippedEngines: [], samplingMethod: 'api' as const, rulesVersion: 'v1',
+    });
+    const runs = { findOne: jest.fn(async ({ where }) => ({ id: where.id, brandId: 5, status: 'succeeded', configurationSnapshot: where.id === 7 ? snapshot([1, 2], [3, 4]) : snapshot([2, 5], [4, 6]), createdAt: new Date(), finishedAt: new Date() })) };
+    const samples = { find: jest.fn(async () => [
+      { runId: 7, engineId: 4, question: '问题 2', answer: 'Acme', error: null, reviewedBrandMention: null },
+      { runId: 7, engineId: 3, question: '问题 1', answer: 'Acme', error: null, reviewedBrandMention: null },
+      { runId: 8, engineId: 4, question: '问题 2', answer: 'other', error: null, reviewedBrandMention: null },
+      { runId: 8, engineId: 6, question: '问题 5', answer: 'Acme', error: null, reviewedBrandMention: null },
+    ]) };
+    const comparisons = { create: jest.fn((value) => value), save: jest.fn(async (value) => ({ id: 13, ...value })) };
+    const service = verificationComparisonService(runs, comparisons, samples);
+
+    const result = await service.compareRuns(5, 7, 8);
+
+    expect(result).toMatchObject({ comparability: 'partial', reasons: expect.arrayContaining(['question_set', 'engine_set']), metrics: { sharedQuestionIds: [2], sharedEngineIds: [4], baseline: { sampleCount: 1, visibilityRate: 1 }, retest: { sampleCount: 1, visibilityRate: 0 } } });
+  });
+
+  it('does not aggregate metrics for an incompatible comparison', async () => {
+    const snapshot = (market: 'cn' | 'global') => ({ market, markets: [market], questions: [{ id: 1, question: '问题', group: '品牌', market, brandProbe: true }], engines: [{ id: 2, name: 'Engine', code: 'engine', vendor: 'vendor', modelName: null, baseUrl: null, apiKey: null, nativeWebSearch: false }], skippedEngines: [], samplingMethod: 'api' as const, rulesVersion: 'v1' });
+    const runs = { findOne: jest.fn(async ({ where }) => ({ id: where.id, brandId: 5, status: 'succeeded', configurationSnapshot: snapshot(where.id === 7 ? 'cn' : 'global'), createdAt: new Date(), finishedAt: new Date() })) };
+    const samples = { find: jest.fn() };
+    const comparisons = { create: jest.fn((value) => value), save: jest.fn(async (value) => ({ id: 14, ...value })) };
+    const service = verificationComparisonService(runs, comparisons, samples);
+
+    const result = await service.compareRuns(5, 7, 8);
+
+    expect(result).toMatchObject({ comparability: 'incomparable', reasons: ['market'], metrics: null });
+    expect(samples.find).not.toHaveBeenCalled();
+  });
+
   it('进入已验证时必须关联可比验证比较和验收说明', async () => {
     const service = workflowService({ status: 'pending_verification' });
 
@@ -259,6 +333,21 @@ function workflowService(
     comparisons as never,
     transitionHistory as never,
     dataSource as never,
+    { find: jest.fn(async () => []) } as never,
+  );
+}
+
+function verificationComparisonService(runs: { findOne: jest.Mock }, comparisons: { create: jest.Mock; save: jest.Mock }, samples: { find: jest.Mock }) {
+  return new OptimizationVerificationService(
+    { findOne: jest.fn().mockResolvedValue({ id: 5, name: 'Acme', deleted: false }) } as never,
+    runs as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    comparisons as never,
+    {} as never,
+    {} as never,
+    samples as never,
   );
 }
 

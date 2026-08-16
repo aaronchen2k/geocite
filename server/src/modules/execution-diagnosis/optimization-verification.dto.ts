@@ -26,3 +26,8 @@ export class TransitionOptimizationWorkOrderDto {
   @IsOptional() @IsString() @MaxLength(2_000) reason?: string;
   @IsOptional() @IsString() @MaxLength(200) actor?: string;
 }
+
+export class CompareDiagnosisRunsDto {
+  @Type(() => Number) @IsInt() @Min(1) baselineRunId!: number;
+  @Type(() => Number) @IsInt() @Min(1) retestRunId!: number;
+}

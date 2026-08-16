@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type DiagnosisFindingType = 'brand_absent' | 'competitor_dominated' | 'sampling_failure' | 'site_failure';
 export type WorkOrderStatus = 'pending' | 'in_progress' | 'pending_verification' | 'verified' | 'ineffective' | 'cancelled';
 export type AttributionConclusion = 'confirmed' | 'possible' | 'inconclusive' | 'no_impact';
+export type RunComparability = 'comparable' | 'partial' | 'incomparable';
 
 @Entity('diagnosis_findings')
 export class DiagnosisFindingEntity {
@@ -68,7 +69,7 @@ export class DiagnosisComparisonEntity {
   @Column({ name: 'brand_id' }) brandId!: number;
   @Column({ name: 'baseline_run_id' }) baselineRunId!: number;
   @Column({ name: 'retest_run_id' }) retestRunId!: number;
-  @Column({ default: 'pending' }) comparability!: 'pending' | 'comparable' | 'partially_comparable' | 'not_comparable';
+  @Column({ default: 'incomparable' }) comparability!: RunComparability;
   @Column({ name: 'metrics_json', type: 'simple-json', nullable: true }) metrics!: Record<string, unknown> | null;
   @Column({ name: 'reason', type: 'text', nullable: true }) reason!: string | null;
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;

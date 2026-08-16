@@ -9,6 +9,7 @@ import {CompetitorBrandsPage} from '@/components/configuration/competitor-brands
 import {BrandFactsPage} from '@/components/configuration/brand-facts-page';
 import {DiagnosisEmptyPage} from '@/components/diagnosis/diagnosis-empty-page';
 import {DiagnosisInsightsPage} from '@/components/diagnosis/diagnosis-insights-page';
+import {VerificationPages} from '@/components/verification/verification-pages';
 
 const pages: Record<string, string> = {
   dashboard: 'dashboard', 'configuration/questions': 'diagnosisConfiguration', 'diagnosis/diagnosis-execution': 'diagnosisExecution', 'diagnosis/competitor-comparison': 'competitorComparison', 'diagnosis/samples': 'diagnosisSamples', 'diagnosis/diagnosis-report': 'diagnosisReport', 'improvement/optimization-work-orders': 'optimizationWorkOrders', 'improvement/keyword-matrix': 'keywordMatrix', 'improvement/source-building': 'sourceBuilding', 'improvement/technical-adaptation': 'technicalAdaptation', 'improvement/content-production': 'contentProduction', 'verification/visibility-trend': 'visibilityTrend', 'verification/rank-tracking': 'rankTracking', 'verification/attribution': 'attribution', 'verification/comparison-test': 'comparisonTest', 'verification/periodic-retest': 'periodicRetest',
@@ -30,6 +31,9 @@ export default async function Page({params}: {params: Promise<{locale: string; s
   if (key === 'diagnosis/diagnosis-report') return <DiagnosisInsightsPage variant="report" />;
   if (key.startsWith('admin/')) return <WorkspacePage admin={key.slice(6)} />;
   const pageKey = pages[key];
+  if (key === 'verification/visibility-trend') return <VerificationPages variant="trend" />;
+  if (key === 'verification/rank-tracking') return <VerificationPages variant="questions" />;
+  if (key === 'verification/comparison-test') return <VerificationPages variant="comparison" />;
   if (!pageKey) notFound();
   const t = await getTranslations('Pages');
   return <WorkspacePage title={t(`${pageKey}.title`)} description={t(`${pageKey}.description`)} />;

@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
-import { ExecutionDiagnosisRunEntity } from './execution-diagnosis.entity';
+import { ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, type ExecutionDiagnosisConfigurationSnapshot } from './execution-diagnosis.entity';
 import { CreateOptimizationActionDto, CreateOptimizationWorkOrderDto, TransitionOptimizationWorkOrderDto } from './optimization-verification.dto';
-import { DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, type WorkOrderStatus } from './optimization-verification.entity';
+import { DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, type RunComparability, type WorkOrderStatus } from './optimization-verification.entity';
 
 const transitions: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   pending: ['in_progress', 'cancelled'],
@@ -26,7 +26,66 @@ export class OptimizationVerificationService {
     @InjectRepository(DiagnosisComparisonEntity) private readonly comparisons: Repository<DiagnosisComparisonEntity>,
     @InjectRepository(OptimizationWorkOrderTransitionEntity) private readonly transitionHistory: Repository<OptimizationWorkOrderTransitionEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @InjectRepository(ExecutionDiagnosisSampleEntity) private readonly samples: Repository<ExecutionDiagnosisSampleEntity>,
   ) {}
+
+  async compareRuns(brandId: number, baselineRunId: number, retestRunId: number) {
+    const brand = await this.brand(brandId);
+    const [baseline, retest] = await Promise.all([
+      this.run(brandId, baselineRunId),
+      this.run(brandId, retestRunId),
+    ]);
+    const evaluated = this.evaluateComparability(baseline, retest);
+    const metrics = evaluated.comparability === 'incomparable'
+      ? null
+      : await this.comparisonMetrics(brand.name, baseline, retest, evaluated.questionIds, evaluated.engineIds);
+    const comparison = await this.comparisons.save(this.comparisons.create({
+      brandId,
+      baselineRunId,
+      retestRunId,
+      comparability: evaluated.comparability,
+      metrics,
+      reason: evaluated.reasons.length ? evaluated.reasons.join(',') : null,
+    }));
+    return { ...comparison, reasons: evaluated.reasons };
+  }
+
+  async visibilityTrend(brandId: number) {
+    const brand = await this.brand(brandId);
+    const runs = await this.completedRuns(brandId);
+    const samples = await this.samplesFor(runs.map((run) => run.id));
+    return {
+      runs: runs.map((run) => ({
+        runId: run.id,
+        status: run.status,
+        createdAt: run.createdAt,
+        finishedAt: run.finishedAt,
+        configuration: this.configurationSummary(run.configurationSnapshot),
+        metrics: this.metricsFor(brand.name, samples.filter((sample) => sample.runId === run.id)),
+      })),
+    };
+  }
+
+  async questionTracking(brandId: number) {
+    const brand = await this.brand(brandId);
+    const runs = await this.completedRuns(brandId);
+    const samples = await this.samplesFor(runs.map((run) => run.id));
+    const questions = new Map<number, { id: number; question: string; group: string }>();
+    runs.forEach((run) => run.configurationSnapshot?.questions.forEach((question) => {
+      if (!questions.has(question.id)) questions.set(question.id, { id: question.id, question: question.question, group: question.group });
+    }));
+    return {
+      runs: runs.map((run) => ({ runId: run.id, finishedAt: run.finishedAt, status: run.status })),
+      questions: [...questions.values()].map((question) => ({
+        ...question,
+        points: runs.map((run) => {
+          const snapshotQuestion = run.configurationSnapshot?.questions.find((item) => item.id === question.id);
+          const scoped = snapshotQuestion ? samples.filter((sample) => sample.runId === run.id && sample.question === snapshotQuestion.question) : [];
+          return { runId: run.id, finishedAt: run.finishedAt, ...this.metricsFor(brand.name, scoped) };
+        }),
+      })),
+    };
+  }
 
   async listWorkOrders(brandId: number) {
     await this.brand(brandId);
@@ -132,6 +191,76 @@ export class OptimizationVerificationService {
     if (!finding) throw new NotFoundException(`诊断发现 ${id} 不存在`);
     return finding;
   }
+
+  private async run(brandId: number, id: number) {
+    const run = await this.runs.findOne({ where: { id, brandId } });
+    if (!run) throw new NotFoundException(`诊断批次 ${id} 不存在`);
+    return run;
+  }
+
+  private async completedRuns(brandId: number) {
+    return this.runs.find({
+      where: { brandId, status: In(['succeeded', 'partial']) },
+      order: { finishedAt: 'ASC', id: 'ASC' },
+    });
+  }
+
+  private async samplesFor(runIds: number[]) {
+    if (!runIds.length) return [];
+    return this.samples.find({ where: { runId: In(runIds) }, order: { sampledAt: 'ASC', id: 'ASC' } });
+  }
+
+  private evaluateComparability(baseline: ExecutionDiagnosisRunEntity, retest: ExecutionDiagnosisRunEntity) {
+    const reasons: string[] = [];
+    if (baseline.brandId !== retest.brandId) reasons.push('brand');
+    if (!this.isCompleted(baseline) || !this.isCompleted(retest)) reasons.push('not_completed');
+    const baselineSnapshot = baseline.configurationSnapshot;
+    const retestSnapshot = retest.configurationSnapshot;
+    if (!baselineSnapshot || !retestSnapshot) return { comparability: 'incomparable' as const, reasons: [...reasons, 'missing_snapshot'], questionIds: [] as number[], engineIds: [] as number[] };
+    if (baselineSnapshot.market !== retestSnapshot.market) reasons.push('market');
+    if (baselineSnapshot.samplingMethod !== retestSnapshot.samplingMethod) reasons.push('sampling_method');
+    if (baselineSnapshot.rulesVersion !== retestSnapshot.rulesVersion) reasons.push('rules_version');
+    const questionIds = this.sharedIds(baselineSnapshot.questions, retestSnapshot.questions);
+    const engineIds = this.sharedIds(baselineSnapshot.engines, retestSnapshot.engines);
+    if (questionIds.length !== baselineSnapshot.questions.length || questionIds.length !== retestSnapshot.questions.length) reasons.push('question_set');
+    if (engineIds.length !== baselineSnapshot.engines.length || engineIds.length !== retestSnapshot.engines.length) reasons.push('engine_set');
+    const incompatible = reasons.some((reason) => ['brand', 'not_completed', 'market', 'sampling_method', 'rules_version'].includes(reason)) || !questionIds.length || !engineIds.length;
+    if (incompatible) return { comparability: 'incomparable' as const, reasons, questionIds: [] as number[], engineIds: [] as number[] };
+    return { comparability: (reasons.length ? 'partial' : 'comparable') as RunComparability, reasons, questionIds, engineIds };
+  }
+
+  private sharedIds<T extends { id: number }>(baseline: T[], retest: T[]) {
+    const retestIds = new Set(retest.map((item) => item.id));
+    return baseline.map((item) => item.id).filter((id) => retestIds.has(id));
+  }
+
+  private async comparisonMetrics(brandName: string, baseline: ExecutionDiagnosisRunEntity, retest: ExecutionDiagnosisRunEntity, questionIds: number[], engineIds: number[]) {
+    const samples = await this.samplesFor([baseline.id, retest.id]);
+    const scope = (run: ExecutionDiagnosisRunEntity) => {
+      const questions = new Set(run.configurationSnapshot!.questions.filter((question) => questionIds.includes(question.id)).map((question) => question.question));
+      return samples.filter((sample) => sample.runId === run.id && questions.has(sample.question ?? '') && engineIds.includes(sample.engineId));
+    };
+    const baselineMetrics = this.metricsFor(brandName, scope(baseline));
+    const retestMetrics = this.metricsFor(brandName, scope(retest));
+    return { sharedQuestionIds: questionIds, sharedEngineIds: engineIds, baseline: baselineMetrics, retest: retestMetrics, delta: { visibilityRate: retestMetrics.visibilityRate - baselineMetrics.visibilityRate, successfulSampleRate: retestMetrics.successfulSampleRate - baselineMetrics.successfulSampleRate } };
+  }
+
+  private configurationSummary(snapshot: ExecutionDiagnosisConfigurationSnapshot | null) {
+    return snapshot ? { market: snapshot.market, questionCount: snapshot.questions.length, engineCount: snapshot.engines.length, samplingMethod: snapshot.samplingMethod, rulesVersion: snapshot.rulesVersion } : null;
+  }
+
+  private metricsFor(brandName: string, samples: ExecutionDiagnosisSampleEntity[]) {
+    const successfulSamples = samples.filter((sample) => !sample.error);
+    const mentions = samples.filter((sample) => this.sampleMentions(brandName, sample)).length;
+    return { sampleCount: samples.length, successfulSampleRate: samples.length ? successfulSamples.length / samples.length : 0, visibilityRate: samples.length ? mentions / samples.length : 0 };
+  }
+
+  private sampleMentions(brandName: string, sample: ExecutionDiagnosisSampleEntity) {
+    if (sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined) return sample.reviewedBrandMention;
+    return sample.answer.toLocaleLowerCase().includes(brandName.toLocaleLowerCase());
+  }
+
+  private isCompleted(run: ExecutionDiagnosisRunEntity) { return run.status === 'succeeded' || run.status === 'partial'; }
 
   private optionalText(value?: string) { return value?.trim() || null; }
 }
