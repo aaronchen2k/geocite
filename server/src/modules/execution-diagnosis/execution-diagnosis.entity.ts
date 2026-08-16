@@ -7,7 +7,7 @@ export type ExecutionDiagnosisConfigurationSnapshot = {
   questions: Array<{ id: number; question: string; group: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
   market: 'cn' | 'global' | 'both' | 'mixed' | null;
   markets: Array<'cn' | 'global' | 'both'>;
-  engines: Array<{ id: number; name: string; code: string; modelName: string | null; nativeWebSearch: boolean }>;
+  engines: Array<{ id: number; name: string; code: string; vendor: string; modelName: string | null; baseUrl: string | null; apiKey: string | null; nativeWebSearch: boolean }>;
   skippedEngines: Array<{ id: number; code: string; reason: string }>;
   samplingMethod: 'api';
   rulesVersion: string;

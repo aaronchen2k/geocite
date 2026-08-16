@@ -34,10 +34,10 @@ function closeServer(server: Server): Promise<void> {
   return new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
 
-async function waitForTerminalRun(service: { findOne(id: number): Promise<{ status: string }> }, id: number) {
+async function waitForTerminalRun(service: { findOne(brandId: number, id: number): Promise<{ status: string }> }, brandId: number, id: number) {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    const run = await service.findOne(id);
+    const run = await service.findOne(brandId, id);
     if (['succeeded', 'failed', 'partial', 'cancelled'].includes(run.status)) return run;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
@@ -79,7 +79,7 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     await brandEngines.save(brandEngines.create({ brandId: brand.id, engineId: engine.id }));
     const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings);
     const createdRun = await service.create(brand.id);
-    const completedRun = await waitForTerminalRun(service, createdRun.id);
+    const completedRun = await waitForTerminalRun(service, brand.id, createdRun.id);
     if (completedRun.status !== 'succeeded') throw new Error(`模拟执行诊断未成功完成：${completedRun.status}`);
     const [pageCount, probeCount, sampleRecords] = await Promise.all([
       pages.count({ where: { runId: createdRun.id } }),

@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs';
 import { MessageEvent } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { ExecutionDiagnosisService } from './execution-diagnosis.service';
 
 describe('ExecutionDiagnosisService events', () => {
@@ -21,27 +22,85 @@ describe('ExecutionDiagnosisService events', () => {
       find: jest.fn().mockResolvedValue([{ sequence: 1, type: 'run', data: { status: 'partial' }, createdAt: new Date('2026-08-14T00:00:00.000Z') }]),
     };
     const service = new ExecutionDiagnosisService(
-      {} as never, {} as never, {} as never, {} as never, {} as never, eventsRepository as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never, { findOne: jest.fn().mockResolvedValue({ id: 7, brandId: 3, steps: [], events: [] }) } as never, {} as never, eventsRepository as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
     );
     const completed = new Subject();
     completed.complete();
     (service as unknown as { streams: Map<number, Subject<MessageEvent>> }).streams.set(7, completed);
 
     const received: unknown[] = [];
-    await new Promise<void>((resolve, reject) => service.events(7)?.subscribe({ next: (event) => received.push(event.data), error: reject, complete: resolve }));
+    const stream = await service.events(3, 7);
+    await new Promise<void>((resolve, reject) => stream.subscribe({ next: (event) => received.push(event.data), error: reject, complete: resolve }));
 
     expect(received).toEqual([{ sequence: 1, type: 'run', status: 'partial', createdAt: '2026-08-14T00:00:00.000Z' }]);
   });
 
-  it('采样时从独立问题表读取当前品牌的问题', async () => {
-    const brandEngines = { find: jest.fn().mockResolvedValue([]) };
-    const diagnosisQuestions = { find: jest.fn().mockResolvedValue([{question: '独立表问题'}]) };
+  it('rejects a run requested through a different brand scope', async () => {
+    const runs = { findOne: jest.fn().mockResolvedValue(null) };
     const service = new ExecutionDiagnosisService(
-      {} as never, brandEngines as never, {} as never, { findOne: jest.fn().mockResolvedValue({ configurationSnapshot: null }) } as never, {} as never, {} as never, {} as never, {} as never, {} as never, diagnosisQuestions as never, {} as never, {} as never,
+      {} as never, {} as never, {} as never, runs as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
     );
 
-    await (service as unknown as { sampleEngines(runId: number, brand: {id: number; questions: string[]}): Promise<unknown> }).sampleEngines(7, {id: 5, questions: ['旧主表问题']});
+    await expect(service.findOne(5, 7)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.cancel(5, 7)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.events(5, 7)).rejects.toBeInstanceOf(NotFoundException);
+    expect(runs.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 7, brandId: 5 } }));
+  });
 
-    expect(diagnosisQuestions.find).toHaveBeenCalledWith({where: {brandId: 5}, order: {ordr: 'ASC', id: 'ASC'}});
+  it('samples with the frozen engine configuration after the engine changes', async () => {
+    const liveBrandEngines = { find: jest.fn() };
+    const liveEngines = { findBy: jest.fn() };
+    const runs = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 7,
+        configurationSnapshot: {
+          questions: [{ id: 1, question: '冻结问题', group: '推荐', market: 'cn', brandProbe: false }],
+          engines: [{ id: 2, name: 'Frozen Engine', code: 'frozen', vendor: 'Frozen Vendor', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key', nativeWebSearch: true }],
+          skippedEngines: [], samplingMethod: 'api', rulesVersion: 'v1', market: 'cn', markets: ['cn'],
+        },
+        steps: [], events: [],
+      }),
+    };
+    const samples = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
+    const events = { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) };
+    const service = new ExecutionDiagnosisService(
+      { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never, liveBrandEngines as never, liveEngines as never, runs as never, {} as never, events as never, {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
+    );
+    const sampler = jest.spyOn((service as unknown as { engineSamplingClient: { sample: jest.Mock } }).engineSamplingClient, 'sample').mockResolvedValue({ adapter: 'frozen', nativeWebSearch: true, statusCode: 200, answer: '答案', error: null });
+
+    await (service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null });
+
+    expect(sampler).toHaveBeenCalledWith(expect.objectContaining({ name: 'Frozen Engine', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key' }), expect.any(String), expect.objectContaining({ nativeWebSearch: true }));
+    expect(liveBrandEngines.find).not.toHaveBeenCalled();
+    expect(liveEngines.findBy).not.toHaveBeenCalled();
+  });
+
+  it('persists the site-failure finding before publishing a failed run', async () => {
+    const order: string[] = [];
+    const run = {
+      id: 7, brandId: 5, status: 'running', rulesVersion: 'v1', configurationSnapshot: null, summary: null,
+      createdAt: new Date(), startedAt: new Date(), finishedAt: null,
+      steps: [
+        { number: 1, status: 'succeeded' },
+        { number: 2, status: 'failed', errorCode: 'site-unavailable', result: { conclusion: 'failed', severity: 'P0', evidence: {}, recommendation: 'restore-site-access' } },
+        { number: 3, status: 'pending' },
+      ],
+      events: [],
+    };
+    const service = new ExecutionDiagnosisService(
+      { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never,
+      {} as never, {} as never,
+      { findOne: jest.fn().mockResolvedValue(run), save: jest.fn(async (value) => { if (value.status === 'failed') order.push('terminal-run'); return value; }) } as never,
+      { save: jest.fn(async () => undefined) } as never,
+      { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) } as never,
+      {} as never, {} as never,
+      { find: jest.fn().mockResolvedValue([]) } as never,
+      {} as never, {} as never,
+      { create: jest.fn((value) => value), save: jest.fn(async (value) => { if (value.type === 'site_failure') order.push('site-finding'); return value; }) } as never,
+    );
+
+    await (service as unknown as { stopAfterWebsiteFailure(id: number): Promise<void> }).stopAfterWebsiteFailure(7);
+
+    expect(order).toEqual(['site-finding', 'terminal-run']);
   });
 });

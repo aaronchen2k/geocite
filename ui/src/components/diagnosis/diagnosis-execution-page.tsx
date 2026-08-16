@@ -153,7 +153,8 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
     const subscribe = useCallback((runId: number) => {
         source.current?.close();
         if (poller.current) clearInterval(poller.current);
-        const eventUrl = buildApiUrl(`execution-checks/${runId}/events`);
+        if (!brand) return;
+        const eventUrl = buildApiUrl(`brands/${brand.id}/execution-checks/${runId}/events`);
         logSseRequest(eventUrl);
         const eventSource = new EventSource(eventUrl);
         source.current = eventSource;
@@ -194,7 +195,7 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
             eventSource.close();
             if (poller.current) return;
             poller.current = setInterval(() => {
-                void requestJson<ApiRun>(`execution-checks/${runId}`).then((snapshot) => {
+                void requestJson<ApiRun>(`brands/${brand.id}/execution-checks/${runId}`).then((snapshot) => {
                     applyRun(snapshot);
                     if (!['queued', 'running'].includes(snapshot.status) && poller.current) {
                         clearInterval(poller.current);
@@ -203,7 +204,7 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
                 }).catch(() => undefined);
             }, 3000);
         };
-    }, [applyRun, t]);
+    }, [applyRun, brand, t]);
     useEffect(() => () => { source.current?.close(); if (poller.current) clearInterval(poller.current); }, []);
     useEffect(() => {
         source.current?.close();
@@ -225,7 +226,7 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
     const stopRun = async () => {
         if (!run) return;
         setRunError('');
-        try { applyRun(await requestJson<ApiRun>(`execution-checks/${run.id}/cancel`, {method: 'POST'})); }
+        try { applyRun(await requestJson<ApiRun>(`brands/${brand?.id}/execution-checks/${run.id}/cancel`, {method: 'POST'})); }
         catch (error) { setRunError(error instanceof Error ? error.message : '无法停止执行诊断'); }
     };
     const loadPreviousRun = async () => {

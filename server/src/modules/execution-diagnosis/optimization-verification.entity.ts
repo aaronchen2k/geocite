@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export type DiagnosisFindingType = 'brand_absent' | 'competitor_dominated' | 'sampling_failure' | 'site_failure';
 export type WorkOrderStatus = 'pending' | 'in_progress' | 'pending_verification' | 'verified' | 'ineffective' | 'cancelled';
@@ -35,8 +35,10 @@ export class OptimizationWorkOrderEntity {
 }
 
 @Entity('optimization_actions')
+@Index(['brandId', 'workOrderId'])
 export class OptimizationActionEntity {
   @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'brand_id' }) brandId!: number;
   @Column({ name: 'work_order_id' }) workOrderId!: number;
   @Column({ type: 'text' }) description!: string;
   @Column({ name: 'scope_json', type: 'simple-json', nullable: true }) scope!: Record<string, unknown> | null;
@@ -58,8 +60,10 @@ export class DiagnosisComparisonEntity {
 }
 
 @Entity('attribution_records')
+@Index(['brandId', 'workOrderId', 'comparisonId'])
 export class AttributionRecordEntity {
   @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'brand_id' }) brandId!: number;
   @Column({ name: 'work_order_id' }) workOrderId!: number;
   @Column({ name: 'comparison_id' }) comparisonId!: number;
   @Column({ type: 'varchar' }) conclusion!: AttributionConclusion;

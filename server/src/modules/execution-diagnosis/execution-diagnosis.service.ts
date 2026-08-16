@@ -51,7 +51,7 @@ export class ExecutionDiagnosisService {
     getExecutionDiagnosisLogger(brand.code, run.id, run.createdAt).info({ brandId, status: run.status, rulesVersion: run.rulesVersion }, 'execution diagnosis created');
     this.streams.set(run.id, new Subject<MessageEvent>());
     void this.execute(run.id).catch((error: unknown) => this.failRun(run.id, error));
-    return this.findOne(run.id);
+    return this.findOne(brandId, run.id);
   }
 
   async list(brandId: number) {
@@ -60,10 +60,10 @@ export class ExecutionDiagnosisService {
     return this.runs.find({ where: { brandId }, order: { createdAt: 'DESC' }, take: 20, relations: { steps: true, events: true } }).then((runs) => runs.map((run) => this.serialize(run)));
   }
 
-  async findOne(id: number) { return this.serialize(await this.getRun(id)); }
+  async findOne(brandId: number, id: number) { return this.serialize(await this.getRun(id, brandId)); }
 
-  async cancel(id: number) {
-    const run = await this.getRun(id);
+  async cancel(brandId: number, id: number) {
+    const run = await this.getRun(id, brandId);
     if (this.isTerminal(run.status)) return this.serialize(run);
     this.controllers.get(id)?.abort();
     this.controllers.delete(id);
@@ -73,13 +73,14 @@ export class ExecutionDiagnosisService {
     await this.publish(id, 'run', { status: 'cancelled' });
     (await this.runLogger(run)).warn({ status: run.status, finishedAt: run.finishedAt }, 'execution diagnosis cancelled');
     this.contexts.delete(id); this.streams.get(id)?.complete();
-    return this.findOne(id);
+    return this.findOne(brandId, id);
   }
 
-  events(id: number): Observable<MessageEvent> | null {
+  async events(brandId: number, id: number): Promise<Observable<MessageEvent>> {
+    await this.getRun(id, brandId);
     const stream = this.streams.get(id) ?? new Subject<MessageEvent>();
     if (!this.streams.has(id)) {
-      void this.runs.exist({ where: { id } }).then((exists) => { if (exists) this.streams.set(id, stream); else stream.complete(); });
+      this.streams.set(id, stream);
     }
     return new Observable<MessageEvent>((subscriber) => {
       const replay = () => this.eventsRepository.find({ where: { runId: id }, order: { sequence: 'ASC' } }).then((events) => {
@@ -155,7 +156,12 @@ export class ExecutionDiagnosisService {
     stream?.next({ id: String(sequence), type, data: { sequence, type, ...data, createdAt: event.createdAt.toISOString() } });
   }
 
-  private async getRun(id: number) { const run = await this.runs.findOne({ where: { id }, relations: { steps: true, events: true } }); if (!run) throw new NotFoundException(`执行诊断 ${id} 不存在`); return run; }
+  private async getRun(id: number, brandId?: number) {
+    const where = brandId === undefined ? { id } : { id, brandId };
+    const run = await this.runs.findOne({ where, relations: { steps: true, events: true } });
+    if (!run) throw new NotFoundException(`执行诊断 ${id} 不存在`);
+    return run;
+  }
   private async samplingEngines(brandId: number) {
     const links = await this.brandEngines.find({ where: { brandId }, order: { engineId: 'ASC' } });
     if (!links.length) return selectDiagnosticEngines([]);
@@ -172,7 +178,7 @@ export class ExecutionDiagnosisService {
       questions: questions.map((item) => ({ id: item.id, question: item.question, group: item.group, market: item.market, brandProbe: item.brandProbe })),
       market: markets.length === 1 ? markets[0] : markets.length ? 'mixed' : null,
       markets,
-      engines: engines.eligible.map((item) => ({ id: item.id, name: item.name, code: item.code, modelName: item.modelName, nativeWebSearch: item.webSearchEnabled === true })),
+      engines: engines.eligible.map((item) => ({ id: item.id, name: item.name, code: item.code, vendor: item.vendor, modelName: item.modelName, baseUrl: item.baseUrl, apiKey: item.apiKey, nativeWebSearch: item.webSearchEnabled === true })),
       skippedEngines: engines.skipped,
       samplingMethod: 'api',
       rulesVersion,
@@ -238,16 +244,22 @@ export class ExecutionDiagnosisService {
       await this.publish(id, 'step', { number: step.number, status: step.status, result: step.result });
     }
     run.status = 'failed'; run.finishedAt = stoppedAt; run.summary = { passed: 1, failed: 1, manual: 0, unmeasured: pending.length };
-    await this.runs.save(run); await this.generateFindings(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
+    await this.generateFindings(run); await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
     await this.log(id, 2, reason);
     (await this.runLogger(run)).warn({ status: run.status, summary: run.summary }, reason);
     this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete();
   }
 
   private async sampleEngines(runId: number, brand: BrandEntity, signal?: AbortSignal): Promise<StepResult> {
-    const { eligible, skipped } = await this.samplingEngines(brand.id);
     const run = await this.getRun(runId);
-    const questions = run.configurationSnapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
+    const snapshot = run.configurationSnapshot;
+    const { eligible, skipped } = snapshot
+      ? {
+        eligible: snapshot.engines.map((engine) => ({ ...engine, webSearchEnabled: engine.nativeWebSearch, disabled: false })),
+        skipped: snapshot.skippedEngines,
+      }
+      : await this.samplingEngines(brand.id);
+    const questions = snapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
     if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
     const sampled: Array<Record<string, unknown>> = [];
@@ -311,14 +323,18 @@ export class ExecutionDiagnosisService {
   }
   private mentions(answer: string, name: string) { return name.trim() !== '' && answer.toLocaleLowerCase().includes(name.trim().toLocaleLowerCase()); }
   private async log(runId: number, number: number, message: string) { await this.publish(runId, 'log', { number, message }); const run = await this.getRun(runId); (await this.runLogger(run)).info({ step: number }, message); }
-  private async failRun(id: number, error: unknown) { const run = await this.getRun(id); if (this.isTerminal(run.status)) return; run.status = 'failed'; run.finishedAt = new Date(); run.summary = { passed: 0, failed: 1, manual: 0, unmeasured: 0 }; await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary }); (await this.runLogger(run)).error({ error: error instanceof Error ? error.message : String(error) }, 'execution diagnosis failed'); this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete(); }
+  private async failRun(id: number, error: unknown) { const run = await this.getRun(id); if (this.isTerminal(run.status)) return; run.status = 'failed'; run.finishedAt = new Date(); run.summary = { passed: 0, failed: 1, manual: 0, unmeasured: 0 }; await this.generateFindings(run); await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary }); (await this.runLogger(run)).error({ error: error instanceof Error ? error.message : String(error) }, 'execution diagnosis failed'); this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete(); }
   private async runLogger(run: ExecutionDiagnosisRunEntity) { const brand = await this.brands.findOne({ where: { id: run.brandId } }); return getExecutionDiagnosisLogger(brand?.code ?? `brand-${run.brandId}`, run.id, run.createdAt); }
   private isTerminal(status: ExecutionRunStatus) { return ['succeeded', 'failed', 'cancelled', 'partial'].includes(status); }
   private serialize(run: ExecutionDiagnosisRunEntity) {
     return {
-      id: run.id, brandId: run.brandId, status: run.status, rulesVersion: run.rulesVersion, configurationSnapshot: run.configurationSnapshot, summary: run.summary, createdAt: run.createdAt, startedAt: run.startedAt, finishedAt: run.finishedAt,
+      id: run.id, brandId: run.brandId, status: run.status, rulesVersion: run.rulesVersion, configurationSnapshot: this.publicConfigurationSnapshot(run.configurationSnapshot), summary: run.summary, createdAt: run.createdAt, startedAt: run.startedAt, finishedAt: run.finishedAt,
       steps: [...(run.steps ?? [])].sort((a, b) => a.number - b.number).map((step) => ({ number: step.number, status: step.status, startedAt: step.startedAt, finishedAt: step.finishedAt, errorCode: step.errorCode, result: step.result })),
       events: [...(run.events ?? [])].sort((a, b) => a.sequence - b.sequence).flatMap((event) => event.type === 'log' && typeof event.data.number === 'number' && typeof event.data.message === 'string' ? [{ number: event.data.number, message: event.data.message, createdAt: event.createdAt.toISOString() }] : []),
     };
+  }
+  private publicConfigurationSnapshot(snapshot: ExecutionDiagnosisConfigurationSnapshot | null) {
+    if (!snapshot) return null;
+    return { ...snapshot, engines: snapshot.engines.map(({ apiKey: _apiKey, ...engine }) => engine) };
   }
 }
