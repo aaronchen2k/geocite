@@ -119,6 +119,26 @@ describe('LocalChromeService', () => {
     expect(context.pages()[0].goto).toHaveBeenCalledWith(homepage, expect.objectContaining({ waitUntil: 'domcontentloaded' }));
   });
 
+  it('刷新时发现受控 Chrome 已关闭则标记未知且不重新启动浏览器', async () => {
+    const { service, launches, processInspector, browser, profiles } = createService();
+    const launch = {
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'old-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+      lastHeartbeatAt: null,
+    };
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome.mockResolvedValue(null);
+
+    await expect(service.refresh(engine)).resolves.toBe('unknown');
+
+    expect(browser.launchPersistentContext).not.toHaveBeenCalled();
+    expect(launch.launchStatus).toBe('closed');
+    expect(profiles.save).toHaveBeenCalledWith(expect.objectContaining({ availability: 'unknown' }));
+  });
+
   it('页面出现登录入口时标记为未登录', async () => {
     const { service, context } = createService();
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/c'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['Log in']) }) }]);
@@ -226,11 +246,14 @@ describe('LocalChromeService', () => {
   });
 
   it('复用前台 context 时仍导航至该引擎的登录页检查状态', async () => {
-    const { service, context } = createService();
+    const { service, context, launches, processInspector } = createService();
     const page = { goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }) };
     context.pages.mockReturnValue([page]);
 
     await service.reset(engine);
+    const launch = launches.create.mock.results[0].value;
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome.mockResolvedValue({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath });
     page.goto.mockClear();
     await service.refresh(engine);
 

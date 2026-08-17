@@ -145,7 +145,7 @@ export class LocalChromeService {
     const profile = await this.profiles.findOne({ where: { engineId } });
     return profile
       ? this.toStatus(profile)
-      : { availability: 'unavailable' as const, lastCheckedAt: null, failureCode: null, lastFailureReason: null, lastReadyAt: null };
+      : { availability: 'unknown' as const, lastCheckedAt: null, failureCode: null, lastFailureReason: null, lastReadyAt: null };
   }
 
   /** Executes an automated review in the same dedicated, persistent profile used for manual login. */
@@ -178,9 +178,17 @@ export class LocalChromeService {
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
       const existing = this.contexts.get(engine.id);
-      if (existing) return this.checkContext(profile, existing.context, false, engine);
-      await this.closePreviousLaunch(engine.id);
-      return this.launchAndCheck(engine, profile, true);
+      const launch = await this.launches.findOne({ where: { engineId: engine.id, launchStatus: 'running' }, order: { startedAt: 'DESC' } });
+      if (!existing || !launch || existing.launchId !== launch.launchId || !this.sameProfilePath(existing.profilePath, launch.profilePath)) {
+        this.contexts.delete(engine.id);
+        return this.markUnknown(profile, launch, '受控 Chrome 未运行或无法接管，请点击重置后重新打开');
+      }
+      const controlled = await this.dependencies.processInspector.findControlledChrome(launch.launchId, launch.profilePath);
+      if (!controlled || controlled.launchId !== launch.launchId || !this.sameProfilePath(controlled.profilePath, launch.profilePath)) {
+        this.contexts.delete(engine.id);
+        return this.markUnknown(profile, launch, '受控 Chrome 已关闭，请点击重置后重新打开');
+      }
+      return this.checkContext(profile, existing.context, false, engine);
     });
   }
 
@@ -339,6 +347,15 @@ export class LocalChromeService {
     if (availability === 'ready') profile.lastReadyAt = new Date();
     await this.profiles.save(profile);
     return availability;
+  }
+
+  private async markUnknown(profile: EngineWebReviewProfileEntity, launch: EngineBrowserLaunchEntity | null, reason: string): Promise<WebReviewAvailability> {
+    if (launch) {
+      launch.launchStatus = 'closed';
+      launch.lastHeartbeatAt = new Date();
+      await this.launches.save(launch);
+    }
+    return this.updateProfile(profile, 'unknown', reason, null);
   }
 
   private toStatus(profile: EngineWebReviewProfileEntity) {

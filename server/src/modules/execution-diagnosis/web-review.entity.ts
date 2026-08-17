@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { AuditedEntity } from '../../database/audited.entity';
 
-export type WebReviewAvailability = 'unavailable' | 'pending_login' | 'ready';
+export type WebReviewAvailability = 'unknown' | 'unavailable' | 'pending_login' | 'ready';
 export type WebReviewFailureCode = 'chrome_not_found' | 'challenge_detected' | 'check_failed';
 export type BrowserLaunchStatus = 'running' | 'closed' | 'failed';
 

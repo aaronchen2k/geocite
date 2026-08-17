@@ -6,15 +6,15 @@ import {Button} from '@/components/ui/button';
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import {requestJson} from '@/lib/api';
 
-type Availability = 'unavailable' | 'pending_login' | 'ready';
+type Availability = 'unknown' | 'unavailable' | 'pending_login' | 'ready';
 export type WebReviewStatus = {availability: Availability; lastCheckedAt: string | null; lastFailureReason: string | null; lastReadyAt: string | null};
 type Engine = {id: number; webReview?: WebReviewStatus};
 
-const labels: Record<Availability, string> = {unavailable: 'unavailable', pending_login: 'pendingLogin', ready: 'ready'};
+const labels: Record<Availability, string> = {unknown: 'unknown', unavailable: 'unavailable', pending_login: 'pendingLogin', ready: 'ready'};
 
 export function WebReviewStatusCell({engine}: {engine: Engine}): React.JSX.Element {
   const t = useTranslations('Management.webReview');
-  const status = engine.webReview ?? {availability: 'unavailable', lastCheckedAt: null, lastFailureReason: null, lastReadyAt: null};
+  const status = engine.webReview ?? {availability: 'unknown', lastCheckedAt: null, lastFailureReason: null, lastReadyAt: null};
   return <div className="min-w-28"><span className={status.availability === 'ready' ? 'text-emerald-700 dark:text-emerald-400' : status.availability === 'pending_login' ? 'text-amber-700 dark:text-amber-400' : 'text-[var(--muted-foreground)]'}>{t(labels[status.availability])}</span>{status.availability === 'unavailable' && status.lastFailureReason ? <p className="mt-1 max-w-48 text-xs leading-5 text-[var(--muted-foreground)]">{status.lastFailureReason}</p> : null}</div>;
 }
 
