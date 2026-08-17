@@ -21,6 +21,7 @@ export class SaveDiagnosisQuestionsDto {
   @IsOptional() @IsInt() @Min(1) @Max(100) sitemapUrlLimit?: number;
   @IsOptional() @IsInt() @Min(4) @Max(150) samplingQuestionCount?: number;
   @IsOptional() @ValidateNested() @Type(() => QuestionCategoryRatioDto) questionCategoryRatio?: QuestionCategoryRatioDto;
+  @IsOptional() @IsBoolean() playwrightWebReviewEnabled?: boolean;
 }
 
 export class GenerateDiagnosisQuestionsDto {

@@ -54,6 +54,53 @@ test('separates configuration from the diagnosis room', async ({ page }) => {
   await expect(page.getByRole('button', { name: /诊断室|Diagnosis room/ })).toBeVisible();
 });
 
+test('keeps business groups expanded and system management collapsed by default', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
+  await page.goto('/zh/dashboard');
+
+  await expect(page.getByRole('button', {name: '配置'})).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', {name: /诊断室|诊断/})).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', {name: '优化'})).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', {name: '验证'})).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', {name: '系统管理'})).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('link', {name: '问题追踪'})).toBeVisible();
+});
+
+test('explains how each verification page is activated', async ({page}) => {
+  await page.goto('/zh/verification/visibility-trend');
+
+  await expect(page.getByText('根据历次完成的诊断，绘制品牌可见性及其变化趋势。')).toBeVisible();
+  await expect(page.getByRole('heading', {name: '重新执行诊断后自动更新'})).toBeVisible();
+  await expect(page.getByText('至少需要两次完成的诊断运行。')).toBeVisible();
+  await expect(page.getByRole('heading', {name: '需要在页面单独操作'})).toBeVisible();
+  await expect(page.getByText('本页仅用于选择周期和查看趋势，无需单独运行。')).toBeVisible();
+
+  await page.goto('/zh/verification/attribution');
+  await expect(page.getByText('对比优化动作前后的诊断结果，帮助判断哪些变化可能与已执行的优化有关。')).toBeVisible();
+  await expect(page.getByText('重新诊断只能呈现前后相关变化，不能自动得出因果归因。')).toBeVisible();
+  await expect(page.getByText('关联优化动作或工单，必要时补充人工归因说明。')).toBeVisible();
+
+  await page.goto('/zh/verification/comparison-test');
+  await expect(page.getByText('比较预先定义的对照组与实验组的诊断结果，验证某一优化策略是否更有效。')).toBeVisible();
+  await expect(page.getByText('创建对照组和实验组，定义比较范围与成功指标，再分别运行。')).toBeVisible();
+});
+
+test('explains the target and concrete work of each improvement page', async ({page}) => {
+  await page.goto('/zh/improvement/optimization-work-orders');
+  await expect(page.getByRole('heading', {name: '针对什么'})).toBeVisible();
+  await expect(page.getByText('针对诊断报告、问答汇总、竞品对比和站点体检中已确认的发现项。')).toBeVisible();
+  await expect(page.getByRole('heading', {name: '具体优化'})).toBeVisible();
+  await expect(page.getByText('将发现项拆分为负责人、截止时间和验收条件明确的优化工单。')).toBeVisible();
+
+  await page.goto('/zh/improvement/technical-adaptation');
+  await expect(page.getByText('针对影响 AI 抓取、访问、理解与引用网站内容的技术和页面问题。')).toBeVisible();
+  await expect(page.getByText('修复 robots.txt、站点地图、结构化数据、页面可访问性和可引用段落。')).toBeVisible();
+
+  await page.goto('/zh/improvement/content-production');
+  await expect(page.getByText('围绕已审核的品牌事实和诊断发现的问题缺口，规划需要补充的内容。')).toBeVisible();
+  await expect(page.getByText('当前仅管理内容选题、事实依据和审核计划；不自动生成或发布文章。')).toBeVisible();
+});
+
 test('keeps the sitemap crawl limit out of brand questions', async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.goto('/zh/configuration/questions');
@@ -95,6 +142,37 @@ test('saves basic configuration without question record ids', async ({ page }) =
   await expect(page.getByRole('heading', { name: '基础配置' })).toBeVisible();
   await page.getByRole('button', { name: '保存配置' }).click();
 
+  await expect(page.getByText('配置已保存。')).toBeVisible();
+});
+
+test('defaults Playwright 网页复核 to enabled and saves its disabled value', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('geocite.locale', 'zh');
+    window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 }));
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
+    await route.fulfill({ json: { items: [{ id: 5, name: '测试品牌', code: 'test-brand', isDefault: true }] } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/5', async (route) => {
+    await route.fulfill({ json: { id: 5, name: '测试品牌', code: 'test-brand', website: null, industry: null, description: null } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/5/diagnosis-questions', async (route) => {
+    const configuration = {
+      questions: [], prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 10,
+      questionCategoryRatio: { brandBasic: 1, coreCapability: 2, competitorComparison: 1 },
+    };
+    if (route.request().method() === 'PUT') {
+      expect(route.request().postDataJSON()).toMatchObject({ playwrightWebReviewEnabled: false });
+    }
+    await route.fulfill({ json: configuration });
+  });
+
+  await page.goto('/zh/configuration/basic');
+  const webReviewSwitch = page.getByRole('switch', { name: '使用 Playwright 网页复核' });
+  await expect(webReviewSwitch).toBeChecked();
+  await expect(page.getByText('推荐开启：以网页端真实用户环境抽样校正 API 粗扫结果。关闭后本次仅保留 API 参考结果。')).toBeVisible();
+  await webReviewSwitch.click();
+  await page.getByRole('button', { name: '保存配置' }).click();
   await expect(page.getByText('配置已保存。')).toBeVisible();
 });
 

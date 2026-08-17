@@ -14,6 +14,23 @@ describe('DiagnosisConfigurationService', () => {
     await expect(service.list(5)).resolves.toMatchObject({ sitemapUrlLimit: 10 });
   });
 
+  it('为未配置网页复核开关的品牌返回默认开启状态', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
+    const service = new DiagnosisConfigurationService({ findOne: jest.fn().mockResolvedValue(brand) } as never, {} as never, { find: jest.fn().mockResolvedValue([]) } as never);
+
+    await expect(service.list(5)).resolves.toMatchObject({ playwrightWebReviewEnabled: true });
+  });
+
+  it('保存 Playwright 网页复核开关', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
+    const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };
+    const service = new DiagnosisConfigurationService(brands as never, {} as never, { find: jest.fn().mockResolvedValue([]), delete: jest.fn(), save: jest.fn(), create: jest.fn() } as never);
+
+    const saveWithWebReviewSetting = service.save.bind(service) as unknown as (brandId: number, inputs: [], prompt?: string, sitemapUrlLimit?: number, samplingQuestionCount?: number, questionCategoryRatio?: unknown, playwrightWebReviewEnabled?: boolean) => Promise<unknown>;
+    await expect(saveWithWebReviewSetting(5, [], undefined, undefined, undefined, undefined, false)).resolves.toMatchObject({ playwrightWebReviewEnabled: false });
+    expect(brands.save).toHaveBeenCalledWith(expect.objectContaining({ playwrightWebReviewEnabled: false }));
+  });
+
   it('保存 sitemap 抓取上限', async () => {
     const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };

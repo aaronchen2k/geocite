@@ -39,9 +39,9 @@ export class DiagnosisConfigurationService {
       await this.questions.save(legacyQuestions);
     }
     const items = saved.map((item) => ({ id: item.id, text: item.question, group: normalizeQuestionGroup(item.group), market: item.market, brandProbe: item.brandProbe }));
-    return { questions: items, prompt: brand.questionsPrompt ?? buildBrandQuestionPrompt(brand), sitemapUrlLimit: brand.sitemapUrlLimit ?? defaultSitemapUrlLimit, ...this.samplingConfig(brand) };
+    return { questions: items, prompt: brand.questionsPrompt ?? buildBrandQuestionPrompt(brand), sitemapUrlLimit: brand.sitemapUrlLimit ?? defaultSitemapUrlLimit, playwrightWebReviewEnabled: brand.playwrightWebReviewEnabled ?? true, ...this.samplingConfig(brand) };
   }
-  async save(brandId: number, inputs: DiagnosisQuestionDto[], prompt?: string, sitemapUrlLimit?: number, samplingQuestionCount?: number, questionCategoryRatio?: QuestionCategoryRatio) {
+  async save(brandId: number, inputs: DiagnosisQuestionDto[], prompt?: string, sitemapUrlLimit?: number, samplingQuestionCount?: number, questionCategoryRatio?: QuestionCategoryRatio, playwrightWebReviewEnabled?: boolean) {
     const brand = await this.brand(brandId);
     if (samplingQuestionCount !== undefined || questionCategoryRatio !== undefined) validateSamplingConfig({ samplingQuestionCount: samplingQuestionCount ?? brand.samplingQuestionCount ?? defaultSamplingQuestionCount, questionCategoryRatio: questionCategoryRatio ?? brand.questionCategoryRatio ?? defaultQuestionCategoryRatio });
     const normalized = this.normalize(inputs);
@@ -49,6 +49,7 @@ export class DiagnosisConfigurationService {
     if (sitemapUrlLimit !== undefined) brand.sitemapUrlLimit = sitemapUrlLimit;
     if (samplingQuestionCount !== undefined) brand.samplingQuestionCount = samplingQuestionCount;
     if (questionCategoryRatio !== undefined) brand.questionCategoryRatio = questionCategoryRatio;
+    if (playwrightWebReviewEnabled !== undefined) brand.playwrightWebReviewEnabled = playwrightWebReviewEnabled;
     await this.brands.save(brand);
     await this.questions.delete({ brandId });
     if (normalized.length) await this.questions.save(normalized.map((item, ordr) => this.questions.create({ brandId, question: item.text, group: item.group, market: item.market, brandProbe: item.brandProbe, ordr })));

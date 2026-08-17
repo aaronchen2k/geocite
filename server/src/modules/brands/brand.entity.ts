@@ -36,6 +36,9 @@ export class BrandEntity extends AuditedEntity {
   @Column({ type: 'simple-json', nullable: true })
   questionCategoryRatio!: { brandBasic: number; coreCapability: number; competitorComparison: number } | null;
 
+  @Column({ default: true })
+  playwrightWebReviewEnabled!: boolean;
+
   @Column({ default: false })
   isDefault!: boolean;
 
