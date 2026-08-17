@@ -279,7 +279,8 @@ export class LocalChromeService {
       const currentUrl = page.url();
       if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面', 'challenge_detected');
       if (/(login|signin|sign-in|auth)/i.test(currentUrl)) return this.updateProfile(profile, 'pending_login', null, null);
-      if (engine && this.isQwen(engine)) return this.updateProfile(profile, await this.hasConfirmedSession(page) ? 'ready' : 'pending_login', null, null);
+      const sessionState = engine ? await this.knownEngineSessionState(engine, page) : null;
+      if (sessionState !== null) return this.updateProfile(profile, sessionState ? 'ready' : 'pending_login', null, null);
       if (await this.hasLoginCallToAction(page)) return this.updateProfile(profile, 'pending_login', null, null);
       return this.updateProfile(profile, 'ready', null, null);
     } catch (error) {
@@ -349,19 +350,28 @@ export class LocalChromeService {
     return texts.some((text) => /\b(log\s*in|sign\s*in)\b|登录|登陆/iu.test(text.trim()));
   }
 
-  private isQwen(engine: BrowserEngine) {
-    return /qwen|alibaba/i.test(`${engine.code} ${engine.vendor}`);
-  }
-
-  private async hasConfirmedSession(page: PageLike) {
+  private async knownEngineSessionState(engine: BrowserEngine, page: PageLike): Promise<boolean | null> {
+    const identity = `${engine.code} ${engine.vendor}`.toLowerCase();
     try {
-      return Boolean(await page.evaluate(() => {
+      if (/qwen|alibaba/.test(identity)) return Boolean(await page.evaluate(() => {
         const user = (globalThis as { _USER_?: { userId?: string } })._USER_;
         return user?.userId?.trim() ?? '';
+      }));
+      if (/doubao|bytedance/.test(identity)) return Boolean(await page.evaluate(() => {
+        const routerData = (globalThis as { _ROUTER_DATA?: { loaderData?: { chat_layout?: { chat_layout?: { is_login?: boolean; accountInfo?: { data?: { user_id?: number | string } } } } } } })._ROUTER_DATA;
+        const state = routerData?.loaderData?.chat_layout?.chat_layout;
+        return state?.is_login === true || Number(state?.accountInfo?.data?.user_id ?? 0) > 0;
+      }));
+      if (/wenxin|wenxiaoyan|baidu/.test(identity)) return Boolean(await page.evaluate(() => {
+        const source = document.querySelector('script[name="aiTabFrameBaseData"]')?.textContent;
+        if (!source) return false;
+        const isUserLogin = JSON.parse(source)?.userInfo?.isUserLogin;
+        return isUserLogin === true || isUserLogin === 1 || isUserLogin === '1';
       }));
     } catch {
       return false;
     }
+    return null;
   }
 
   private profilesRoot() {
