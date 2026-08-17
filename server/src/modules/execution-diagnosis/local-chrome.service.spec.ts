@@ -185,12 +185,12 @@ describe('LocalChromeService', () => {
   it('Kimi 在读取登录特征前等待页面账户节点挂载', async () => {
     const { service, context } = createService();
     const waitForSelector = jest.fn().mockResolvedValue(undefined);
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ accountLabel: 'account', membershipUpgradePresent: true }), waitForSelector }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValueOnce({ accountLabel: 'account', membershipUpgradePresent: false }).mockResolvedValueOnce({ accountLabel: 'account', membershipUpgradePresent: true }), waitForSelector }]);
 
     await service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' });
 
-    expect(waitForSelector).toHaveBeenCalledWith('.user-name', expect.objectContaining({ state: 'attached' }));
-    expect(waitForSelector).toHaveBeenCalledWith('.membership-upgrade', expect.objectContaining({ state: 'attached' }));
+    expect(waitForSelector).toHaveBeenCalledWith('.user-name', expect.objectContaining({ state: 'attached', timeout: 1_000 }));
+    expect(waitForSelector).toHaveBeenCalledWith('.membership-upgrade', expect.objectContaining({ state: 'attached', timeout: 1_000 }));
   });
 
   it.each([
