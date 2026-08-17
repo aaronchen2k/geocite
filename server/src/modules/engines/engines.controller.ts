@@ -4,7 +4,7 @@ import { EnginesService } from './engines.service';
 @Controller('engines')
 export class EnginesController {
   constructor(private readonly service: EnginesService) {}
-  @Get() async list(@Query() query: ListEngineDto) { const result = await this.service.list(query); return { ...result, items: result.items.map((item) => this.service.toResponse(item)) }; }
+  @Get() list(@Query() query: ListEngineDto) { return this.service.list(query); }
   @Post() create(@Body() dto: CreateEngineDto) { return this.service.create(dto); }
   @Get(':id/web-review-status') webReviewStatus(@Param('id', ParseIntPipe) id: number) { return this.service.webReviewStatus(id); }
   @Post(':id/web-review/refresh') refreshWebReview(@Param('id', ParseIntPipe) id: number) { return this.service.refreshWebReview(id); }

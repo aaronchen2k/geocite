@@ -33,9 +33,9 @@
     "diagnosisSamples": "Sample library",
     "diagnosisReport": "Diagnosis report",
     "diagnosisExecution": "Diagnosis execution",
-    "problemSummary": "Question summary",
+    "problemSummary": "Q&A summary",
     "positioningMap": "Positioning map",
-    "improvement": "Improve",
+    "improvement": "Optimization",
     "optimizationWorkOrders": "Optimization work orders",
     "keywordMatrix": "Breakthrough matrix",
     "sourceBuilding": "Source building",
@@ -43,7 +43,7 @@
     "contentProduction": "Content production",
     "verification": "Verification",
     "visibilityTrend": "Visibility trend",
-    "rankTracking": "Rank tracking",
+    "questionTracking": "Question tracking",
     "attribution": "Attribution",
     "comparisonTest": "Comparison test",
     "periodicRetest": "Periodic retest",
@@ -107,43 +107,63 @@
     },
     "optimizationWorkOrders": {
       "title": "Optimization work orders",
-      "description": "Manage optimization tasks."
+      "description": "Manage optimization tasks.",
+      "guidance": {"purpose": "Turn confirmed diagnostic findings into trackable, verifiable optimization actions.", "automatic": "Address confirmed findings from diagnosis reports, answer summaries, competitor comparisons, and site audits.", "manual": "Break findings into optimization work orders with a clear owner, due date, and acceptance criteria."}
     },
     "keywordMatrix": {
       "title": "Breakthrough matrix",
-      "description": "Identify priority topics, questions, and content directions for breakthroughs."
+      "description": "Identify priority topics, questions, and content directions for breakthroughs.",
+      "guidance": {"purpose": "Identify priority topics and content directions from brand questions, competitor performance, and existing content coverage.", "automatic": "Address questions and topics with weak brand mention, competitor advantage, or insufficient coverage.", "manual": "Set priority, target questions, and the facts or content direction to add, then turn them into work orders."}
     },
     "sourceBuilding": {
       "title": "Source building",
-      "description": "Plan source-building work."
+      "description": "Plan source-building work.",
+      "guidance": {"purpose": "Manage public, trustworthy sources that support brand facts and improve externally verifiable coverage.", "automatic": "Address facts missing public evidence, cited but ungoverned URLs, and insufficient source coverage.", "manual": "Register, review, and associate website, industry-media, and case-study assets; plan source work without automatically publishing content."}
     },
     "technicalAdaptation": {
       "title": "Website optimization",
-      "description": "Improve site and page configuration that affects AI access and understanding."
+      "description": "Improve site and page configuration that affects AI access and understanding.",
+      "guidance": {"purpose": "Improve the conditions for AI to crawl, access, understand, and cite website content.", "automatic": "Address technical and page issues that affect AI crawling, access, understanding, and citation.", "manual": "Fix robots.txt, sitemaps, structured data, page accessibility, and citable passages."}
     },
     "contentProduction": {
       "title": "Content production",
-      "description": "Manage content-production plans."
+      "description": "Manage content-production plans.",
+      "guidance": {"purpose": "Plan content that fills question gaps using reviewed brand facts and diagnostic findings.", "automatic": "Address topics with missing facts, insufficient explanation, or competitor advantage in brand questions.", "manual": "Currently manage content topics, fact basis, and review plans only; do not generate or publish articles automatically."}
+    },
+    "improvementGuidance": {
+      "purposeTitle": "This page is for",
+      "automaticTitle": "What it addresses",
+      "manualTitle": "Concrete optimization"
+    },
+    "verificationGuidance": {
+      "purposeTitle": "This page is for",
+      "automaticTitle": "Updated by rerunning diagnosis",
+      "manualTitle": "Actions required on this page"
     },
     "visibilityTrend": {
       "title": "Visibility trend",
-      "description": "Review visibility changes."
+      "description": "Review visibility changes.",
+      "guidance": {"purpose": "Plot brand visibility and its change from completed diagnosis runs over time.", "automatic": "At least two completed diagnosis runs are required. Rerunning diagnosis automatically includes the newest result.", "manual": "Use this page only to choose a period and review the trend; no separate run is required."}
     },
     "rankTracking": {
-      "title": "Rank tracking",
-      "description": "Track ranking changes."
+      "title": "Question tracking",
+      "description": "Track brand mentions and competitor performance in priority questions.",
+      "guidance": {"purpose": "Track brand mentions and competitor performance for priority questions across engines and markets over time.", "automatic": "Rerunning diagnosis automatically updates question, engine, and competitor performance.", "manual": "Optionally configure the questions, engines, and markets to track."}
     },
     "attribution": {
       "title": "Attribution",
-      "description": "Analyze optimization impact."
+      "description": "Analyze optimization impact.",
+      "guidance": {"purpose": "Compare diagnosis results before and after optimization work to identify changes that may be associated with completed work.", "automatic": "Rerunning diagnosis shows before-and-after correlation only; it cannot establish causal attribution automatically.", "manual": "Associate optimization actions or work orders and add manual attribution notes when needed."}
     },
     "comparisonTest": {
       "title": "Comparison test",
-      "description": "Manage comparison experiments."
+      "description": "Manage comparison experiments.",
+      "guidance": {"purpose": "Compare diagnosis results from predefined control and experiment groups to validate whether one optimization strategy is more effective.", "automatic": "A single diagnosis rerun does not automatically create a comparison experiment.", "manual": "Create control and experiment groups, define scope and success criteria, then run each group."}
     },
     "periodicRetest": {
       "title": "Periodic retest",
-      "description": "Schedule recurring retests."
+      "description": "Schedule recurring retests.",
+      "guidance": {"purpose": "Use a selected baseline to continuously compare later diagnosis metrics and retain retest records.", "automatic": "A one-off manual retest can rerun diagnosis and add its result to later comparisons.", "manual": "For automatic recurring execution, configure frequency, scope, notifications, and enabled status."}
     },
     "placeholder": "This page is ready. GEO data will be presented here."
   },
@@ -268,6 +288,7 @@
     "previous": "Previous",
     "next": "Next",
     "actions": "Actions",
+    "webReview": {"status": "Web review availability", "unavailable": "Unavailable", "pendingLogin": "Login required", "ready": "Ready", "refresh": "Refresh", "refreshing": "Refreshing…", "reset": "Reset", "resetting": "Resetting…", "cancel": "Cancel", "resetTitle": "Reset web review window", "resetDescription": "This closes the Chrome window started by this application for the engine; it does not clear the sign-in state.", "resetKeepsCookies": "Login cookies and other web sign-in data are retained.", "confirmReset": "Confirm reset", "clearLoginData": "Clear web sign-in data…", "clearTitle": "Confirm clearing web sign-in data", "clearDescription": "This deletes the dedicated Chrome Profile saved by this application for the engine, including its login cookies.", "clearing": "Clearing…", "confirmClear": "Confirm clear", "operationFailed": "Web review operation failed."},
     "empty": "No matching {resource}",
     "summary": "{total} total, page {page}/{pageCount}",
     "apiUnavailable": "Cannot connect to the management API. Confirm the server is running.",

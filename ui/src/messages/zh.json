@@ -24,7 +24,7 @@
     "competitors": "竞品品牌",
     "brandFacts": "事实库",
     "diagnosis": "诊断",
-    "diagnosisRoom": "诊断室",
+    "diagnosisRoom": "诊断",
     "citationDetection": "引用结果",
     "competitorComparison": "竞品对比",
     "assetAudit": "资产审计",
@@ -33,9 +33,9 @@
     "diagnosisSamples": "样本库",
     "diagnosisReport": "诊断报告",
     "diagnosisExecution": "诊断执行",
-    "problemSummary": "问题总结",
+    "problemSummary": "问答汇总",
     "positioningMap": "阵地地图",
-    "improvement": "提升",
+    "improvement": "优化",
     "optimizationWorkOrders": "优化工单",
     "keywordMatrix": "破局矩阵",
     "sourceBuilding": "信源建设",
@@ -43,7 +43,7 @@
     "contentProduction": "内容生产",
     "verification": "验证",
     "visibilityTrend": "可见趋势",
-    "rankTracking": "排名追踪",
+    "questionTracking": "问题追踪",
     "attribution": "效果归因",
     "comparisonTest": "对比测试",
     "periodicRetest": "周期复测",
@@ -58,12 +58,12 @@
     "description": "维护当前品牌的基本资料与诊断抓取范围。",
     "noBrand": "请先在顶部选择 Brand。",
     "brandSection": "品牌资料",
-    "crawlSection": "抓取范围",
+    "crawlSection": "网站抓取范围",
     "name": "名称",
     "website": "官网",
     "industry": "行业",
     "descriptionField": "描述",
-    "sitemapUrlLimit": "最多抓取 URL 数",
+    "sitemapUrlLimit": "抓取 sitemap.xml 最大数",
     "sitemapUrlLimitDescription": "按 sitemap.xml 顺序抓取的 URL 数量，范围为 1 到 100。",
     "sitemapUrlLimitInvalid": "抓取数量必须是 1 到 100 之间的整数。",
     "save": "保存配置",
@@ -74,7 +74,7 @@
   },
   "Competitors": {"title":"竞品品牌","description":"维护当前品牌参与诊断和比较的竞品。","noBrand":"请先在顶部选择 Brand。","add":"新增竞品","edit":"编辑","editTitle":"编辑竞品","cancel":"取消","save":"保存修改","name":"名称","aliases":"别名","aliasesHint":"每行一个别名","market":"市场","marketPlaceholder":"选择市场","marketCn":"国内","marketGlobal":"海外","marketBoth":"通用（国内和海外）","status":"状态","enabled":"已启用","disabled":"已停用","enable":"启用","disable":"停用","empty":"暂未配置竞品品牌。"},
   "BrandFacts": {"title":"事实库","description":"沉淀诊断提取并可人工校正的品牌事实。","noBrand":"请先在顶部选择 Brand。","emptyTitle":"尚未沉淀品牌事实","emptyDescription":"完成首次诊断后系统会自动生成候选事实；首期暂不支持手动新增。","add":"新增事实"},
-  "ProblemSummary": {"title":"问题总结","description":"按检索问题汇总诊断中的差距与关联证据。","emptyTitle":"暂无可总结的问题诊断结果","emptyDescription":"完成首次诊断后，这里会按品牌问题呈现可追溯的诊断结论。","action":"发起诊断"},
+  "ProblemSummary": {"title":"问答汇总","description":"按品牌问题汇总各模型回答、品牌提及和竞品表现。","emptyTitle":"暂无问答汇总","emptyDescription":"完成首次诊断后，这里会按品牌问题呈现可追溯的问答结果。","action":"发起诊断"},
   "PositioningMap": {"title":"阵地地图","description":"根据诊断结果识别品牌与竞品的主题占位。","emptyTitle":"等待首份诊断结果","emptyDescription":"完成诊断并配置品牌问题与启用竞品后，这里将生成阵地地图。","action":"发起诊断"},
   "Pages": {
     "dashboard": {
@@ -107,43 +107,63 @@
     },
     "optimizationWorkOrders": {
       "title": "优化工单",
-      "description": "管理优化执行项。"
+      "description": "管理优化执行项。",
+      "guidance": {"purpose": "将诊断中确认的发现项转化为可跟踪、可验收的优化动作。", "automatic": "针对诊断报告、问答汇总、竞品对比和站点体检中已确认的发现项。", "manual": "将发现项拆分为负责人、截止时间和验收条件明确的优化工单。"}
     },
     "keywordMatrix": {
       "title": "破局矩阵",
-      "description": "识别优先突破的主题、问题与内容方向。"
+      "description": "识别优先突破的主题、问题与内容方向。",
+      "guidance": {"purpose": "基于品牌问题、竞品表现和现有内容覆盖，识别优先突破的主题与内容方向。", "automatic": "针对品牌提及偏弱、竞品占优或尚未被充分覆盖的问题和主题。", "manual": "确定优先级、目标问题和拟补充的事实或内容方向，并转为后续工单。"}
     },
     "sourceBuilding": {
       "title": "信源建设",
-      "description": "规划信源建设。"
+      "description": "规划信源建设。",
+      "guidance": {"purpose": "管理支撑品牌事实的公开可信信源，提升可核验事实的外部覆盖。", "automatic": "针对事实库中缺少公开证据、回答引用未治理 URL 或信源覆盖不足的事实。", "manual": "登记、审核和关联官网、行业媒体、案例页等信源资产，规划待建设信源；本页不自动发布内容。"}
     },
     "technicalAdaptation": {
       "title": "网站优化",
-      "description": "优化影响 AI 理解和访问网站的技术与页面配置。"
+      "description": "优化影响 AI 理解和访问网站的技术与页面配置。",
+      "guidance": {"purpose": "改善 AI 对网站内容的抓取、访问、理解和引用条件。", "automatic": "针对影响 AI 抓取、访问、理解与引用网站内容的技术和页面问题。", "manual": "修复 robots.txt、站点地图、结构化数据、页面可访问性和可引用段落。"}
     },
     "contentProduction": {
       "title": "内容生产",
-      "description": "管理内容生产计划。"
+      "description": "管理内容生产计划。",
+      "guidance": {"purpose": "围绕已审核的品牌事实和诊断发现的问题缺口，规划需要补充的内容。", "automatic": "针对品牌问题中事实缺失、解释不足或竞品占优的主题。", "manual": "当前仅管理内容选题、事实依据和审核计划；不自动生成或发布文章。"}
+    },
+    "improvementGuidance": {
+      "purposeTitle": "本页用于",
+      "automaticTitle": "针对什么",
+      "manualTitle": "具体优化"
+    },
+    "verificationGuidance": {
+      "purposeTitle": "本页用于",
+      "automaticTitle": "重新执行诊断后自动更新",
+      "manualTitle": "需要在页面单独操作"
     },
     "visibilityTrend": {
       "title": "可见趋势",
-      "description": "查看可见性变化。"
+      "description": "查看可见性变化。",
+      "guidance": {"purpose": "根据历次完成的诊断，绘制品牌可见性及其变化趋势。", "automatic": "至少需要两次完成的诊断运行。重新执行诊断后，本页会自动纳入最新结果。", "manual": "本页仅用于选择周期和查看趋势，无需单独运行。"}
     },
     "rankTracking": {
-      "title": "排名追踪",
-      "description": "追踪排名变化。"
+      "title": "问题追踪",
+      "description": "追踪重点问题中的品牌提及与竞品表现变化。",
+      "guidance": {"purpose": "根据历次诊断，追踪重点问题在不同引擎和市场中的品牌提及与竞品表现变化。", "automatic": "重新执行诊断后，问题、引擎和竞品表现会自动更新。", "manual": "可选配置需要重点追踪的问题、引擎和市场。"}
     },
     "attribution": {
       "title": "效果归因",
-      "description": "分析优化效果归因。"
+      "description": "分析优化效果归因。",
+      "guidance": {"purpose": "对比优化动作前后的诊断结果，帮助判断哪些变化可能与已执行的优化有关。", "automatic": "重新诊断只能呈现前后相关变化，不能自动得出因果归因。", "manual": "关联优化动作或工单，必要时补充人工归因说明。"}
     },
     "comparisonTest": {
       "title": "对比测试",
-      "description": "管理对比实验。"
+      "description": "管理对比实验。",
+      "guidance": {"purpose": "比较预先定义的对照组与实验组的诊断结果，验证某一优化策略是否更有效。", "automatic": "单次重新执行诊断不会自动形成对比实验结果。", "manual": "创建对照组和实验组，定义比较范围与成功指标，再分别运行。"}
     },
     "periodicRetest": {
       "title": "周期复测",
-      "description": "安排周期复测。"
+      "description": "安排周期复测。",
+      "guidance": {"purpose": "以选定基线为参照，持续对比后续诊断的指标变化并形成复测记录。", "automatic": "单次手动复测可直接重新执行诊断，并将结果纳入后续对比。", "manual": "若需自动周期执行，需要配置频率、范围、通知和启停状态。"}
     },
     "placeholder": "此功能页面已准备就绪，后续 GEO 数据将在此呈现。"
   },
@@ -268,6 +288,7 @@
     "previous": "上一页",
     "next": "下一页",
     "actions": "操作",
+    "webReview": {"status": "网页复核可用状态", "unavailable": "不可用", "pendingLogin": "待登录", "ready": "已就绪", "refresh": "刷新", "refreshing": "刷新中…", "reset": "重置", "resetting": "重置中…", "cancel": "取消", "resetTitle": "重置网页复核窗口", "resetDescription": "将关闭本应用启动的该引擎 Chrome 窗口；不会清除登录态。", "resetKeepsCookies": "登录 Cookie 与其他网页登录数据会保留。", "confirmReset": "确认重置", "clearLoginData": "清除网页登录数据…", "clearTitle": "确认清除网页登录数据", "clearDescription": "此操作会删除本应用为该引擎保存的专属 Chrome Profile，并清除其中的登录 Cookie。", "clearing": "清除中…", "confirmClear": "确认清除", "operationFailed": "网页复核操作失败。"},
     "empty": "暂无符合条件的{resource}",
     "summary": "共 {total} 条，第 {page}/{pageCount} 页",
     "apiUnavailable": "无法连接管理 API，请确认服务端正在运行。",

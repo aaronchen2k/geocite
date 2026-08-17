@@ -8,7 +8,7 @@
 
 验证：
 
-- `pnpm --dir server test -- execution-diagnosis.service.spec.ts diagnosis-configuration.service.spec.ts brand-question-prompt.spec.ts diagnosis-questions.spec.ts`：27 passed。
+- `pnpm --dir server test`：22 suites、102 tests passed（其中分类相关 4 suites、27 tests）。
 - `pnpm --dir server build`：通过。
 - `pnpm --dir ui exec tsc --noEmit`：通过。
 - UI Playwright 未运行：共享端口 `8101` 已被并行任务占用；未终止他人进程。
