@@ -109,6 +109,15 @@ describe('LocalChromeService', () => {
     );
   });
 
+  it('优先使用引擎配置的官网地址打开登录窗口', async () => {
+    const { service, context } = createService();
+    const homepage = 'https://chatgpt.com/c';
+
+    await service.reset({ ...engine, homepage });
+
+    expect(context.pages()[0].goto).toHaveBeenCalledWith(homepage, expect.objectContaining({ waitUntil: 'domcontentloaded' }));
+  });
+
   it('将登录页标为 pending_login，且不读取或保存密码和验证码', async () => {
     const { service, profiles, context } = createService();
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/auth/login') }]);

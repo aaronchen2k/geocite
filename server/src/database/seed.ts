@@ -3,6 +3,7 @@ import { type DeepPartial, type FindOptionsWhere, type ObjectLiteral, type Repos
 import { appDataSource } from './data-source';
 import { BrandEntity } from '../modules/brands/brand.entity';
 import { EngineEntity } from '../modules/engines/engine.entity';
+import { DEFAULT_ENGINE_HOMEPAGES } from '../modules/engines/default-engine-homepages';
 import { ModelEntity } from '../modules/models/model.entity';
 import { RagAgentEntity } from '../modules/rag-agents/rag-agent.entity';
 import { DiagnosisQuestionTaxonomyEntity } from '../modules/execution-diagnosis/question-taxonomy.entity';
@@ -35,12 +36,13 @@ async function seed(): Promise<void> {
   ], 'code');
 
   await saveByUnique(engines, [
-    { code: 'chatgpt', name: 'ChatGPT', vendor: 'OpenAI', description: '国际通用大模型问答渠道。', disabled: false },
-    { code: 'deepseek', name: 'DeepSeek', vendor: 'DeepSeek', description: '国产推理与通用问答渠道。', disabled: false },
-    { code: 'doubao', name: '豆包', vendor: 'ByteDance', description: '字节跳动 AI 助手渠道。', disabled: false },
-    { code: 'yuanbao', name: '元宝', vendor: 'Tencent', description: '腾讯 AI 助手渠道。', disabled: false },
-    { code: 'kimi', name: 'Kimi', vendor: 'Moonshot AI', description: '月之暗面 AI 助手渠道。', disabled: false },
-    { code: 'wenxin-yiyan', name: '文心一言', vendor: 'Baidu', description: '百度大模型 AI 助手渠道。', disabled: false },
+    { code: 'chatgpt', name: 'ChatGPT', vendor: 'OpenAI', homepage: DEFAULT_ENGINE_HOMEPAGES.chatgpt, description: '国际通用大模型问答渠道。', disabled: false },
+    { code: 'deepseek', name: 'DeepSeek', vendor: 'DeepSeek', homepage: DEFAULT_ENGINE_HOMEPAGES.deepseek, description: '国产推理与通用问答渠道。', disabled: false },
+    { code: 'doubao', name: '豆包', vendor: 'ByteDance', homepage: DEFAULT_ENGINE_HOMEPAGES.doubao, description: '字节跳动 AI 助手渠道。', disabled: false },
+    { code: 'qwen', name: '千问', vendor: 'Alibaba', homepage: DEFAULT_ENGINE_HOMEPAGES.qwen, description: '阿里云 AI 助手渠道。', disabled: false },
+    { code: 'yuanbao', name: '元宝', vendor: 'Tencent', homepage: DEFAULT_ENGINE_HOMEPAGES.yuanbao, description: '腾讯 AI 助手渠道。', disabled: false },
+    { code: 'kimi', name: 'Kimi', vendor: 'Moonshot AI', homepage: DEFAULT_ENGINE_HOMEPAGES.kimi, description: '月之暗面 AI 助手渠道。', disabled: false },
+    { code: 'wenxin-yiyan', name: '文心一言', vendor: 'Baidu', homepage: DEFAULT_ENGINE_HOMEPAGES['wenxin-yiyan'], description: '百度大模型 AI 助手渠道。', disabled: false },
     { code: 'wenxiaoyan', name: '文小言', vendor: 'Baidu', description: '百度 AI 助手渠道。', disabled: true },
   ], 'code');
   await engines.createQueryBuilder().update(EngineEntity).set({ ordr: () => 'id * 100' }).where('deleted = :deleted', { deleted: false }).execute();

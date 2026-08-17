@@ -271,6 +271,7 @@
     "provider": "提供商",
     "baseUrl": "基础地址",
     "apiKey": "API Key",
+    "homepage": "官网地址",
     "nativeWebSearch": "启用原生联网搜索",
     "diagnosticEngines": "诊断引擎",
     "brandId": "Brand ID",

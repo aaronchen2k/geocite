@@ -5,6 +5,7 @@ export class CreateEngineDto {
   @IsString() @IsNotEmpty() name!: string;
   @IsString() @IsNotEmpty() code!: string;
   @IsString() @IsNotEmpty() vendor!: string;
+  @IsOptional() @IsString() homepage?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() modelName?: string;
   @IsOptional() @IsString() baseUrl?: string;

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { dataSourceOptions } from './data-source';
 import { logLocal } from '../logging/local-time';
+import { DEFAULT_ENGINE_HOMEPAGES } from '../modules/engines/default-engine-homepages';
 
 const tables = ['brands', 'engines', 'models', 'rag_agents'];
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
@@ -20,6 +21,10 @@ async function migrate(): Promise<void> {
       await add('created_at', 'datetime');
       await add('updated_at', 'datetime');
       await add('deleted_at', 'datetime');
+      if (table === 'engines') {
+        await add('homepage', 'text');
+        for (const [code, homepage] of Object.entries(DEFAULT_ENGINE_HOMEPAGES)) await source.query(`UPDATE ${quote(table)} SET homepage = ? WHERE code = ? AND (homepage IS NULL OR homepage = '')`, [homepage, code]);
+      }
       if (names.has('enabled')) await source.query(`UPDATE ${quote(table)} SET disabled = CASE WHEN enabled = 1 THEN 0 ELSE 1 END`);
       if (names.has('createdAt')) await source.query(`UPDATE ${quote(table)} SET created_at = COALESCE(created_at, createdAt)`);
       if (names.has('updatedAt')) await source.query(`UPDATE ${quote(table)} SET updated_at = COALESCE(updated_at, updatedAt)`);

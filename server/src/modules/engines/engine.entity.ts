@@ -14,6 +14,7 @@ export class EngineEntity extends AuditedEntity {
   @Column({ unique: true }) code!: string;
   @Column() name!: string;
   @Column() vendor!: string;
+  @Column({ type: 'text', nullable: true }) homepage!: string | null;
   @Column({ type: 'text', nullable: true }) description!: string | null;
   @Column({ nullable: true }) modelName!: string | null;
   @Column({ type: 'text', nullable: true }) baseUrl!: string | null;

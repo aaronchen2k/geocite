@@ -13,7 +13,8 @@ import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReview
 
 type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
-type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[] }): Promise<BrowserContextLike> };
+type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[]; ignoreDefaultArgs?: string[] }): Promise<BrowserContextLike> };
+type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
 
 export type ControlledChromeProcess = { pid: number; launchId: string; profilePath: string };
 export type ProcessInspector = {
@@ -93,6 +94,11 @@ function detectChromePath(): string | null {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
+/** Chrome only needs this compatibility flag when it is run as root in Linux. */
+function systemNeedsNoSandbox() {
+  return process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0;
+}
+
 function defaultDependencies(): LocalChromeDependencies {
   return {
     browser: chromium as unknown as BrowserLauncher,
@@ -127,7 +133,7 @@ export class LocalChromeService {
   }
 
   /** Executes an automated review in the same dedicated, persistent profile used for manual login. */
-  async useReadyProfile<T>(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>, action: (page: unknown) => Promise<T>): Promise<T> {
+  async useReadyProfile<T>(engineOrId: number | BrowserEngine, action: (page: unknown) => Promise<T>): Promise<T> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
@@ -151,7 +157,7 @@ export class LocalChromeService {
     });
   }
 
-  async refresh(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>): Promise<WebReviewAvailability> {
+  async refresh(engineOrId: number | BrowserEngine): Promise<WebReviewAvailability> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
@@ -162,7 +168,7 @@ export class LocalChromeService {
     });
   }
 
-  async reset(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>): Promise<WebReviewAvailability> {
+  async reset(engineOrId: number | BrowserEngine): Promise<WebReviewAvailability> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
@@ -217,7 +223,7 @@ export class LocalChromeService {
     return { deleted: true, engineId };
   }
 
-  private async launchAndCheck(engine: Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>, profile: EngineWebReviewProfileEntity, temporary: boolean) {
+  private async launchAndCheck(engine: BrowserEngine, profile: EngineWebReviewProfileEntity, temporary: boolean) {
     const executablePath = this.dependencies.chromePath();
     if (!executablePath) return this.updateProfile(profile, 'unavailable', '未找到本机 Chrome', 'chrome_not_found');
     const launchId = randomUUID();
@@ -228,6 +234,7 @@ export class LocalChromeService {
         executablePath,
         headless: !temporary ? false : true,
         args: [`--geocite-review-launch-id=${launchId}`],
+        ignoreDefaultArgs: systemNeedsNoSandbox() ? undefined : ['--no-sandbox'],
       });
       launch = this.launches.create({
         engineId: engine.id,
@@ -265,7 +272,7 @@ export class LocalChromeService {
     }
   }
 
-  private async checkContext(profile: EngineWebReviewProfileEntity, context: BrowserContextLike, temporary: boolean, engine?: Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>) {
+  private async checkContext(profile: EngineWebReviewProfileEntity, context: BrowserContextLike, temporary: boolean, engine?: BrowserEngine) {
     try {
       const page = context.pages()[0] ?? await context.newPage();
       if (engine) await page.goto(this.officialLoginUrl(engine), { waitUntil: 'domcontentloaded', timeout: 10_000 });
@@ -298,7 +305,7 @@ export class LocalChromeService {
     }));
   }
 
-  private async resolveEngine(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>) {
+  private async resolveEngine(engineOrId: number | BrowserEngine) {
     if (typeof engineOrId !== 'number') return engineOrId;
     const engine = await this.engines.findOne({ where: { id: engineOrId, deleted: false } });
     if (!engine) throw new Error(`Engine ${engineOrId} 不存在`);
@@ -320,7 +327,8 @@ export class LocalChromeService {
     return { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt };
   }
 
-  private officialLoginUrl(engine: Pick<EngineEntity, 'code' | 'vendor' | 'baseUrl'>) {
+  private officialLoginUrl(engine: Pick<BrowserEngine, 'code' | 'vendor' | 'homepage' | 'baseUrl'>) {
+    if (engine.homepage?.trim()) return engine.homepage.trim();
     const identity = `${engine.code} ${engine.vendor}`.toLowerCase();
     if (identity.includes('openai') || identity.includes('chatgpt')) return 'https://chatgpt.com/auth/login';
     if (identity.includes('claude') || identity.includes('anthropic')) return 'https://claude.ai/login';

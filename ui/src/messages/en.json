@@ -271,6 +271,7 @@
     "provider": "Provider",
     "baseUrl": "Base URL",
     "apiKey": "API key",
+    "homepage": "Homepage",
     "nativeWebSearch": "Enable native web search",
     "diagnosticEngines": "Diagnostic engines",
     "brandId": "Brand ID",
