@@ -7,4 +7,9 @@ node ./node_modules/.pnpm/playwright-core@1.62.1/node_modules/playwright-core/cl
 为 KIMI 引擎生成登录判断代码
 为 文心一言 引擎生成登录判断代码
 
+验证 千问 引擎登录判断代码
 验证 豆包 引擎登录判断代码
+验证 DeepSeek 引擎登录判断代码
+验证 元宝 引擎登录判断代码
+验证 KIMI 引擎登录判断代码
+验证 文心一言 引擎登录判断代码
