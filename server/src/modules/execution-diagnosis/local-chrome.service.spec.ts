@@ -31,7 +31,7 @@ describe('LocalChromeService', () => {
       delete: jest.fn(),
     };
     const context = {
-      pages: jest.fn().mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/') }]),
+      pages: jest.fn().mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }) }]),
       newPage: jest.fn(),
       close: jest.fn(),
     };
@@ -118,6 +118,13 @@ describe('LocalChromeService', () => {
     expect(context.pages()[0].goto).toHaveBeenCalledWith(homepage, expect.objectContaining({ waitUntil: 'domcontentloaded' }));
   });
 
+  it('页面出现登录入口时标记为未登录', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/c'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['Log in']) }) }]);
+
+    await expect(service.reset({ ...engine, homepage: 'https://chatgpt.com/c' })).resolves.toBe('pending_login');
+  });
+
   it('将登录页标为 pending_login，且不读取或保存密码和验证码', async () => {
     const { service, profiles, context } = createService();
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/auth/login') }]);
@@ -142,7 +149,7 @@ describe('LocalChromeService', () => {
 
   it('复用前台 context 时仍导航至该引擎的登录页检查状态', async () => {
     const { service, context } = createService();
-    const page = { goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/') };
+    const page = { goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }) };
     context.pages.mockReturnValue([page]);
 
     await service.reset(engine);

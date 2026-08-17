@@ -11,7 +11,7 @@ import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
 
-type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string };
+type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> } };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
 type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[]; ignoreDefaultArgs?: string[] }): Promise<BrowserContextLike> };
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
@@ -278,7 +278,7 @@ export class LocalChromeService {
       if (engine) await page.goto(this.officialLoginUrl(engine), { waitUntil: 'domcontentloaded', timeout: 10_000 });
       const currentUrl = page.url();
       if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面', 'challenge_detected');
-      if (/(login|signin|sign-in|auth)/i.test(currentUrl)) return this.updateProfile(profile, 'pending_login', null, null);
+      if (/(login|signin|sign-in|auth)/i.test(currentUrl) || await this.hasLoginCallToAction(page)) return this.updateProfile(profile, 'pending_login', null, null);
       return this.updateProfile(profile, 'ready', null, null);
     } catch (error) {
       return this.updateProfile(profile, 'unavailable', this.controlledFailure(error), 'check_failed');
@@ -340,6 +340,11 @@ export class LocalChromeService {
     if (identity.includes('wenxin') || identity.includes('wenxiaoyan') || identity.includes('baidu')) return 'https://yiyan.baidu.com/';
     if (identity.includes('qwen') || identity.includes('alibaba')) return 'https://tongyi.aliyun.com/qianwen/';
     return engine.baseUrl?.replace(/\/$/, '') ?? 'https://www.google.com/';
+  }
+
+  private async hasLoginCallToAction(page: PageLike) {
+    const texts = await page.locator('a, button, [role="button"]').allTextContents();
+    return texts.some((text) => /\b(log\s*in|sign\s*in)\b|登录|登陆/iu.test(text.trim()));
   }
 
   private profilesRoot() {

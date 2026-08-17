@@ -295,7 +295,7 @@
     "previous": "上一页",
     "next": "下一页",
     "actions": "操作",
-    "webReview": {"status": "浏览器状态", "unavailable": "不可用", "pendingLogin": "待登录", "ready": "已就绪", "refresh": "刷新", "refreshing": "刷新中…", "reset": "重置", "resetting": "重置中…", "cancel": "取消", "resetTitle": "重置网页复核窗口", "resetDescription": "将关闭本应用启动的该引擎 Chrome 窗口；不会清除登录态。", "resetKeepsCookies": "登录 Cookie 与其他网页登录数据会保留。", "confirmReset": "确认重置", "clearLoginData": "清除网页登录数据…", "clearTitle": "确认清除网页登录数据", "clearDescription": "此操作会删除本应用为该引擎保存的专属 Chrome Profile，并清除其中的登录 Cookie。", "clearing": "清除中…", "confirmClear": "确认清除", "operationFailed": "网页复核操作失败。"},
+    "webReview": {"status": "浏览器状态", "unavailable": "不可用", "pendingLogin": "未登录", "ready": "已就绪", "refresh": "刷新", "refreshing": "刷新中…", "reset": "重置", "resetting": "重置中…", "cancel": "取消", "resetTitle": "重置网页复核窗口", "resetDescription": "将关闭本应用启动的该引擎 Chrome 窗口；不会清除登录态。", "resetKeepsCookies": "登录 Cookie 与其他网页登录数据会保留。", "confirmReset": "确认重置", "clearLoginData": "清除网页登录数据…", "clearTitle": "确认清除网页登录数据", "clearDescription": "此操作会删除本应用为该引擎保存的专属 Chrome Profile，并清除其中的登录 Cookie。", "clearing": "清除中…", "confirmClear": "确认清除", "operationFailed": "网页复核操作失败。"},
     "empty": "暂无符合条件的{resource}",
     "summary": "共 {total} 条，第 {page}/{pageCount} 页",
     "apiUnavailable": "无法连接管理 API，请确认服务端正在运行。",
