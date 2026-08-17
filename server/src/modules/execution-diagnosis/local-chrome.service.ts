@@ -10,7 +10,13 @@ import { chromium } from 'playwright-core';
 import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
+import type { EngineSessionAdapter } from './engine-session/engine-session-adapter';
+import { DeepSeekEngineSessionService } from './engine-session/deepseek-engine-session.service';
+import { DoubaoEngineSessionService } from './engine-session/doubao-engine-session.service';
 import { KimiEngineSessionService } from './engine-session/kimi-engine-session.service';
+import { QwenEngineSessionService } from './engine-session/qwen-engine-session.service';
+import { WenxinEngineSessionService } from './engine-session/wenxin-engine-session.service';
+import { YuanbaoEngineSessionService } from './engine-session/yuanbao-engine-session.service';
 
 type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate<T>(pageFunction: () => T | Promise<T>): Promise<T>; waitForSelector(selector: string, options?: object): Promise<unknown> };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
@@ -116,7 +122,14 @@ export class LocalChromeService {
   private readonly dependencies: LocalChromeDependencies;
   private readonly contexts = new Map<number, { launchId: string; profilePath: string; context: BrowserContextLike }>();
   private readonly engineOperations = new Map<number, Promise<void>>();
-  private readonly kimiSession = new KimiEngineSessionService();
+  private readonly engineSessions: EngineSessionAdapter[] = [
+    new QwenEngineSessionService(),
+    new DoubaoEngineSessionService(),
+    new YuanbaoEngineSessionService(),
+    new KimiEngineSessionService(),
+    new WenxinEngineSessionService(),
+    new DeepSeekEngineSessionService(),
+  ];
 
   constructor(
     @InjectRepository(EngineEntity) private readonly engines: Repository<EngineEntity>,
@@ -353,46 +366,13 @@ export class LocalChromeService {
   }
 
   private async knownEngineSessionState(engine: BrowserEngine, page: PageLike): Promise<boolean | null> {
-    const identity = `${engine.code} ${engine.vendor}`.toLowerCase();
     try {
-      if (/qwen|alibaba/.test(identity)) return Boolean(await page.evaluate(() => {
-        const user = (globalThis as { _USER_?: { userId?: string } })._USER_;
-        return user?.userId?.trim() ?? '';
-      }));
-      if (/doubao|bytedance/.test(identity)) return Boolean(await page.evaluate(() => {
-        const routerData = (globalThis as { _ROUTER_DATA?: { loaderData?: { chat_layout?: { chat_layout?: { is_login?: boolean; accountInfo?: { data?: { user_id?: number | string } } } } } } })._ROUTER_DATA;
-        const state = routerData?.loaderData?.chat_layout?.chat_layout;
-        return state?.is_login === true || Number(state?.accountInfo?.data?.user_id ?? 0) > 0;
-      }));
-      if (/yuanbao|tencent/.test(identity)) {
-        if (await this.hasYuanbaoLoginDialog(page)) return false;
-        return Boolean(await page.evaluate(() => {
-          const name = document.querySelector('.nick-info-name')?.textContent?.trim();
-          return name && name !== '未登录';
-        }));
-      }
-      if (/kimi|moonshot/.test(identity)) {
-        return this.kimiSession.isLoggedIn(page);
-      }
-      if (/wenxin|wenxiaoyan|baidu/.test(identity)) return Boolean(await page.evaluate(() => {
-        const source = document.querySelector('script[name="aiTabFrameBaseData"]')?.textContent;
-        if (!source) return false;
-        const isUserLogin = JSON.parse(source)?.userInfo?.isUserLogin;
-        return isUserLogin === true || isUserLogin === 1 || isUserLogin === '1';
-      }));
+      const adapter = this.engineSessions.find((item) => item.supports(engine));
+      if (adapter) return adapter.isLoggedIn(page);
     } catch {
       return false;
     }
     return null;
-  }
-
-  private async hasYuanbaoLoginDialog(page: PageLike) {
-    try {
-      await page.waitForSelector('text=微信登录', { state: 'visible', timeout: 3_000 });
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private profilesRoot() {
