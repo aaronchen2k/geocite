@@ -45,6 +45,10 @@ test('expands the positioning map from primary taxonomy to question-level compet
   await expect(page.getByRole('cell', { name: '0%', exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: '能力确认', exact: true }).click();
-  await expect(page.getByText('当前品牌能满足核心需求吗？', { exact: true })).toBeVisible();
-  await expect(page.getByRole('cell', { name: '无领先竞品', exact: true })).toBeVisible();
+  const noCompetitorRow = page.getByRole('row', { name: /当前品牌能满足核心需求吗？/ });
+  await expect(noCompetitorRow).toBeVisible();
+  await expect(noCompetitorRow).toContainText('无领先竞品');
+  await expect(noCompetitorRow).toContainText('—');
+  await expect(noCompetitorRow.getByRole('cell', { name: '领先竞品', exact: true })).toHaveCount(0);
+  await expect(noCompetitorRow.getByRole('cell', { name: '竞品乙', exact: true })).toHaveCount(0);
 });

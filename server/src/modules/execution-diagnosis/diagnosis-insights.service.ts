@@ -54,7 +54,7 @@ export class DiagnosisInsightsService {
     const questionInsights = questions.map((question) => {
       const scoped = samples.filter((sample) => sample.question === question);
       const mentioned = this.mention(brand.name, [brand.name], scoped, true, reviewedBySampleId);
-      const leadingCompetitor = competitorMentions.map((competitor) => { const item = competitors.find((candidate) => candidate.name === competitor.name); return {...competitor, rate: this.mention(competitor.name, [competitor.name, ...(item?.aliases ?? [])], scoped).rate}; }).sort((a, b) => b.rate - a.rate)[0];
+      const leadingCompetitor = competitorMentions.map((competitor) => { const item = competitors.find((candidate) => candidate.name === competitor.name); return {...competitor, rate: this.mention(competitor.name, [competitor.name, ...(item?.aliases ?? [])], scoped).rate}; }).sort((a, b) => b.rate - a.rate).find((competitor) => competitor.rate > 0);
       const diagnosis = !scoped.length ? 'unmeasured' : mentioned.rate === 0 && (leadingCompetitor?.rate ?? 0) >= 0.5 ? 'competitor-dominated' : mentioned.rate === 0 ? 'absent' : 'normal';
       const taxonomy = taxonomyByQuestion.get(question);
       return { question, group: taxonomy?.group ?? '未分类', primaryCategory: taxonomy?.primaryCategory ?? '未分类', secondaryCategory: taxonomy?.secondaryCategory ?? '未分类', sampleCount: scoped.length, mentionRate: mentioned.rate, diagnosis, leadingCompetitor: leadingCompetitor?.name ?? null, leadingCompetitorRate: leadingCompetitor?.rate ?? 0 };

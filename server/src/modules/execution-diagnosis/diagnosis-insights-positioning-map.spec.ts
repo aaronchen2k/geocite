@@ -39,7 +39,7 @@ describe('DiagnosisInsightsService positioning map', () => {
         question: '当前品牌是否可靠？',
         primaryCategory: '品牌基础提问',
         secondaryCategory: '品牌验证',
-        leadingCompetitor: '领先竞品',
+        leadingCompetitor: null,
         leadingCompetitorRate: 0,
         mentionRate: 1,
       }),
