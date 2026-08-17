@@ -1,21 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MessageEvent } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'node:crypto';
 import { BrandEntity } from '../brands/brand.entity';
 import { BrandEngineEntity } from '../brands/brand-engine.entity';
 import { EngineEntity } from '../engines/engine.entity';
 import { CompetitorEntity } from '../competitors/competitor.entity';
 import { selectDiagnosticEngines } from '../engines/diagnostic-engine-selector';
 import { getExecutionDiagnosisLogger } from '../../logging/pino-logger';
-import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, type ExecutionDiagnosisConfigurationSnapshot, type ExecutionRunStatus } from './execution-diagnosis.entity';
+import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisWebReviewEntity, type ExecutionDiagnosisConfigurationSnapshot, type ExecutionRunStatus } from './execution-diagnosis.entity';
 import { fetchPage, inspectHtml, sitemapLocations, websiteUnavailableResult, type FetchedPage } from './site-diagnostic';
 import { toPageEvidence, toProbeEvidence, toSampleEvidence } from './evidence-records';
 import { EngineSamplingClient } from './engine-sampling-client';
 import { DiagnosisFindingEntity, type DiagnosisFindingType } from './optimization-verification.entity';
+import { selectWebReviewSamples, type WebReviewSelection } from './web-review-selector';
+import { WebReviewRunnerService } from './web-review-runner.service';
 
-type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']>;
+type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']> & { stepStatus?: 'skipped' };
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
 const browserUa = 'Mozilla/5.0 (compatible; GeoCiteDiagnosis/1.0; +https://geocite.net)';
 const aiCrawlerUas = ['GPTBot', 'ClaudeBot', 'Google-Extended'];
@@ -40,14 +43,16 @@ export class ExecutionDiagnosisService {
     @InjectRepository(BrandDiagnosisQuestionEntity) private readonly diagnosisQuestions: Repository<BrandDiagnosisQuestionEntity>,
     @InjectRepository(CompetitorEntity) private readonly competitors: Repository<CompetitorEntity>,
     @InjectRepository(DiagnosisFindingEntity) private readonly findings: Repository<DiagnosisFindingEntity>,
+    @Optional() @InjectRepository(ExecutionDiagnosisWebReviewEntity) private readonly webReviews?: Repository<ExecutionDiagnosisWebReviewEntity>,
+    private readonly webReviewRunner?: WebReviewRunnerService,
   ) {}
 
   async create(brandId: number, options: { scope?: 'all_configured' } = {}) {
     const brand = await this.brands.findOne({ where: { id: brandId, deleted: false } });
     if (!brand) throw new NotFoundException(`Brand ${brandId} 不存在`);
-    const configurationSnapshot = await this.freezeConfiguration(brandId, 'v1', options.scope ?? 'all_configured');
+    const configurationSnapshot = await this.freezeConfiguration(brandId, 'v1', options.scope ?? 'all_configured', brand.playwrightWebReviewEnabled !== false);
     const run = await this.runs.save(this.runs.create({ brandId, status: 'queued', rulesVersion: 'v1', configurationSnapshot, summary: null, startedAt: null, finishedAt: null }));
-    await this.steps.save(Array.from({ length: 7 }, (_, index) => this.steps.create({ runId: run.id, number: index + 1, status: 'pending', startedAt: null, finishedAt: null, errorCode: null, result: null })));
+    await this.steps.save(Array.from({ length: 8 }, (_, index) => this.steps.create({ runId: run.id, number: index + 1, status: 'pending', startedAt: null, finishedAt: null, errorCode: null, result: null })));
     getExecutionDiagnosisLogger(brand.code, run.id, run.createdAt).info({ brandId, status: run.status, rulesVersion: run.rulesVersion }, 'execution diagnosis created');
     this.streams.set(run.id, new Subject<MessageEvent>());
     void this.execute(run.id).catch((error: unknown) => this.failRun(run.id, error));
@@ -104,7 +109,7 @@ export class ExecutionDiagnosisService {
     run.status = 'running'; run.startedAt = new Date(); await this.runs.save(run);
     await this.publish(id, 'run', { status: 'running' });
     (await this.runLogger(run)).info({ status: run.status, startedAt: run.startedAt }, 'execution diagnosis started');
-    for (let number = 1; number <= 7; number += 1) {
+    for (let number = 1; number <= 8; number += 1) {
       if ((await this.getRun(id)).status === 'cancelled') return;
       await this.executeStep(id, number);
       if (number === 2 && (await this.getRun(id)).steps.find((step) => step.number === 2)?.status === 'failed') {
@@ -126,7 +131,7 @@ export class ExecutionDiagnosisService {
       const result = await this.performStep(id, number);
       const current = await this.getRun(id);
       if (current.status === 'cancelled') return;
-      step.status = result.conclusion === 'failed' ? 'failed' : result.conclusion === 'unmeasured' ? 'unmeasured' : 'succeeded';
+      step.status = result.stepStatus ?? (result.conclusion === 'failed' ? 'failed' : result.conclusion === 'partial' ? 'partial' : result.conclusion === 'unmeasured' ? 'unmeasured' : 'succeeded');
       step.finishedAt = new Date(); step.result = result; await this.steps.save(step);
       await this.publish(id, 'step', { number, status: step.status, result });
       await this.log(id, number, `步骤 ${number} 执行完成`);
@@ -144,8 +149,9 @@ export class ExecutionDiagnosisService {
     const stepCounts = run.steps.reduce((counts, step) => ({ ...counts, [step.status]: (counts[step.status] ?? 0) + 1 }), {} as Record<string, number>);
     run.finishedAt = new Date(); run.summary = { passed: stepCounts.succeeded ?? 0, failed: stepCounts.failed ?? 0, manual: 0, unmeasured: stepCounts.unmeasured ?? 0 };
     await this.generateFindings(run);
-    run.status = (stepCounts.failed || stepCounts.unmeasured) ? 'partial' : 'succeeded'; await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
+    run.status = (stepCounts.failed || stepCounts.partial || stepCounts.unmeasured) ? 'partial' : 'succeeded';
     (await this.runLogger(run)).info({ status: run.status, summary: run.summary, finishedAt: run.finishedAt }, 'execution diagnosis completed');
+    await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary });
     this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete();
   }
 
@@ -168,7 +174,7 @@ export class ExecutionDiagnosisService {
     const engines = await this.engines.findBy(links.map((link) => ({ id: link.engineId, deleted: false })));
     return selectDiagnosticEngines(engines);
   }
-  private async freezeConfiguration(brandId: number, rulesVersion: string, executionScope: 'all_configured'): Promise<ExecutionDiagnosisConfigurationSnapshot> {
+  private async freezeConfiguration(brandId: number, rulesVersion: string, executionScope: 'all_configured', webReviewEnabled: boolean): Promise<ExecutionDiagnosisConfigurationSnapshot> {
     const [questions, engines] = await Promise.all([
       this.diagnosisQuestions.find({ where: { brandId }, order: { ordr: 'ASC', id: 'ASC' } }),
       this.samplingEngines(brandId),
@@ -183,6 +189,7 @@ export class ExecutionDiagnosisService {
       samplingMethod: 'api',
       rulesVersion,
       executionScope,
+      webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: randomUUID(), selected: [], enabled: webReviewEnabled },
     };
   }
   private async performStep(runId: number, number: number): Promise<StepResult> {
@@ -230,7 +237,8 @@ export class ExecutionDiagnosisService {
       return { conclusion: htmlPages.length ? 'passed' : 'unmeasured', severity: htmlPages.length ? 'info' : 'unmeasured', evidence: { pageCount: htmlPages.length, usablePages: usable, signals }, recommendation: htmlPages.length ? 'review-findings' : 'complete-site-crawl' };
     }
     if (number === 5) return this.sampleEngines(runId, context.brand, signal);
-    if (number === 6) return { conclusion: 'passed', severity: 'info', evidence: { baselineRunId: context.baselineRunId, comparedAt: new Date().toISOString() }, recommendation: context.baselineRunId ? 'review-delta' : 'use-this-run-as-baseline' };
+    if (number === 6) return this.runWebReview(runId);
+    if (number === 7) return this.applyWebReviewCorrection(runId, context.baselineRunId);
     return { conclusion: 'passed', severity: 'info', evidence: { runId, generatedAt: new Date().toISOString() }, recommendation: 'review-diagnosis-summary' };
   }
   private async stopAfterWebsiteFailure(id: number) {
@@ -293,7 +301,49 @@ export class ExecutionDiagnosisService {
     }
     const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
     const total = eligible.length * questions.length;
+    await this.freezeWebReviewSelection(run, brand);
     return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
+  }
+  private async freezeWebReviewSelection(run: ExecutionDiagnosisRunEntity, brand: BrandEntity) {
+    const webReview = run.configurationSnapshot?.webReview;
+    if (!webReview || !webReview.enabled) return;
+    const samples = await this.samplesRepository.find({ where: { runId: run.id } });
+    webReview.selected = selectWebReviewSamples(samples.map((sample) => ({ ...sample, apiBrandMentioned: this.mentions(sample.answer, brand.name) })), run.configurationSnapshot?.questions ?? [], webReview.randomSeed, webReview.minimumRate) as ExecutionDiagnosisConfigurationSnapshot['webReview']['selected'];
+    await this.runs.update(run.id, { configurationSnapshot: run.configurationSnapshot });
+  }
+  private async runWebReview(runId: number): Promise<StepResult> {
+    const run = await this.getRun(runId);
+    const webReview = run.configurationSnapshot?.webReview;
+    if (!webReview?.enabled) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { reason: 'playwright-web-review-disabled' }, recommendation: 'enable-playwright-web-review', stepStatus: 'skipped' };
+    const samples = await this.samplesRepository.find({ where: { runId } });
+    const byId = new Map(samples.map((sample) => [sample.id, sample]));
+    const selected = webReview.selected.map((item) => ({ item, sample: byId.get(item.sampleId) })).filter((item): item is { item: WebReviewSelection; sample: ExecutionDiagnosisSampleEntity } => Boolean(item.sample));
+    const selectedIds = new Set(selected.map(({ sample }) => sample.id));
+    samples.filter((sample) => Boolean(sample.error) && !selectedIds.has(sample.id)).forEach((sample) => selected.push({ item: { sampleId: sample.id, reasons: [] }, sample }));
+    if (!selected.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { selected: 0, reason: 'no-web-review-samples' }, recommendation: 'review-api-sampling' };
+    if (!this.webReviewRunner) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { selected: selected.length, reason: 'web-review-runner-unavailable' }, recommendation: 'configure-web-review-runner' };
+    const outcomes: Array<{ sampleId: number; engineId: number; status: string; exclusionReason: string | null }> = [];
+    const byEngine = new Map<number, Array<{ item: WebReviewSelection; sample: ExecutionDiagnosisSampleEntity }>>();
+    selected.forEach((entry) => byEngine.set(entry.sample.engineId, [...(byEngine.get(entry.sample.engineId) ?? []), entry]));
+    for (const entries of byEngine.values()) {
+      let stopReason: string | null = null;
+      for (const { item, sample } of entries) {
+        const runnable = { id: sample.id, runId: sample.runId, engineId: sample.engineId, engineName: sample.engineName, engineCode: sample.engineCode, question: sample.question, prompt: sample.prompt };
+        const result = sample.error
+          ? await this.webReviewRunner.exclude(runnable, item, 'api-sample-failed', new Date(), false)
+          : stopReason ? await this.webReviewRunner.exclude(runnable, item, stopReason)
+            : await this.webReviewRunner.run(runnable, item);
+        outcomes.push({ sampleId: sample.id, engineId: sample.engineId, status: result.status, exclusionReason: result.exclusionReason });
+        if (result.terminalForEngine) stopReason = result.exclusionReason ?? 'web-review-engine-stopped';
+      }
+    }
+    const succeeded = outcomes.filter((outcome) => outcome.status === 'succeeded').length;
+    const excluded = outcomes.length - succeeded;
+    return { conclusion: succeeded === outcomes.length ? 'passed' : succeeded ? 'partial' : 'unmeasured', severity: succeeded === outcomes.length ? 'info' : 'unmeasured', evidence: { selected: outcomes.length, succeeded, excluded, outcomes }, recommendation: succeeded ? 'use-web-review-correction' : 'restore-web-review-availability' };
+  }
+  private async applyWebReviewCorrection(runId: number, baselineRunId: number | null): Promise<StepResult> {
+    const succeeded = this.webReviews ? await this.webReviews.find({ where: { runId, status: 'succeeded' } }) : [];
+    return { conclusion: succeeded.length ? 'passed' : 'unmeasured', severity: succeeded.length ? 'info' : 'unmeasured', evidence: { baselineRunId, successfulWebReviews: succeeded.length, correctionSource: succeeded.length ? 'web-review' : 'api-reference-only', comparedAt: new Date().toISOString() }, recommendation: succeeded.length ? 'review-delta' : 'restore-web-review-availability' };
   }
   private async savePageEvidence(runId: number, page: FetchedPage) { await this.pagesRepository.save(this.pagesRepository.create(toPageEvidence(runId, page))); }
   private async generateFindings(run: ExecutionDiagnosisRunEntity) {

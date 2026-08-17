@@ -47,7 +47,7 @@ async function waitForTerminalRun(service: { findOne(brandId: number, id: number
 export async function runExecutionDiagnosisSimulation(): Promise<SimulationResult> {
   process.env.NODE_ENV = 'test';
   const { server, baseUrl } = await startSimulationSite();
-  const [{ appDataSource }, { BrandEntity }, { BrandEngineEntity }, { EngineEntity }, { BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity }, { CompetitorEntity }, { DiagnosisFindingEntity }, { ExecutionDiagnosisService }, { flushLoggers }] = await Promise.all([
+  const [{ appDataSource }, { BrandEntity }, { BrandEngineEntity }, { EngineEntity }, { BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisWebReviewEntity }, { CompetitorEntity }, { DiagnosisFindingEntity }, { ExecutionDiagnosisService }, { WebReviewRunnerService }, { flushLoggers }] = await Promise.all([
     import('../database/data-source'),
     import('../modules/brands/brand.entity'),
     import('../modules/brands/brand-engine.entity'),
@@ -56,6 +56,7 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     import('../modules/competitors/competitor.entity'),
     import('../modules/execution-diagnosis/optimization-verification.entity'),
     import('../modules/execution-diagnosis/execution-diagnosis.service'),
+    import('../modules/execution-diagnosis/web-review-runner.service'),
     import('../logging/pino-logger'),
   ]);
   try {
@@ -69,6 +70,7 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     const pages = appDataSource.getRepository(ExecutionDiagnosisPageEntity);
     const probes = appDataSource.getRepository(ExecutionDiagnosisProbeEntity);
     const samples = appDataSource.getRepository(ExecutionDiagnosisSampleEntity);
+    const webReviews = appDataSource.getRepository(ExecutionDiagnosisWebReviewEntity);
     const diagnosisQuestions = appDataSource.getRepository(BrandDiagnosisQuestionEntity);
     const competitors = appDataSource.getRepository(CompetitorEntity);
     const findings = appDataSource.getRepository(DiagnosisFindingEntity);
@@ -77,7 +79,12 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     await diagnosisQuestions.save(diagnosisQuestions.create({ brandId: brand.id, question: '模拟品牌提供什么服务？', group: '推荐', market: 'cn', brandProbe: false, ordr: 0 }));
     const engine = await engines.save(engines.create({ code: `simulation-${suffix}`, name: '模拟问答引擎', vendor: 'GeoCite', description: null, modelName: 'simulation-model', baseUrl: `${baseUrl}/openai/v1`, apiKey: 'simulation-key', disabled: false, ordr: 1, deleted: false, deletedAt: null }));
     await brandEngines.save(brandEngines.create({ brandId: brand.id, engineId: engine.id }));
-    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings);
+    const webReviewRunner = new WebReviewRunnerService(
+      { getStatus: async () => ({ availability: 'ready' as const, lastFailureReason: null, failureCode: null }) } as never,
+      webReviews,
+      { review: async () => ({ answer: 'GeoCite 模拟网页复核回答。', screenshotPath: null, brandMentioned: true }) },
+    );
+    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings, webReviews, webReviewRunner);
     const createdRun = await service.create(brand.id);
     const completedRun = await waitForTerminalRun(service, brand.id, createdRun.id);
     if (completedRun.status !== 'succeeded') throw new Error(`模拟执行诊断未成功完成：${completedRun.status}`);

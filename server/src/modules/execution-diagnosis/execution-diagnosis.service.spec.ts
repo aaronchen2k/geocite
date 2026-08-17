@@ -4,6 +4,47 @@ import { NotFoundException } from '@nestjs/common';
 import { ExecutionDiagnosisService } from './execution-diagnosis.service';
 
 describe('ExecutionDiagnosisService events', () => {
+  it('冻结网页复核开关、随机种子和八步运行框架', async () => {
+    const brand = { id: 5, code: 'acme', name: 'Acme', playwrightWebReviewEnabled: false, deleted: false };
+    const runs = {
+      create: jest.fn((value) => ({ ...value, id: 7, createdAt: new Date('2026-08-17T00:00:00.000Z') })),
+      save: jest.fn(async (value) => value),
+      findOne: jest.fn(),
+    };
+    const steps = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
+    const service = new ExecutionDiagnosisService(
+      { findOne: jest.fn().mockResolvedValue(brand) } as never,
+      { find: jest.fn().mockResolvedValue([]) } as never,
+      {} as never, runs as never, steps as never, {} as never, {} as never, {} as never, {} as never,
+      { find: jest.fn().mockResolvedValue([]) } as never, {} as never, {} as never,
+    );
+    jest.spyOn(service as unknown as { execute(id: number): Promise<void> }, 'execute').mockResolvedValue();
+    jest.spyOn(service as unknown as { findOne(brandId: number, id: number): Promise<unknown> }, 'findOne').mockResolvedValue({ id: 7, steps: [], events: [] });
+
+    await service.create(5);
+
+    expect(runs.create).toHaveBeenCalledWith(expect.objectContaining({
+      configurationSnapshot: expect.objectContaining({
+        webReview: expect.objectContaining({ enabled: false, minimumRate: 0.3, selected: [], randomSeed: expect.any(String) }),
+      }),
+    }));
+    expect(steps.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ number: 8 })]));
+  });
+
+  it('冻结网页选样时只更新快照，不级联重存已持久化事件', async () => {
+    const runs = { update: jest.fn().mockResolvedValue(undefined) };
+    const service = new ExecutionDiagnosisService(
+      {} as never, {} as never, {} as never, runs as never, {} as never, {} as never, {} as never, {} as never,
+      { find: jest.fn().mockResolvedValue([{ id: 9, engineId: 2, question: '核心能力', answer: '答案', error: null }]) } as never,
+      {} as never, {} as never, {} as never,
+    );
+    const run = { id: 7, configurationSnapshot: { questions: [{ id: 1, question: '核心能力', group: '核心业务能力提问', market: 'cn', brandProbe: false }], webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: 'seed', selected: [], enabled: true } } };
+
+    await (service as unknown as { freezeWebReviewSelection(run: unknown, brand: { name: string }): Promise<void> }).freezeWebReviewSelection(run, { name: 'Acme' });
+
+    expect(runs.update).toHaveBeenCalledWith(7, expect.objectContaining({ configurationSnapshot: expect.objectContaining({ webReview: expect.objectContaining({ selected: [{ sampleId: 9, reasons: ['core_capability'] }] }) }) }));
+  });
+
   it('运行快照包含已持久化的步骤日志', () => {
     const service = new ExecutionDiagnosisService(
       {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,

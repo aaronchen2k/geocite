@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, Pri
 import { BrandEntity } from '../brands/brand.entity';
 
 export type ExecutionRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'partial';
-export type ExecutionStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'unmeasured' | 'cancelled';
+export type ExecutionStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'partial' | 'skipped' | 'unmeasured' | 'cancelled';
 export type ExecutionDiagnosisConfigurationSnapshot = {
   questions: Array<{ id: number; question: string; group: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
   market: 'cn' | 'global' | 'both' | 'mixed' | null;
@@ -12,6 +12,13 @@ export type ExecutionDiagnosisConfigurationSnapshot = {
   samplingMethod: 'api';
   rulesVersion: string;
   executionScope?: 'all_configured';
+  webReview: {
+    rulesVersion: string;
+    minimumRate: number;
+    randomSeed: string;
+    selected: Array<{ sampleId: number; reasons: Array<'core_capability' | 'api_brand_mentioned' | 'random_unmentioned' | 'minimum_fill'> }>;
+    enabled: boolean;
+  };
 };
 
 @Entity('execution_diagnosis_runs')
@@ -40,7 +47,7 @@ export class ExecutionDiagnosisStepEntity {
   @Column({ name: 'started_at', type: 'datetime', nullable: true }) startedAt!: Date | null;
   @Column({ name: 'finished_at', type: 'datetime', nullable: true }) finishedAt!: Date | null;
   @Column({ name: 'error_code', nullable: true }) errorCode!: string | null;
-  @Column({ name: 'result_json', type: 'simple-json', nullable: true }) result!: { conclusion: 'passed' | 'failed' | 'unmeasured'; severity: string; evidence: unknown; recommendation: string } | null;
+  @Column({ name: 'result_json', type: 'simple-json', nullable: true }) result!: { conclusion: 'passed' | 'failed' | 'partial' | 'unmeasured'; severity: string; evidence: unknown; recommendation: string } | null;
 }
 
 @Entity('execution_diagnosis_events')
@@ -98,6 +105,25 @@ export class ExecutionDiagnosisSampleEntity {
   @Column({ name: 'review_note', type: 'text', nullable: true }) reviewNote!: string | null;
   @Column({ name: 'reviewed_at', type: 'datetime', nullable: true }) reviewedAt!: Date | null;
   @CreateDateColumn({ name: 'sampled_at', type: 'datetime' }) sampledAt!: Date;
+}
+
+@Entity('execution_diagnosis_web_reviews')
+export class ExecutionDiagnosisWebReviewEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ name: 'run_id' }) runId!: number;
+  @ManyToOne(() => ExecutionDiagnosisRunEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'run_id' }) run!: ExecutionDiagnosisRunEntity;
+  @Column({ name: 'api_sample_id' }) apiSampleId!: number;
+  @ManyToOne(() => ExecutionDiagnosisSampleEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'api_sample_id' }) apiSample!: ExecutionDiagnosisSampleEntity;
+  @Column({ name: 'engine_id' }) engineId!: number;
+  @Column({ type: 'text' }) question!: string;
+  @Column({ name: 'selection_reasons_json', type: 'simple-json' }) selectionReasons!: Array<'core_capability' | 'api_brand_mentioned' | 'random_unmentioned' | 'minimum_fill'>;
+  @Column({ type: 'text', nullable: true }) answer!: string | null;
+  @Column({ name: 'brand_mentioned', type: 'boolean', nullable: true }) brandMentioned!: boolean | null;
+  @Column({ name: 'screenshot_path', type: 'text', nullable: true }) screenshotPath!: string | null;
+  @Column({ type: 'varchar' }) status!: 'succeeded' | 'excluded';
+  @Column({ name: 'exclusion_reason', type: 'text', nullable: true }) exclusionReason!: string | null;
+  @Column({ name: 'started_at', type: 'datetime' }) startedAt!: Date;
+  @Column({ name: 'finished_at', type: 'datetime' }) finishedAt!: Date;
 }
 
 @Entity('brand_diagnosis_questions')
