@@ -76,6 +76,28 @@ describe('DiagnosisConfigurationService', () => {
     }
   });
 
+  it('仅调用一次模型并拒绝超过目标数量的生成结果', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, samplingQuestionCount: 4, questionCategoryRatio: { brandBasic: 1, coreCapability: 1, competitorComparison: 2 }, deleted: false };
+    const models = { findOne: jest.fn().mockResolvedValue({ baseUrl: 'https://model.example', apiKey: 'key', modelName: 'model' }) };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
+      { text: '品牌是什么？', category: '品牌基础提问' },
+      { text: '核心能力是什么？', category: '核心业务能力提问' },
+      { text: '竞品有哪些？', category: '竞品对比提问' },
+      { text: '如何对比竞品？', category: '竞品对比提问' },
+      { text: '竞品优势是什么？', category: '竞品对比提问' },
+    ] }) } }] }) });
+    const previousFetch = global.fetch;
+    global.fetch = fetchMock as typeof fetch;
+    const service = new DiagnosisConfigurationService({ findOne: jest.fn().mockResolvedValue(brand) } as never, models as never, {} as never);
+
+    try {
+      await expect(service.generate(5)).rejects.toThrow('仅返回 5 个有效问题，需要严格返回 4 个问题');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+
   it('重置提示词时将文件模板渲染后保存到品牌记录', async () => {
     const brand = { id: 5, name: '乐堡论文', industry: '教育服务', description: '一站式论文服务平台', questions: [], questionsPrompt: '自定义提示词', deleted: false };
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };

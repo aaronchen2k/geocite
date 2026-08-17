@@ -44,9 +44,10 @@ export function BasicConfigurationPage(): React.JSX.Element {
     if (Object.values(questionCategoryRatio).some((value) => !Number.isInteger(value) || value < 1 || value > 100)) { setError('问题分类比例必须为 1 到 100 之间的整数。'); return; }
     setSaving(true); setError(''); setSaved(false);
     try {
+      const {questions, prompt, sitemapUrlLimit: nextSitemapUrlLimit, samplingQuestionCount: nextSamplingQuestionCount, questionCategoryRatio: nextQuestionCategoryRatio} = configuration;
       const [nextBrand, nextConfiguration] = await Promise.all([
         requestJson<Brand>(`brands/${brand.id}`, {method: 'PATCH', headers: {'content-type': 'application/json'}, body: JSON.stringify({name: brand.name, website: brand.website || undefined, industry: brand.industry || undefined, description: brand.description || undefined})}),
-        requestJson<DiagnosisConfiguration>(`brands/${brand.id}/diagnosis-questions`, {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify(configuration)}),
+        requestJson<DiagnosisConfiguration>(`brands/${brand.id}/diagnosis-questions`, {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({questions: questions.map(({text, group, market, brandProbe}) => ({text, group, market, brandProbe})), prompt, sitemapUrlLimit: nextSitemapUrlLimit, samplingQuestionCount: nextSamplingQuestionCount, questionCategoryRatio: nextQuestionCategoryRatio})}),
       ]);
       setBrand(nextBrand); setConfiguration(nextConfiguration); setSaved(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : t('saveFailed')); }

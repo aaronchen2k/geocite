@@ -75,7 +75,7 @@ export class DiagnosisConfigurationService {
     validateSamplingConfig(samplingConfig);
     const quota = allocateQuestionCategories(samplingConfig.samplingQuestionCount, samplingConfig.questionCategoryRatio);
     const prompt = `${buildBrandQuestionPrompt(brand)}${extraPrompt ? `\n\n## 补充提示词\n\n${extraPrompt}` : ''}`;
-    const questions = parseGeneratedQuestions(await this.complete(model, prompt), samplingConfig.samplingQuestionCount);
+    const questions = parseGeneratedQuestions(await this.complete(model, prompt), Number.MAX_SAFE_INTEGER);
     if (questions.length !== samplingConfig.samplingQuestionCount) throw new BadRequestException(`默认模型仅返回 ${questions.length} 个有效问题，需要严格返回 ${samplingConfig.samplingQuestionCount} 个问题。`);
     const categoryCounts = { brandBasic: 0, coreCapability: 0, competitorComparison: 0 };
     for (const question of questions) {

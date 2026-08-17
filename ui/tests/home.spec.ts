@@ -61,6 +61,43 @@ test('keeps the sitemap crawl limit out of brand questions', async ({ page }) =>
   await expect(page.getByText(/最多抓取URL数|Maximum sitemap\.xml URLs to crawl/)).toHaveCount(0);
 });
 
+test('saves basic configuration without question record ids', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('geocite.locale', 'zh');
+    window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 }));
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
+    await route.fulfill({ json: { items: [{ id: 5, name: '测试品牌', code: 'test-brand', isDefault: true }] } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/5', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({ json: { id: 5, name: '测试品牌', code: 'test-brand', website: null, industry: null, description: null } });
+      return;
+    }
+    await route.fulfill({ json: { id: 5, name: '测试品牌', code: 'test-brand', website: null, industry: null, description: null } });
+  });
+  await page.route('http://127.0.0.1:8101/api/v1/brands/5/diagnosis-questions', async (route) => {
+    const configuration = {
+      questions: [{ id: 101, text: '已有诊断问题', group: '核心业务能力提问', market: 'cn', brandProbe: false }],
+      prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 10,
+      questionCategoryRatio: { brandBasic: 1, coreCapability: 2, competitorComparison: 1 },
+    };
+    if (route.request().method() === 'PUT') {
+      expect(route.request().postDataJSON()).toMatchObject({
+        questions: [{ text: '已有诊断问题', group: '核心业务能力提问', market: 'cn', brandProbe: false }],
+      });
+      expect(route.request().postDataJSON().questions[0]).not.toHaveProperty('id');
+    }
+    await route.fulfill({ json: configuration });
+  });
+
+  await page.goto('/zh/configuration/basic');
+  await expect(page.getByRole('heading', { name: '基础配置' })).toBeVisible();
+  await page.getByRole('button', { name: '保存配置' }).click();
+
+  await expect(page.getByText('配置已保存。')).toBeVisible();
+});
+
 test('opens AI question suggestions from the brand-question modal', async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.route('http://127.0.0.1:8101/api/v1/brands', async (route) => {
