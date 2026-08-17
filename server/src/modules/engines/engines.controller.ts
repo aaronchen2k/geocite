@@ -6,6 +6,10 @@ export class EnginesController {
   constructor(private readonly service: EnginesService) {}
   @Get() async list(@Query() query: ListEngineDto) { const result = await this.service.list(query); return { ...result, items: result.items.map((item) => this.service.toResponse(item)) }; }
   @Post() create(@Body() dto: CreateEngineDto) { return this.service.create(dto); }
+  @Get(':id/web-review-status') webReviewStatus(@Param('id', ParseIntPipe) id: number) { return this.service.webReviewStatus(id); }
+  @Post(':id/web-review/refresh') refreshWebReview(@Param('id', ParseIntPipe) id: number) { return this.service.refreshWebReview(id); }
+  @Post(':id/web-review/reset') resetWebReview(@Param('id', ParseIntPipe) id: number) { return this.service.resetWebReview(id); }
+  @Delete(':id/web-review-profile') deleteWebReviewProfile(@Param('id', ParseIntPipe) id: number) { return this.service.deleteWebReviewProfile(id); }
   @Get(':id') async findOne(@Param('id', ParseIntPipe) id: number) { return this.service.toResponse(await this.service.findOne(id)); }
   @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEngineDto) { return this.service.update(id, dto); }
   @Delete(':id') remove(@Param('id', ParseIntPipe) id: number) { return this.service.remove(id); }
