@@ -55,15 +55,18 @@ describe('LocalChromeService', () => {
 
   it('仅关闭同 launchId 且同 profilePath 的受控 Chrome', async () => {
     const { service, launches, processInspector } = createService();
-    launches.findOne.mockResolvedValue({
+    const launch = {
       engineId: engine.id,
       profileId: 'profile-7',
       launchId: 'old-launch',
       profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
       launchStatus: 'running',
-    });
+    };
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome
+      .mockResolvedValueOnce({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath })
+      .mockResolvedValueOnce(null);
 
-    await service.reset(engine);
     await expect(service.closePreviousLaunch(engine.id)).resolves.toEqual({ closed: true });
     expect(processInspector.kill).toHaveBeenCalledWith(expect.objectContaining({
       launchId: expect.any(String),
@@ -214,6 +217,48 @@ describe('LocalChromeService', () => {
 
     expect(removeDirectory).not.toHaveBeenCalled();
     expect(launches.delete).not.toHaveBeenCalled();
+    expect(profiles.remove).not.toHaveBeenCalled();
+  });
+
+  it('SIGTERM 后重新枚举确认进程消失才将 launch 标记为 closed', async () => {
+    const { service, launches, processInspector } = createService();
+    const launch = {
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'expected-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+    };
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome
+      .mockResolvedValueOnce({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath })
+      .mockResolvedValueOnce(null);
+
+    await expect(service.closePreviousLaunch(engine.id)).resolves.toEqual({ closed: true });
+
+    expect(processInspector.kill).toHaveBeenCalledTimes(1);
+    expect(processInspector.findControlledChrome).toHaveBeenCalledTimes(2);
+    expect(launch.launchStatus).toBe('closed');
+  });
+
+  it('SIGTERM 后进程持续存活时保留 running 且拒绝删除 profile', async () => {
+    const { service, launches, processInspector, removeDirectory, profiles } = createService();
+    const launch = {
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'expected-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+    };
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome.mockResolvedValue({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath });
+
+    await expect(service.deleteProfile(engine.id)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(processInspector.kill).toHaveBeenCalledTimes(1);
+    expect(processInspector.findControlledChrome).toHaveBeenCalledTimes(2);
+    expect(launch.launchStatus).toBe('running');
+    expect(removeDirectory).not.toHaveBeenCalled();
     expect(profiles.remove).not.toHaveBeenCalled();
   });
 

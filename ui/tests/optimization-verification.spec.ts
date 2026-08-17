@@ -15,7 +15,7 @@ test('engine management exposes web-review status and the diagnosis report does 
       evidenceBasis: 'api-reference-only',
       questions: [], competitors: [], competitorMatrix: [], findings: [],
       report: { engines: [], groups: [], priorityActions: [], competitorDominatedCount: 0, absentCount: 0, normalCount: 0 },
-      webReviewSummary: { apiTotal: 10, minimumTarget: 3, mandatoryCore: 1, mandatoryMentioned: 1, randomUnmentioned: 1, minimumFill: 0, succeeded: 0, excludedByReason: { 'pending-login': 1 } },
+      webReviewSummary: { apiTotal: 10, candidateTotal: 7, minimumTarget: 3, mandatoryCore: 1, mandatoryMentioned: 1, randomUnmentioned: 1, minimumFill: 0, succeeded: 0, excludedByReason: { 'pending-login': 1 } },
       samples: [],
     } });
   });
@@ -28,6 +28,7 @@ test('engine management exposes web-review status and the diagnosis report does 
   await page.goto('/zh/diagnosis/diagnosis-report');
   await expect(page.getByRole('heading', { name: '网页端真实用户环境复核' })).toBeVisible();
   await expect(page.getByText('仅 API 参考，未经过网页复核校正，不输出校正结论')).toBeVisible();
+  await expect(page.getByText('可复核候选')).toBeVisible();
   await expect(page.getByText('最终指标以复核样本校正得出')).toHaveCount(0);
 });
 

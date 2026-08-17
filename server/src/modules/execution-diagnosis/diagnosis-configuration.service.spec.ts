@@ -73,6 +73,25 @@ describe('DiagnosisConfigurationService', () => {
     expect(questions.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ group: '核心业务能力提问' })]));
   });
 
+  it('按可审计的映射迁移旧一级 group，并保留问题文本与对应二级分类', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
+    const legacyQuestions = [
+      { id: 11, question: '品牌历史问题不可丢失', group: '品牌基础提问', primaryCategory: null, secondaryCategory: null, market: 'cn', brandProbe: false, ordr: 0 },
+      { id: 12, question: '竞品历史问题不可丢失', group: '竞品对比提问', primaryCategory: null, secondaryCategory: null, market: 'cn', brandProbe: false, ordr: 1 },
+    ];
+    const questions = { find: jest.fn().mockResolvedValue(legacyQuestions), save: jest.fn().mockResolvedValue(legacyQuestions) };
+    const service = new DiagnosisConfigurationService({ findOne: jest.fn().mockResolvedValue(brand) } as never, {} as never, questions as never);
+
+    await expect(service.list(5)).resolves.toMatchObject({ questions: [
+      { text: '品牌历史问题不可丢失', group: '品牌基础提问', primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' },
+      { text: '竞品历史问题不可丢失', group: '竞品对比提问', primaryCategory: '竞品对比提问', secondaryCategory: '比较' },
+    ] });
+    expect(questions.save).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ question: '品牌历史问题不可丢失', primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' }),
+      expect.objectContaining({ question: '竞品历史问题不可丢失', primaryCategory: '竞品对比提问', secondaryCategory: '比较' }),
+    ]));
+  });
+
   it('仅调用一次模型并拒绝与冻结配额不匹配的生成结果', async () => {
     const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, samplingQuestionCount: 4, questionCategoryRatio: { brandBasic: 1, coreCapability: 1, competitorComparison: 2 }, deleted: false };
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };

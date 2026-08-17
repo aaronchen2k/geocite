@@ -13,6 +13,12 @@ import { DiagnosisQuestionTaxonomyEntity } from './question-taxonomy.entity';
 const defaultSitemapUrlLimit = 10;
 const fallbackPrimary: QuestionGroup = '核心业务能力提问';
 const fallbackSecondary = '能力确认';
+/** Explicit legacy group-to-taxonomy mapping; unknown legacy values use the fallback only. */
+export const LEGACY_GROUP_CATEGORY_MAP: Readonly<Record<QuestionGroup, { primaryCategory: QuestionGroup; secondaryCategory: string }>> = {
+  '品牌基础提问': { primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' },
+  '核心业务能力提问': { primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认' },
+  '竞品对比提问': { primaryCategory: '竞品对比提问', secondaryCategory: '比较' },
+};
 
 @Injectable()
 export class DiagnosisConfigurationService {
@@ -100,7 +106,9 @@ export class DiagnosisConfigurationService {
   private normalizeQuestionCategories(item: BrandDiagnosisQuestionEntity, taxonomy: QuestionTaxonomyDefinition[]): boolean {
     const valid = taxonomy.some((definition) => definition.primaryCategory === item.primaryCategory && definition.secondaryCategory === item.secondaryCategory);
     if (valid) { if (item.group !== item.primaryCategory) { item.group = item.primaryCategory; return true; } return false; }
-    item.group = fallbackPrimary; item.primaryCategory = fallbackPrimary; item.secondaryCategory = fallbackSecondary;
+    const legacyMapping = QUESTION_GROUPS.includes(item.group as QuestionGroup) ? LEGACY_GROUP_CATEGORY_MAP[item.group as QuestionGroup] : undefined;
+    const mapped = legacyMapping ?? { primaryCategory: fallbackPrimary, secondaryCategory: fallbackSecondary };
+    item.group = mapped.primaryCategory; item.primaryCategory = mapped.primaryCategory; item.secondaryCategory = mapped.secondaryCategory;
     return true;
   }
 

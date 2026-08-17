@@ -184,7 +184,9 @@ export class LocalChromeService {
       const controlled = await this.dependencies.processInspector.findControlledChrome(launch.launchId, launch.profilePath);
       if (controlled && controlled.launchId === launch.launchId && this.sameProfilePath(controlled.profilePath, launch.profilePath)) {
         await this.dependencies.processInspector.kill(controlled);
-        closed = true;
+        // SIGTERM is asynchronous: only close the launch record after a fresh
+        // enumeration proves that this exact controlled Chrome is gone.
+        closed = await this.confirmControlledChromeExited(launch.launchId, launch.profilePath);
       }
     }
     if (closed) {
@@ -193,6 +195,11 @@ export class LocalChromeService {
       await this.launches.save(launch);
     }
     return { closed };
+  }
+
+  private async confirmControlledChromeExited(launchId: string, profilePath: string) {
+    const remaining = await this.dependencies.processInspector.findControlledChrome(launchId, profilePath);
+    return !remaining;
   }
 
   async deleteProfile(engineId: number) {

@@ -9,6 +9,7 @@ import { ReviewSampleDto } from './diagnosis-insights.dto';
 import { DiagnosisFindingEntity } from './optimization-verification.entity';
 
 type Mention = { name: string; count: number; sampleCount: number; rate: number };
+type WebReviewCorrection = { answer: string; brandMentioned: boolean | null };
 
 @Injectable()
 export class DiagnosisInsightsService {
@@ -41,9 +42,11 @@ export class DiagnosisInsightsService {
     const configuredQuestions = await this.diagnosisQuestions.find({ where: { brandId }, order: { ordr: 'ASC', id: 'ASC' } });
     const activeCompetitors = competitors.filter((item) => item.enabled);
     const questions = [...new Set(samples.map((sample) => sample.question).filter((question): question is string => Boolean(question)))];
-    const reviewedBySampleId = new Map(webReviews.filter((review) => review.status === 'succeeded' && review.brandMentioned !== null).map((review) => [review.apiSampleId, Boolean(review.brandMentioned)]));
-    const brandMention = this.mention(brand.name, [brand.name], samples, true, reviewedBySampleId);
-    const competitorMentions = activeCompetitors.map((item) => this.mention(item.name, [item.name, ...item.aliases], samples));
+    const successfulWebReviews = webReviews.filter((review) => review.status === 'succeeded');
+    const webReviewCorrections = new Map<number, WebReviewCorrection>(successfulWebReviews.map((review) => [review.apiSampleId, { answer: review.answer ?? '', brandMentioned: review.brandMentioned }]));
+    const reviewedBrandMentions = new Map(successfulWebReviews.filter((review) => review.brandMentioned !== null).map((review) => [review.apiSampleId, Boolean(review.brandMentioned)]));
+    const brandMention = this.mention(brand.name, [brand.name], samples, true, webReviewCorrections, reviewedBrandMentions, true);
+    const competitorMentions = activeCompetitors.map((item) => this.mention(item.name, [item.name, ...item.aliases], samples, true, webReviewCorrections));
     const engineNames = [...new Set(samples.map((sample) => sample.engineName).filter(Boolean))];
     const taxonomyQuestions = run.configurationSnapshot?.questions?.length ? run.configurationSnapshot.questions : configuredQuestions;
     const taxonomyByQuestion = new Map(taxonomyQuestions.map((item) => [item.question, {
@@ -53,8 +56,8 @@ export class DiagnosisInsightsService {
     }]));
     const questionInsights = questions.map((question) => {
       const scoped = samples.filter((sample) => sample.question === question);
-      const mentioned = this.mention(brand.name, [brand.name], scoped, true, reviewedBySampleId);
-      const leadingCompetitor = competitorMentions.map((competitor) => { const item = competitors.find((candidate) => candidate.name === competitor.name); return {...competitor, rate: this.mention(competitor.name, [competitor.name, ...(item?.aliases ?? [])], scoped).rate}; }).sort((a, b) => b.rate - a.rate).find((competitor) => competitor.rate > 0);
+      const mentioned = this.mention(brand.name, [brand.name], scoped, true, webReviewCorrections, reviewedBrandMentions, true);
+      const leadingCompetitor = competitorMentions.map((competitor) => { const item = competitors.find((candidate) => candidate.name === competitor.name); return {...competitor, rate: this.mention(competitor.name, [competitor.name, ...(item?.aliases ?? [])], scoped, true, webReviewCorrections).rate}; }).sort((a, b) => b.rate - a.rate).find((competitor) => competitor.rate > 0);
       const diagnosis = !scoped.length ? 'unmeasured' : mentioned.rate === 0 && (leadingCompetitor?.rate ?? 0) >= 0.5 ? 'competitor-dominated' : mentioned.rate === 0 ? 'absent' : 'normal';
       const taxonomy = taxonomyByQuestion.get(question);
       return { question, group: taxonomy?.group ?? '未分类', primaryCategory: taxonomy?.primaryCategory ?? '未分类', secondaryCategory: taxonomy?.secondaryCategory ?? '未分类', sampleCount: scoped.length, mentionRate: mentioned.rate, diagnosis, leadingCompetitor: leadingCompetitor?.name ?? null, leadingCompetitorRate: leadingCompetitor?.rate ?? 0 };
@@ -63,16 +66,16 @@ export class DiagnosisInsightsService {
       const aliases = [competitor.name, ...competitor.aliases];
       return {
         name: competitor.name,
-        overallRate: this.mention(competitor.name, aliases, samples).rate,
+        overallRate: this.mention(competitor.name, aliases, samples, true, webReviewCorrections).rate,
         byEngine: engineNames.map((engineName) => {
           const scoped = samples.filter((sample) => sample.engineName === engineName);
-          const mention = this.mention(competitor.name, aliases, scoped);
+          const mention = this.mention(competitor.name, aliases, scoped, true, webReviewCorrections);
           return { engineName, sampleCount: scoped.length, rate: mention.rate };
         }),
         lostQuestions: questionInsights
           .map((question) => {
             const scoped = samples.filter((sample) => sample.question === question.question);
-            const rate = this.mention(competitor.name, aliases, scoped).rate;
+            const rate = this.mention(competitor.name, aliases, scoped, true, webReviewCorrections).rate;
             return { question: question.question, rate, brandMentionRate: question.mentionRate };
           })
           .filter((item) => item.rate > item.brandMentionRate)
@@ -82,7 +85,7 @@ export class DiagnosisInsightsService {
     const engineInsights = engineNames.map((engineName) => {
       const scoped = samples.filter((sample) => sample.engineName === engineName);
       const successful = scoped.filter((sample) => !sample.error);
-      return { engineName, sampleCount: scoped.length, successRate: scoped.length ? successful.length / scoped.length : 0, mentionRate: this.mention(brand.name, [brand.name], scoped, true, reviewedBySampleId).rate };
+      return { engineName, sampleCount: scoped.length, successRate: scoped.length ? successful.length / scoped.length : 0, mentionRate: this.mention(brand.name, [brand.name], scoped, true, webReviewCorrections, reviewedBrandMentions, true).rate };
     });
     const groupInsights = [...new Set(questionInsights.map((item) => item.group))].map((group) => {
       const scoped = questionInsights.filter((item) => item.group === group);
@@ -90,12 +93,12 @@ export class DiagnosisInsightsService {
       return { group, questionCount: scoped.length, sampleCount: scoped.reduce((total, item) => total + item.sampleCount, 0), mentionRate: scoped.length ? scoped.reduce((total, item) => total + item.mentionRate, 0) / scoped.length : 0, weakQuestion: weakQuestion?.question ?? null };
     });
     const priorityActions = questionInsights.filter((item) => item.diagnosis !== 'normal').sort((a, b) => (a.diagnosis === 'competitor-dominated' ? 0 : 1) - (b.diagnosis === 'competitor-dominated' ? 0 : 1) || a.mentionRate - b.mentionRate || b.leadingCompetitorRate - a.leadingCompetitorRate).slice(0, 3);
-    const sources = new Set(samples.flatMap((sample) => this.sources(sample.answer)));
+    const sources = new Set(samples.flatMap((sample) => this.sources(this.effectiveAnswer(sample, webReviewCorrections))));
     const countSelection = (reason: ExecutionDiagnosisWebReviewEntity['selectionReasons'][number]) => webReviews.filter((review) => review.selectionReasons.includes(reason)).length;
     const excludedByReason = webReviews.filter((review) => review.status === 'excluded' && review.exclusionReason).reduce<Record<string, number>>((result, review) => ({ ...result, [review.exclusionReason!]: (result[review.exclusionReason!] ?? 0) + 1 }), {});
     const minimumRate = run.configurationSnapshot?.webReview?.minimumRate ?? 0.3;
-    const successfulWebReviews = webReviews.filter((review) => review.status === 'succeeded').length;
-    const webReviewSummary = { apiTotal: samples.length, minimumTarget: Math.ceil(samples.length * minimumRate), mandatoryCore: countSelection('core_capability'), mandatoryMentioned: countSelection('api_brand_mentioned'), randomUnmentioned: countSelection('random_unmentioned'), minimumFill: countSelection('minimum_fill'), succeeded: successfulWebReviews, excludedByReason };
+    const candidateTotal = run.configurationSnapshot?.webReview?.candidateSampleIds?.length ?? 0;
+    const webReviewSummary = { apiTotal: samples.length, candidateTotal, minimumTarget: Math.ceil(candidateTotal * minimumRate), mandatoryCore: countSelection('core_capability'), mandatoryMentioned: countSelection('api_brand_mentioned'), randomUnmentioned: countSelection('random_unmentioned'), minimumFill: countSelection('minimum_fill'), succeeded: successfulWebReviews.length, excludedByReason };
     return {
       run: { id: run.id, status: run.status, createdAt: run.createdAt, finishedAt: run.finishedAt, summary: run.summary },
       metrics: { sampleCount: samples.length, questionCount: questions.length, brandMentionRate: brandMention.rate, citedEngines: new Set(samples.filter((sample) => !sample.error).map((sample) => sample.engineId)).size, successfulSampleRate: samples.length ? samples.filter((sample) => !sample.error).length / samples.length : 0, reviewedSampleCount: samples.filter((sample) => sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined).length, sourceCount: sources.size },
@@ -103,10 +106,10 @@ export class DiagnosisInsightsService {
       competitors: competitorMentions,
       competitorMatrix,
       report: { engines: engineInsights, groups: groupInsights, priorityActions, competitorDominatedCount: questionInsights.filter((item) => item.diagnosis === 'competitor-dominated').length, absentCount: questionInsights.filter((item) => item.diagnosis === 'absent').length, normalCount: questionInsights.filter((item) => item.diagnosis === 'normal').length },
+      evidenceBasis: successfulWebReviews.length > 0 ? 'web-review-corrected' : 'api-reference-only',
       webReviewSummary,
-      evidenceBasis: successfulWebReviews > 0 ? 'web-review-corrected' : 'api-reference-only',
       findings: findings.map((finding) => ({ id: finding.id, sourceRunId: finding.sourceRunId, type: finding.type, priority: finding.priority, scope: finding.scope, recommendation: finding.recommendation, status: finding.status })),
-      samples: samples.map((sample) => ({ id: sample.id, engineName: sample.engineName, question: sample.question, answer: sample.answer, error: sample.error, sampledAt: sample.sampledAt, statusCode: sample.statusCode, brandMention: this.sampleMentions(sample, [brand.name], true), reviewedBrandMention: sample.reviewedBrandMention, reviewNote: sample.reviewNote, sources: this.sources(sample.answer) })),
+      samples: samples.map((sample) => { const answer = this.effectiveAnswer(sample, webReviewCorrections); return { id: sample.id, engineName: sample.engineName, question: sample.question, answer, error: sample.error, sampledAt: sample.sampledAt, statusCode: sample.statusCode, brandMention: this.sampleMentions(sample, [brand.name], true, webReviewCorrections, reviewedBrandMentions, true), reviewedBrandMention: sample.reviewedBrandMention, reviewNote: sample.reviewNote, sources: this.sources(answer) }; }),
     };
   }
 
@@ -120,11 +123,12 @@ export class DiagnosisInsightsService {
     return this.samples.save(sample);
   }
 
-  private mention(name: string, aliases: string[], samples: ExecutionDiagnosisSampleEntity[], useReview = false, webReviewMentions = new Map<number, boolean>()): Mention {
-    const count = samples.filter((sample) => this.sampleMentions(sample, aliases, useReview, webReviewMentions)).length;
+  private mention(name: string, aliases: string[], samples: ExecutionDiagnosisSampleEntity[], useReview = false, webReviewCorrections = new Map<number, WebReviewCorrection>(), reviewedBrandMentions = new Map<number, boolean>(), useBrandReview = false): Mention {
+    const count = samples.filter((sample) => this.sampleMentions(sample, aliases, useReview, webReviewCorrections, reviewedBrandMentions, useBrandReview)).length;
     return { name, count, sampleCount: samples.length, rate: samples.length ? count / samples.length : 0 };
   }
-  private sampleMentions(sample: ExecutionDiagnosisSampleEntity, aliases: string[], useReview = false, webReviewMentions = new Map<number, boolean>()) { if (webReviewMentions.has(sample.id)) return webReviewMentions.get(sample.id)!; if (useReview && sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined) return sample.reviewedBrandMention; const answer = sample.answer.toLocaleLowerCase(); return aliases.filter(Boolean).some((alias) => answer.includes(alias.toLocaleLowerCase())); }
+  private effectiveAnswer(sample: ExecutionDiagnosisSampleEntity, webReviewCorrections = new Map<number, WebReviewCorrection>()) { return webReviewCorrections.get(sample.id)?.answer ?? sample.answer; }
+  private sampleMentions(sample: ExecutionDiagnosisSampleEntity, aliases: string[], useReview = false, webReviewCorrections = new Map<number, WebReviewCorrection>(), reviewedBrandMentions = new Map<number, boolean>(), useBrandReview = false) { if (useBrandReview && reviewedBrandMentions.has(sample.id)) return reviewedBrandMentions.get(sample.id)!; if (useBrandReview && sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined) return sample.reviewedBrandMention; const answer = this.effectiveAnswer(sample, useReview ? webReviewCorrections : undefined).toLocaleLowerCase(); return aliases.filter(Boolean).some((alias) => answer.includes(alias.toLocaleLowerCase())); }
   private sources(answer: string) { return [...new Set([...answer.matchAll(/https?:\/\/([^\s/)]+)/g)].map((match) => match[1].toLocaleLowerCase()))]; }
   private async brand(id: number) { const brand = await this.brands.findOne({ where: { id, deleted: false } }); if (!brand) throw new NotFoundException(`Brand ${id} 不存在`); return brand; }
 }
