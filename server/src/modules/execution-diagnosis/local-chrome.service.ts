@@ -11,7 +11,7 @@ import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
 
-type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> } };
+type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate(pageFunction: () => unknown): Promise<unknown> };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
 type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[]; ignoreDefaultArgs?: string[] }): Promise<BrowserContextLike> };
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
@@ -278,7 +278,7 @@ export class LocalChromeService {
       if (engine) await page.goto(this.officialLoginUrl(engine), { waitUntil: 'domcontentloaded', timeout: 10_000 });
       const currentUrl = page.url();
       if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面', 'challenge_detected');
-      if (/(login|signin|sign-in|auth)/i.test(currentUrl) || await this.hasLoginCallToAction(page)) return this.updateProfile(profile, 'pending_login', null, null);
+      if (/(login|signin|sign-in|auth)/i.test(currentUrl) || await this.hasLoginCallToAction(page) || engine && !await this.hasConfirmedSession(engine, page)) return this.updateProfile(profile, 'pending_login', null, null);
       return this.updateProfile(profile, 'ready', null, null);
     } catch (error) {
       return this.updateProfile(profile, 'unavailable', this.controlledFailure(error), 'check_failed');
@@ -345,6 +345,19 @@ export class LocalChromeService {
   private async hasLoginCallToAction(page: PageLike) {
     const texts = await page.locator('a, button, [role="button"]').allTextContents();
     return texts.some((text) => /\b(log\s*in|sign\s*in)\b|登录|登陆/iu.test(text.trim()));
+  }
+
+  private async hasConfirmedSession(engine: BrowserEngine, page: PageLike) {
+    if (!/qwen|alibaba/i.test(`${engine.code} ${engine.vendor}`)) return true;
+    try {
+      return Boolean(await page.evaluate(() => {
+        const user = (globalThis as { _USER_?: { userId?: string; showName?: string } })._USER_;
+        const guestChatRounds = Number((globalThis as { guestChatRounds?: number }).guestChatRounds ?? 0);
+        return guestChatRounds === 0 && Boolean(user?.userId?.trim() && user?.showName?.trim());
+      }));
+    } catch {
+      return false;
+    }
   }
 
   private profilesRoot() {

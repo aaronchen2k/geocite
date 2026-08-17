@@ -31,7 +31,7 @@ describe('LocalChromeService', () => {
       delete: jest.fn(),
     };
     const context = {
-      pages: jest.fn().mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }) }]),
+      pages: jest.fn().mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn() }]),
       newPage: jest.fn(),
       close: jest.fn(),
     };
@@ -123,6 +123,13 @@ describe('LocalChromeService', () => {
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/c'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['Log in']) }) }]);
 
     await expect(service.reset({ ...engine, homepage: 'https://chatgpt.com/c' })).resolves.toBe('pending_login');
+  });
+
+  it('千问访客会话即使能提问也标记为未登录', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+
+    await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('pending_login');
   });
 
   it('将登录页标为 pending_login，且不读取或保存密码和验证码', async () => {
