@@ -7,12 +7,13 @@ import { rm } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
+import sqlite3 from 'sqlite3';
 import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
 
-type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate(pageFunction: () => unknown): Promise<unknown> };
-type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
+type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> } };
+type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void>; cookies(): Promise<Array<{ name: string; value: string }>> };
 type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[]; ignoreDefaultArgs?: string[] }): Promise<BrowserContextLike> };
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
 
@@ -28,6 +29,7 @@ export type LocalChromeDependencies = {
   chromePath: () => string | null;
   appDataPath: () => string;
   removeDirectory: (directory: string) => Promise<void>;
+  hasStoredQwenSession: (profilePath: string) => Promise<boolean>;
 };
 
 export const LOCAL_CHROME_DEPENDENCIES = Symbol('LOCAL_CHROME_DEPENDENCIES');
@@ -99,6 +101,19 @@ function systemNeedsNoSandbox() {
   return process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0;
 }
 
+async function hasStoredQwenSession(profilePath: string) {
+  const databasePath = path.join(profilePath, 'Default', 'Cookies');
+  if (!existsSync(databasePath)) return false;
+  return new Promise<boolean>((resolve) => {
+    const database = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY, (openError) => {
+      if (openError) return resolve(false);
+      database.get("SELECT 1 AS found FROM cookies WHERE name IN ('login_aliyunid', 'login_tongyi_ticket', 'tongyi_sso_ticket') AND length(encrypted_value) > 0 LIMIT 1", (queryError, row) => {
+        database.close(() => resolve(!queryError && Boolean(row)));
+      });
+    });
+  });
+}
+
 function defaultDependencies(): LocalChromeDependencies {
   return {
     browser: chromium as unknown as BrowserLauncher,
@@ -106,6 +121,7 @@ function defaultDependencies(): LocalChromeDependencies {
     chromePath: detectChromePath,
     appDataPath: () => process.env.GEOCITE_APP_DATA_DIR ?? path.resolve(process.cwd(), 'data'),
     removeDirectory: (directory) => rm(directory, { recursive: true, force: true }),
+    hasStoredQwenSession,
   };
 }
 
@@ -278,7 +294,9 @@ export class LocalChromeService {
       if (engine) await page.goto(this.officialLoginUrl(engine), { waitUntil: 'domcontentloaded', timeout: 10_000 });
       const currentUrl = page.url();
       if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面', 'challenge_detected');
-      if (/(login|signin|sign-in|auth)/i.test(currentUrl) || await this.hasLoginCallToAction(page) || engine && !await this.hasConfirmedSession(engine, page)) return this.updateProfile(profile, 'pending_login', null, null);
+      if (/(login|signin|sign-in|auth)/i.test(currentUrl)) return this.updateProfile(profile, 'pending_login', null, null);
+      if (engine && this.isQwen(engine)) return this.updateProfile(profile, await this.hasConfirmedSession(context, profile.profilePath) ? 'ready' : 'pending_login', null, null);
+      if (await this.hasLoginCallToAction(page)) return this.updateProfile(profile, 'pending_login', null, null);
       return this.updateProfile(profile, 'ready', null, null);
     } catch (error) {
       return this.updateProfile(profile, 'unavailable', this.controlledFailure(error), 'check_failed');
@@ -347,17 +365,17 @@ export class LocalChromeService {
     return texts.some((text) => /\b(log\s*in|sign\s*in)\b|登录|登陆/iu.test(text.trim()));
   }
 
-  private async hasConfirmedSession(engine: BrowserEngine, page: PageLike) {
-    if (!/qwen|alibaba/i.test(`${engine.code} ${engine.vendor}`)) return true;
+  private isQwen(engine: BrowserEngine) {
+    return /qwen|alibaba/i.test(`${engine.code} ${engine.vendor}`);
+  }
+
+  private async hasConfirmedSession(context: BrowserContextLike, profilePath: string) {
     try {
-      return Boolean(await page.evaluate(() => {
-        const user = (globalThis as { _USER_?: { userId?: string; showName?: string } })._USER_;
-        const guestChatRounds = Number((globalThis as { guestChatRounds?: number }).guestChatRounds ?? 0);
-        return guestChatRounds === 0 && Boolean(user?.userId?.trim() && user?.showName?.trim());
-      }));
+      if ((await context.cookies()).some((cookie) => ['login_aliyunid', 'login_tongyi_ticket', 'tongyi_sso_ticket'].includes(cookie.name) && cookie.value.trim() !== '')) return true;
     } catch {
-      return false;
+      // Chrome may retain a macOS-keychain encrypted cookie that Playwright cannot expose in context.cookies().
     }
+    return this.dependencies.hasStoredQwenSession(profilePath);
   }
 
   private profilesRoot() {

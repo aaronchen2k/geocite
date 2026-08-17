@@ -34,6 +34,7 @@ describe('LocalChromeService', () => {
       pages: jest.fn().mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chatgpt.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn() }]),
       newPage: jest.fn(),
       close: jest.fn(),
+      cookies: jest.fn().mockResolvedValue([]),
     };
     const browser = {
       launchPersistentContext: jest.fn().mockResolvedValue(context),
@@ -43,14 +44,16 @@ describe('LocalChromeService', () => {
       kill: jest.fn().mockResolvedValue(undefined),
     };
     const removeDirectory = jest.fn().mockResolvedValue(undefined);
+    const hasStoredQwenSession = jest.fn().mockResolvedValue(false);
     const service = new LocalChromeService(engines as never, profiles as never, launches as never, {
       browser,
       processInspector,
       chromePath: () => '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       appDataPath: () => '/tmp/geocite',
       removeDirectory,
+      hasStoredQwenSession,
     });
-    return { service, profiles, launches, browser, processInspector, removeDirectory, context };
+    return { service, profiles, launches, browser, processInspector, removeDirectory, hasStoredQwenSession, context };
   }
 
   it('仅关闭同 launchId 且同 profilePath 的受控 Chrome', async () => {
@@ -130,6 +133,21 @@ describe('LocalChromeService', () => {
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
 
     await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('pending_login');
+  });
+
+  it('千问存在官方登录 Cookie 时标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.cookies.mockResolvedValue([{ name: 'tongyi_sso_ticket', value: 'signed-in-session' }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['登录']) }) }]);
+
+    await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('ready');
+  });
+
+  it('千问 Profile 存在官方会话票据时标记为已就绪', async () => {
+    const { service, hasStoredQwenSession } = createService();
+    hasStoredQwenSession.mockResolvedValue(true);
+
+    await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('ready');
   });
 
   it('将登录页标为 pending_login，且不读取或保存密码和验证码', async () => {
