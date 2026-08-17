@@ -1,6 +1,11 @@
-import { DiagnosisConfigurationService } from './diagnosis-configuration.service';
+import { DiagnosisConfigurationService, validateSamplingConfig } from './diagnosis-configuration.service';
 
 describe('DiagnosisConfigurationService', () => {
+  it('拒绝不完整或非正数的诊断采样配置', () => {
+    expect(() => validateSamplingConfig({ samplingQuestionCount: 3, questionCategoryRatio: { brandBasic: 1, coreCapability: 0, competitorComparison: 1 } }))
+      .toThrow('问题分类比例必须全部大于 0');
+  });
+
   it('为未设置抓取上限的品牌返回默认值 10', async () => {
     const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };
@@ -24,10 +29,51 @@ describe('DiagnosisConfigurationService', () => {
     const questions = { find: jest.fn().mockResolvedValue([]), delete: jest.fn(), save: jest.fn().mockResolvedValue([]), create: jest.fn((value) => value) };
     const service = new DiagnosisConfigurationService(brands as never, {} as never, questions as never);
 
-    await service.save(5, [{text: '独立表问题', group: '选型', market: 'cn', brandProbe: false}]);
+    await service.save(5, [{text: '独立表问题', group: '核心业务能力提问', market: 'cn', brandProbe: false}]);
 
     expect(brand.questions).toEqual(['历史问题']);
     expect(questions.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({question: '独立表问题'})]));
+  });
+
+  it('将历史非标准问题分类迁移为核心业务能力提问且保留问题文本', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, samplingQuestionCount: null, questionCategoryRatio: null, deleted: false };
+    const legacyQuestion = { id: 11, question: '旧问题仍应保留', group: '选型', market: 'cn', brandProbe: false, ordr: 0 };
+    const questions = { find: jest.fn().mockResolvedValue([legacyQuestion]), save: jest.fn().mockResolvedValue([legacyQuestion]) };
+    const service = new DiagnosisConfigurationService({ findOne: jest.fn().mockResolvedValue(brand) } as never, {} as never, questions as never);
+
+    await expect(service.list(5)).resolves.toMatchObject({ questions: [expect.objectContaining({ text: '旧问题仍应保留', group: '核心业务能力提问' })] });
+    expect(questions.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ group: '核心业务能力提问' })]));
+  });
+
+  it('仅调用一次模型并拒绝与冻结配额不匹配的生成结果', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, samplingQuestionCount: 4, questionCategoryRatio: { brandBasic: 1, coreCapability: 1, competitorComparison: 2 }, deleted: false };
+    const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };
+    const models = { findOne: jest.fn().mockResolvedValue({ baseUrl: 'https://model.example', apiKey: 'key', modelName: 'model' }) };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
+      { text: '品牌是什么？', category: '品牌基础提问' },
+      { text: '核心能力是什么？', category: '核心业务能力提问' },
+      { text: '竞品有哪些？', category: '竞品对比提问' },
+      { text: '如何对比竞品？', category: '竞品对比提问' },
+    ] }) } }] }) });
+    const previousFetch = global.fetch;
+    global.fetch = fetchMock as typeof fetch;
+    const service = new DiagnosisConfigurationService(brands as never, models as never, {} as never);
+
+    try {
+      await expect(service.generate(5)).resolves.toMatchObject({ questions: expect.arrayContaining([expect.objectContaining({ group: '品牌基础提问' })]) });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
+        { text: '品牌是什么？', category: '品牌基础提问' },
+        { text: '核心能力是什么？', category: '核心业务能力提问' },
+        { text: '竞品有哪些？', category: '竞品对比提问' },
+        { text: '竞品还是什么？', category: '核心业务能力提问' },
+      ] }) } }] }) });
+      await expect(service.generate(5)).rejects.toThrow('问题分类配额');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      global.fetch = previousFetch;
+    }
   });
 
   it('重置提示词时将文件模板渲染后保存到品牌记录', async () => {

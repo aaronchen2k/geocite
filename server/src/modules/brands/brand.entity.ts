@@ -30,6 +30,12 @@ export class BrandEntity extends AuditedEntity {
   @Column({ type: 'integer', nullable: true })
   sitemapUrlLimit!: number | null;
 
+  @Column({ type: 'integer', nullable: true })
+  samplingQuestionCount!: number | null;
+
+  @Column({ type: 'simple-json', nullable: true })
+  questionCategoryRatio!: { brandBasic: number; coreCapability: number; competitorComparison: number } | null;
+
   @Column({ default: false })
   isDefault!: boolean;
 

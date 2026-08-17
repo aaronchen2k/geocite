@@ -106,7 +106,7 @@ export class BrandDiagnosisQuestionEntity {
   @Column({ name: 'brand_id' }) brandId!: number;
   @ManyToOne(() => BrandEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'brand_id' }) brand!: BrandEntity;
   @Column({ type: 'text' }) question!: string;
-  @Column({ default: '推荐' }) group!: string;
+  @Column({ default: '核心业务能力提问' }) group!: string;
   @Column({ default: 'cn' }) market!: 'cn' | 'global' | 'both';
   @Column({ name: 'brand_probe', default: false }) brandProbe!: boolean;
   @Column({ default: 0 }) ordr!: number;

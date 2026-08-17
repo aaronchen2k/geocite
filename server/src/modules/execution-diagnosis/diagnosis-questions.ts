@@ -16,7 +16,9 @@ export function parseGeneratedQuestions(text: string, limit = 20): GeneratedDiag
   return values.map((value): GeneratedDiagnosisQuestion | null => {
     if (typeof value === 'string') return { text: value.trim(), group: '推荐' };
     if (value && typeof value === 'object' && 'text' in value && typeof value.text === 'string') {
-      const group = 'group' in value && typeof value.group === 'string' ? value.group.trim().slice(0, 30) : '推荐';
+      const group = 'category' in value && typeof value.category === 'string'
+        ? value.category.trim().slice(0, 30)
+        : 'group' in value && typeof value.group === 'string' ? value.group.trim().slice(0, 30) : '推荐';
       return { text: value.text.trim(), group: group || '推荐' };
     }
     return null;
