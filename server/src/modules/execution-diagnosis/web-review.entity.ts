@@ -2,10 +2,12 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { AuditedEntity } from '../../database/audited.entity';
 
 export type WebReviewAvailability = 'unavailable' | 'pending_login' | 'ready';
+export type WebReviewFailureCode = 'chrome_not_found' | 'challenge_detected' | 'check_failed';
 export type BrowserLaunchStatus = 'running' | 'closed' | 'failed';
 
 @Entity('engine_web_review_profiles')
 @Index(['engineId'], { unique: true })
+@Index(['profilePath'], { unique: true })
 export class EngineWebReviewProfileEntity extends AuditedEntity {
   @PrimaryGeneratedColumn() id!: number;
   @Column({ name: 'engine_id' }) engineId!: number;
@@ -13,6 +15,7 @@ export class EngineWebReviewProfileEntity extends AuditedEntity {
   @Column({ name: 'profile_path', type: 'text' }) profilePath!: string;
   @Column({ default: 'unavailable' }) availability!: WebReviewAvailability;
   @Column({ name: 'last_checked_at', type: 'datetime', nullable: true }) lastCheckedAt!: Date | null;
+  @Column({ name: 'failure_code', type: 'varchar', nullable: true }) failureCode!: WebReviewFailureCode | null;
   @Column({ name: 'last_failure_reason', type: 'text', nullable: true }) lastFailureReason!: string | null;
   @Column({ name: 'last_ready_at', type: 'datetime', nullable: true }) lastReadyAt!: Date | null;
 }

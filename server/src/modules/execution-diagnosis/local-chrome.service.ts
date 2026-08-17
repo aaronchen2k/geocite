@@ -1,4 +1,4 @@
-import { Injectable, Inject, Optional } from '@nestjs/common';
+import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { execFile as execFileCallback } from 'node:child_process';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
-import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability } from './web-review.entity';
+import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
 
 type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
@@ -32,18 +32,33 @@ export type LocalChromeDependencies = {
 export const LOCAL_CHROME_DEPENDENCIES = Symbol('LOCAL_CHROME_DEPENDENCIES');
 const execFile = promisify(execFileCallback);
 
+function commandLineArguments(command: string) {
+  const argumentsList: string[] = [];
+  const matcher = /(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|([^\s]+))/g;
+  for (const match of command.matchAll(matcher)) {
+    argumentsList.push((match[1] ?? match[2] ?? match[3]).replace(/\\([\\"'])/g, '$1'));
+  }
+  return argumentsList;
+}
+
+export function hasExactControlledChromeArguments(command: string, launchId: string, profilePath: string) {
+  const argumentsList = commandLineArguments(command);
+  const normalizedProfilePath = path.resolve(profilePath);
+  return argumentsList.includes(`--geocite-review-launch-id=${launchId}`)
+    && argumentsList.includes(`--user-data-dir=${normalizedProfilePath}`);
+}
+
 class SystemProcessInspector implements ProcessInspector {
   async findControlledChrome(launchId: string, profilePath: string): Promise<ControlledChromeProcess | null> {
     if (process.platform === 'win32') return this.findWindowsChrome(launchId, profilePath);
     const { stdout } = await execFile('ps', ['-axo', 'pid=,command=']);
-    const launchArgument = `--geocite-review-launch-id=${launchId}`;
     const normalizedProfilePath = path.resolve(profilePath);
     for (const line of stdout.split('\n')) {
       const match = line.trim().match(/^(\d+)\s+(.+)$/);
       if (!match) continue;
       const [, pid, command] = match;
       if (!/\b(google )?chrome\b/i.test(command)) continue;
-      if (command.includes(launchArgument) && command.includes(normalizedProfilePath)) {
+      if (hasExactControlledChromeArguments(command, launchId, normalizedProfilePath)) {
         return { pid: Number(pid), launchId, profilePath: normalizedProfilePath };
       }
     }
@@ -55,13 +70,12 @@ class SystemProcessInspector implements ProcessInspector {
   }
 
   private async findWindowsChrome(launchId: string, profilePath: string): Promise<ControlledChromeProcess | null> {
-    const escapedLaunch = `--geocite-review-launch-id=${launchId}`.replace(/'/g, "''");
-    const escapedProfile = path.resolve(profilePath).replace(/'/g, "''");
-    const script = `Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'chrome' -and $_.CommandLine -like '*${escapedLaunch}*' -and $_.CommandLine -like '*${escapedProfile}*' } | Select-Object -First 1 ProcessId | ConvertTo-Json -Compress`;
+    const script = "Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'chrome' } | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
     const { stdout } = await execFile('powershell.exe', ['-NoProfile', '-Command', script]);
     if (!stdout.trim()) return null;
-    const value = JSON.parse(stdout) as { ProcessId?: number } | null;
-    return value?.ProcessId ? { pid: value.ProcessId, launchId, profilePath: path.resolve(profilePath) } : null;
+    const values = JSON.parse(stdout) as { ProcessId?: number; CommandLine?: string } | { ProcessId?: number; CommandLine?: string }[] | null;
+    const controlled = (Array.isArray(values) ? values : [values]).find((value) => value?.ProcessId && value.CommandLine && hasExactControlledChromeArguments(value.CommandLine, launchId, profilePath));
+    return controlled?.ProcessId ? { pid: controlled.ProcessId, launchId, profilePath: path.resolve(profilePath) } : null;
   }
 }
 
@@ -91,6 +105,7 @@ function defaultDependencies(): LocalChromeDependencies {
 
 @Injectable()
 export class LocalChromeService {
+  private readonly logger = new Logger(LocalChromeService.name);
   private readonly dependencies: LocalChromeDependencies;
   private readonly contexts = new Map<number, { launchId: string; profilePath: string; context: BrowserContextLike }>();
   private readonly engineOperations = new Map<number, Promise<void>>();
@@ -108,7 +123,7 @@ export class LocalChromeService {
     const profile = await this.profiles.findOne({ where: { engineId } });
     return profile
       ? this.toStatus(profile)
-      : { availability: 'unavailable' as const, lastCheckedAt: null, lastFailureReason: null, lastReadyAt: null };
+      : { availability: 'unavailable' as const, lastCheckedAt: null, failureCode: null, lastFailureReason: null, lastReadyAt: null };
   }
 
   async refresh(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>): Promise<WebReviewAvailability> {
@@ -116,7 +131,7 @@ export class LocalChromeService {
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
       const existing = this.contexts.get(engine.id);
-      if (existing) return this.checkContext(profile, existing.context, false);
+      if (existing) return this.checkContext(profile, existing.context, false, engine);
       await this.closePreviousLaunch(engine.id);
       return this.launchAndCheck(engine, profile, true);
     });
@@ -147,9 +162,11 @@ export class LocalChromeService {
         closed = true;
       }
     }
-    launch.launchStatus = 'closed';
-    launch.lastHeartbeatAt = new Date();
-    await this.launches.save(launch);
+    if (closed) {
+      launch.launchStatus = 'closed';
+      launch.lastHeartbeatAt = new Date();
+      await this.launches.save(launch);
+    }
     return { closed };
   }
 
@@ -166,7 +183,7 @@ export class LocalChromeService {
 
   private async launchAndCheck(engine: Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>, profile: EngineWebReviewProfileEntity, temporary: boolean) {
     const executablePath = this.dependencies.chromePath();
-    if (!executablePath) return this.updateProfile(profile, 'unavailable', '未找到本机 Chrome');
+    if (!executablePath) return this.updateProfile(profile, 'unavailable', '未找到本机 Chrome', 'chrome_not_found');
     const launchId = randomUUID();
     let context: BrowserContextLike | null = null;
     let launch: EngineBrowserLaunchEntity | null = null;
@@ -199,7 +216,7 @@ export class LocalChromeService {
         launch.launchStatus = 'failed';
         await this.launches.save(launch);
       }
-      return this.updateProfile(profile, 'unavailable', this.describeFailure(error));
+      return this.updateProfile(profile, 'unavailable', this.controlledFailure(error), 'check_failed');
     } finally {
       if (temporary && context) {
         await context.close();
@@ -217,11 +234,11 @@ export class LocalChromeService {
       const page = context.pages()[0] ?? await context.newPage();
       if (engine) await page.goto(this.officialLoginUrl(engine), { waitUntil: 'domcontentloaded', timeout: 10_000 });
       const currentUrl = page.url();
-      if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面');
-      if (/(login|signin|sign-in|auth)/i.test(currentUrl)) return this.updateProfile(profile, 'pending_login', null);
-      return this.updateProfile(profile, 'ready', null);
+      if (/(captcha|verify|challenge|risk)/i.test(currentUrl)) return this.updateProfile(profile, 'unavailable', '检测到验证码或风控页面', 'challenge_detected');
+      if (/(login|signin|sign-in|auth)/i.test(currentUrl)) return this.updateProfile(profile, 'pending_login', null, null);
+      return this.updateProfile(profile, 'ready', null, null);
     } catch (error) {
-      return this.updateProfile(profile, 'unavailable', this.describeFailure(error));
+      return this.updateProfile(profile, 'unavailable', this.controlledFailure(error), 'check_failed');
     } finally {
       // The temporary flag documents the lifecycle at this call site; closure happens in launchAndCheck's finally.
       void temporary;
@@ -231,13 +248,15 @@ export class LocalChromeService {
   private async ensureProfile(engine: Pick<EngineEntity, 'id' | 'code'>) {
     const existing = await this.profiles.findOne({ where: { engineId: engine.id } });
     if (existing) return existing;
-    const profilePath = path.join(this.profilesRoot(), this.safeEngineCode(engine));
+    const profileId = randomUUID();
+    const profilePath = path.join(this.profilesRoot(), `engine-${engine.id}-${this.safeEngineCode(engine)}-${profileId}`);
     return this.profiles.save(this.profiles.create({
       engineId: engine.id,
-      profileId: randomUUID(),
+      profileId,
       profilePath,
       availability: 'unavailable',
       lastCheckedAt: null,
+      failureCode: null,
       lastFailureReason: null,
       lastReadyAt: null,
     }));
@@ -250,9 +269,10 @@ export class LocalChromeService {
     return engine;
   }
 
-  private async updateProfile(profile: EngineWebReviewProfileEntity, availability: WebReviewAvailability, failureReason: string | null): Promise<WebReviewAvailability> {
+  private async updateProfile(profile: EngineWebReviewProfileEntity, availability: WebReviewAvailability, failureReason: string | null, failureCode: WebReviewFailureCode | null): Promise<WebReviewAvailability> {
     profile.availability = availability;
     profile.lastCheckedAt = new Date();
+    profile.failureCode = failureCode;
     profile.lastFailureReason = failureReason;
     if (availability === 'ready') profile.lastReadyAt = new Date();
     await this.profiles.save(profile);
@@ -260,8 +280,8 @@ export class LocalChromeService {
   }
 
   private toStatus(profile: EngineWebReviewProfileEntity) {
-    const { availability, lastCheckedAt, lastFailureReason, lastReadyAt } = profile;
-    return { availability, lastCheckedAt, lastFailureReason, lastReadyAt };
+    const { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt } = profile;
+    return { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt };
   }
 
   private officialLoginUrl(engine: Pick<EngineEntity, 'code' | 'vendor' | 'baseUrl'>) {
@@ -297,8 +317,9 @@ export class LocalChromeService {
     return path.resolve(left) === path.resolve(right) && path.dirname(path.resolve(left)) === this.profilesRoot();
   }
 
-  private describeFailure(error: unknown) {
-    return error instanceof Error ? error.message : 'Chrome 登录状态检查异常';
+  private controlledFailure(error: unknown) {
+    this.logger.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
+    return '浏览器状态检查失败，请稍后重试';
   }
 
   private async runForEngine<T>(engineId: number, operation: () => Promise<T>): Promise<T> {
