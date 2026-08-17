@@ -65,3 +65,15 @@
 - `pnpm --filter @geocite/server test`：20 个测试套件、87 个测试通过。
 - `pnpm --filter @geocite/server build` 与 `git diff --check`：通过。
 - 实现提交：`76a739c fix: harden local Chrome review lifecycle`。
+
+## 复审 Important 修复：删除前必须确认 Chrome 已安全关闭
+
+### TDD 红绿记录
+
+1. RED：新增“运行中的受控 Chrome 未确认关闭时拒绝删除 profile”用例。受控进程的 `launchId` 不匹配，使 `closePreviousLaunch` 返回 `{ closed: false }`；首次执行 `pnpm --dir server test -- local-chrome.service.spec.ts` 如预期失败，实际返回 `{ deleted: true, engineId: 7 }`。
+2. GREEN：`deleteProfile` 读取关闭结果；当仍存在 `running` 启动记录且 `closed` 为 `false` 时抛出 `ConflictException`（HTTP 409），且不会删除目录、launch 记录或 profile。
+
+### 验证
+
+- `pnpm --dir server test -- local-chrome.service.spec.ts`：12/12 通过。
+- `pnpm --dir server build`：通过。

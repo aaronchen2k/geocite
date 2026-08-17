@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { hasExactControlledChromeArguments, LocalChromeService } from './local-chrome.service';
 import { getMetadataArgsStorage } from 'typeorm';
 import { EngineWebReviewProfileEntity } from './web-review.entity';
@@ -41,13 +42,15 @@ describe('LocalChromeService', () => {
       findControlledChrome: jest.fn().mockResolvedValue({ pid: 731, launchId: 'old-launch', profilePath: profile.profilePath }),
       kill: jest.fn().mockResolvedValue(undefined),
     };
+    const removeDirectory = jest.fn().mockResolvedValue(undefined);
     const service = new LocalChromeService(engines as never, profiles as never, launches as never, {
       browser,
       processInspector,
       chromePath: () => '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       appDataPath: () => '/tmp/geocite',
+      removeDirectory,
     });
-    return { service, profiles, launches, browser, processInspector, context };
+    return { service, profiles, launches, browser, processInspector, removeDirectory, context };
   }
 
   it('仅关闭同 launchId 且同 profilePath 的受控 Chrome', async () => {
@@ -190,6 +193,28 @@ describe('LocalChromeService', () => {
 
     expect(launch.launchStatus).toBe('running');
     expect(launches.save).not.toHaveBeenCalledWith(expect.objectContaining({ launchStatus: 'closed' }));
+  });
+
+  it('运行中的受控 Chrome 未确认关闭时拒绝删除 profile', async () => {
+    const { service, launches, processInspector, profiles, removeDirectory } = createService();
+    launches.findOne.mockResolvedValue({
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'expected-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+    });
+    processInspector.findControlledChrome.mockResolvedValue({
+      pid: 731,
+      launchId: 'another-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+    });
+
+    await expect(service.deleteProfile(engine.id)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(removeDirectory).not.toHaveBeenCalled();
+    expect(launches.delete).not.toHaveBeenCalled();
+    expect(profiles.remove).not.toHaveBeenCalled();
   });
 
   it('仅接受精确匹配的 launchId 与 user-data-dir 命令行参数', () => {

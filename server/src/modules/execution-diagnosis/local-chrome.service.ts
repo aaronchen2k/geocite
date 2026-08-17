@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
+import { ConflictException, Injectable, Inject, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { execFile as execFileCallback } from 'node:child_process';
@@ -173,7 +173,11 @@ export class LocalChromeService {
   async deleteProfile(engineId: number) {
     const profile = await this.profiles.findOne({ where: { engineId } });
     if (!profile) return { deleted: false, engineId };
-    await this.closePreviousLaunch(engineId);
+    const { closed } = await this.closePreviousLaunch(engineId);
+    if (!closed) {
+      const runningLaunch = await this.launches.findOne({ where: { engineId, launchStatus: 'running' }, order: { startedAt: 'DESC' } });
+      if (runningLaunch) throw new ConflictException('受控 Chrome 尚未安全关闭，无法删除 Profile');
+    }
     this.assertDedicatedProfilePath(profile.profilePath);
     await this.dependencies.removeDirectory(profile.profilePath);
     await this.launches.delete({ engineId });
