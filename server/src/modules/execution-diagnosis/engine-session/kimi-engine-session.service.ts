@@ -8,10 +8,29 @@ export class KimiEngineSessionService implements EngineSessionAdapter {
   supports(engine: EngineSessionIdentity) { return /kimi|moonshot/.test(`${engine.code} ${engine.vendor}`.toLowerCase()); }
 
   async isLoggedIn(page: EngineSessionPage): Promise<boolean> {
-    return Boolean(await page.evaluate(() => {
-      const userName = document.querySelector('.user-info .user-name')?.textContent?.trim();
-      const hasGuestAvatar = document.querySelector('.user-info .not-login-icon') !== null;
-      return Boolean(userName && userName !== '登录' && !hasGuestAvatar);
-    }));
+    const inspection = await this.inspect(page);
+    return inspection.accountLabel === 'account' && inspection.membershipUpgradePresent;
+  }
+
+  /** 不含用户名或会话凭证，仅用于解释登录态检查结果。 */
+  async inspect(page: EngineSessionPage): Promise<KimiSessionInspection> {
+    try {
+      await page.waitForSelector('.user-name', { state: 'attached', timeout: 10_000 });
+      await page.waitForSelector('.membership-upgrade', { state: 'attached', timeout: 10_000 });
+    } catch {
+      // 未挂载时仍返回 DOM 检查结果，由调用方标记为待登录。
+    }
+    return page.evaluate(() => {
+      const userName = document.querySelector('.user-name')?.textContent?.trim();
+      return {
+        accountLabel: !userName ? 'missing' : userName === '登录' ? 'login' : 'account',
+        membershipUpgradePresent: document.querySelector('.membership-upgrade') !== null,
+      };
+    });
   }
 }
+
+export type KimiSessionInspection = {
+  accountLabel: 'missing' | 'login' | 'account';
+  membershipUpgradePresent: boolean;
+};

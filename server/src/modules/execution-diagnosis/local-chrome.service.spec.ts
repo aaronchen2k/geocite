@@ -163,23 +163,34 @@ describe('LocalChromeService', () => {
 
   it('Kimi 页面提示登录同步历史时不能标记为已就绪', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ membershipStatus: 401, accountLabel: 'login', guestAvatarPresent: true }) }]);
 
     await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('pending_login');
   });
 
   it('Kimi 未出现已登录账户特征时不能标记为已就绪', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ membershipStatus: null, accountLabel: 'missing', guestAvatarPresent: false }) }]);
 
     await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('pending_login');
   });
 
-  it('Kimi 页面显示已登录账户名且没有访客图标时标记为已就绪', async () => {
+  it('Kimi 显示非登录用户名和会员升级按钮时标记为已就绪', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(true) }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ accountLabel: 'account', membershipUpgradePresent: true }) }]);
 
     await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('ready');
+  });
+
+  it('Kimi 在读取登录特征前等待页面账户节点挂载', async () => {
+    const { service, context } = createService();
+    const waitForSelector = jest.fn().mockResolvedValue(undefined);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ accountLabel: 'account', membershipUpgradePresent: true }), waitForSelector }]);
+
+    await service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' });
+
+    expect(waitForSelector).toHaveBeenCalledWith('.user-name', expect.objectContaining({ state: 'attached' }));
+    expect(waitForSelector).toHaveBeenCalledWith('.membership-upgrade', expect.objectContaining({ state: 'attached' }));
   });
 
   it.each([
