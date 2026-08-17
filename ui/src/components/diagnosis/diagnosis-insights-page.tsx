@@ -7,7 +7,7 @@ import {Link} from '@/i18n/navigation';
 import {Button} from '@/components/ui/button';
 import {Switch} from '@/components/ui/switch';
 
-type Question = {question: string; group: string; sampleCount: number; mentionRate: number; diagnosis: string; leadingCompetitor: string | null; leadingCompetitorRate: number};
+type Question = {question: string; group: string; primaryCategory: string; secondaryCategory: string; sampleCount: number; mentionRate: number; diagnosis: string; leadingCompetitor: string | null; leadingCompetitorRate: number};
 type Sample = {id: number; engineName: string; question: string | null; answer: string; error: string | null; sampledAt: string; brandMention: boolean; reviewedBrandMention: boolean | null; reviewNote: string | null; sources: string[]};
 type MatrixRow = {name: string; overallRate: number; byEngine: Array<{engineName: string; sampleCount: number; rate: number}>; lostQuestions: Array<{question: string; rate: number; brandMentionRate: number}>};
 type Finding = {id: number; sourceRunId: number; type: string; priority: string; scope: Record<string, unknown> | null; recommendation: string; status: string};
@@ -85,6 +85,57 @@ function SampleCard({sample, brandId, onReviewed}: {sample: Sample; brandId: num
   return <article className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><div className="flex flex-wrap justify-between gap-2 text-sm"><strong>{sample.engineName}</strong><span className="text-[var(--muted-foreground)]">{new Date(sample.sampledAt).toLocaleString()}</span></div><p className="mt-3 text-sm font-medium">{sample.question ?? '未关联问题'}</p><div className="mt-2 max-h-72 overflow-y-auto rounded-md bg-[var(--muted)] p-3 text-sm leading-6 text-[var(--muted-foreground)]"><p className="whitespace-pre-wrap">{sample.error ? `采样失败：${sample.error}` : sample.answer || '无回答内容'}</p></div>{sample.sources.length > 0 && <p className="mt-2 text-xs text-[var(--muted-foreground)]">引用来源：{sample.sources.join(' · ')}</p>}<div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-3"><label className="flex items-center gap-2 text-sm"><Switch aria-label="品牌被提及" checked={mention} onCheckedChange={setMention} /><span>品牌被提及</span></label><input aria-label="复核备注" className="h-8 min-w-48 flex-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm" placeholder="复核备注（可选）" value={note} onChange={(event) => setNote(event.target.value)} /><Button size="sm" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? '保存中…' : sample.reviewedBrandMention === null ? '确认复核' : '更新复核'}</Button></div>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</article>;
 }
 
-function PositioningMap({questions, findings, sourceRunId}: {questions: Question[]; findings: Finding[]; sourceRunId: number}) { const siteFinding = findings.find((finding) => finding.type === 'site_failure'); return <div className="space-y-4"><section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><h2 className="font-semibold">站点发现</h2><p className="mt-2 text-sm text-[var(--muted-foreground)]">{siteFinding ? '该批次发现站点访问或抓取问题，可创建带有原始发现记录的优化工单。' : '将本次诊断批次中的站点可抓取、可理解和可引用问题转为优化工单。'}</p><Button size="sm" variant="outline" className="mt-3" asChild><Link href={workOrderHref('site-discovery', sourceRunId, siteFinding?.id)}>根据站点发现创建优化工单</Link></Button></section><div className="grid gap-4 md:grid-cols-2">{questions.map((item) => <article key={item.question} className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><p className="font-medium">{item.question}</p><dl className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-[var(--muted-foreground)]">品牌提及</dt><dd className="mt-1">{percent(item.mentionRate)}</dd></div><div><dt className="text-[var(--muted-foreground)]">领先竞品</dt><dd className="mt-1">{item.leadingCompetitor ?? '—'} {item.leadingCompetitor ? percent(item.leadingCompetitorRate) : ''}</dd></div></dl></article>)}</div></div>; }
+function PositioningMap({questions, findings, sourceRunId}: {questions: Question[]; findings: Finding[]; sourceRunId: number}) {
+  const [expandedPrimary, setExpandedPrimary] = useState<string[]>([]);
+  const [expandedSecondary, setExpandedSecondary] = useState<string[]>([]);
+  const siteFinding = findings.find((finding) => finding.type === 'site_failure');
+  const primaryGroups = groupQuestions(questions, (item) => item.primaryCategory);
+  const toggle = (value: string, setExpanded: React.Dispatch<React.SetStateAction<string[]>>) => setExpanded((items) => items.includes(value) ? items.filter((item) => item !== value) : [...items, value]);
+
+  return <div className="space-y-4">
+    <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+      <h2 className="font-semibold">站点发现</h2>
+      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{siteFinding ? '该批次发现站点访问或抓取问题，可创建带有原始发现记录的优化工单。' : '将本次诊断批次中的站点可抓取、可理解和可引用问题转为优化工单。'}</p>
+      <Button size="sm" variant="outline" className="mt-3" asChild><Link href={workOrderHref('site-discovery', sourceRunId, siteFinding?.id)}>根据站点发现创建优化工单</Link></Button>
+    </section>
+    <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+      <div className="mb-4"><h2 className="font-semibold">问题阵地</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">默认按一级分类汇总；逐层展开可定位到具体问题的竞品表现。</p></div>
+      <div className="space-y-3">
+        {primaryGroups.map(([primaryCategory, primaryQuestions], primaryIndex) => {
+          const primaryOpen = expandedPrimary.includes(primaryCategory);
+          const primaryId = `positioning-primary-${primaryIndex}`;
+          const secondaryGroups = groupQuestions(primaryQuestions, (item) => item.secondaryCategory);
+          return <section key={primaryCategory} className="overflow-hidden rounded-md border border-[var(--border)]">
+            <button type="button" aria-label={primaryCategory} aria-expanded={primaryOpen} aria-controls={primaryId} onClick={() => toggle(primaryCategory, setExpandedPrimary)} className="flex w-full items-center justify-between gap-3 bg-[var(--card)] px-4 py-3 text-left hover:bg-[var(--muted)]">
+              <span className="font-medium">{primaryCategory}</span><span className="text-sm text-[var(--muted-foreground)]">{summary(primaryQuestions)}</span>
+            </button>
+            {primaryOpen && <div id={primaryId} className="space-y-2 border-t border-[var(--border)] p-3">
+              {secondaryGroups.map(([secondaryCategory, secondaryQuestions], secondaryIndex) => {
+                const secondaryKey = `${primaryCategory}\u0000${secondaryCategory}`;
+                const secondaryOpen = expandedSecondary.includes(secondaryKey);
+                const secondaryId = `positioning-secondary-${primaryIndex}-${secondaryIndex}`;
+                return <section key={secondaryKey} className="overflow-hidden rounded-md bg-[var(--muted)]">
+                  <button type="button" aria-label={secondaryCategory} aria-expanded={secondaryOpen} aria-controls={secondaryId} onClick={() => toggle(secondaryKey, setExpandedSecondary)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[var(--card)]">
+                    <span className="text-sm font-medium">{secondaryCategory}</span><span className="text-xs text-[var(--muted-foreground)]">{summary(secondaryQuestions)}</span>
+                  </button>
+                  {secondaryOpen && <div id={secondaryId} className="overflow-x-auto border-t border-[var(--border)] bg-[var(--card)]"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-[var(--muted)]"><tr><th className="px-3 py-3">问题文本</th><th className="px-3 py-3">领先竞品</th><th className="px-3 py-3">领先竞品提及率</th><th className="px-3 py-3">当前品牌提及率</th></tr></thead><tbody>{secondaryQuestions.map((item) => <tr key={item.question} className="border-t border-[var(--border)]"><td className="px-3 py-3 font-medium">{item.question}</td><td className="px-3 py-3">{item.leadingCompetitor ?? '无领先竞品'}</td><td className="px-3 py-3">{item.leadingCompetitor ? percent(item.leadingCompetitorRate) : '—'}</td><td className="px-3 py-3">{percent(item.mentionRate)}</td></tr>)}</tbody></table></div>}
+                </section>;
+              })}
+            </div>}
+          </section>;
+        })}
+        {!primaryGroups.length && <p className="text-sm text-[var(--muted-foreground)]">该批次没有可汇总的问题结果。</p>}
+      </div>
+    </section>
+  </div>;
+}
+
+function groupQuestions(questions: Question[], category: (item: Question) => string): Array<[string, Question[]]> {
+  const groups = new Map<string, Question[]>();
+  questions.forEach((question) => { const key = category(question) || '未分类'; groups.set(key, [...(groups.get(key) ?? []), question]); });
+  return [...groups.entries()];
+}
+
+function summary(questions: Question[]): string { return `${questions.length} 个问题 · 平均品牌提及 ${percent(questions.reduce((total, item) => total + item.mentionRate, 0) / questions.length)}`; }
 
 function QuestionTable({items, className = '', priority = false, sourceRunId}: {items: Question[]; className?: string; priority?: boolean; sourceRunId?: number}) { return <div className="space-y-3"><div className={`${className} overflow-x-auto rounded-lg border border-[var(--border)]`}><table className="w-full min-w-[640px] text-left text-sm"><thead className="bg-[var(--muted)]"><tr><th className="px-3 py-3">品牌问题</th><th className="px-3 py-3">品牌提及</th><th className="px-3 py-3">诊断</th><th className="px-3 py-3">关联竞品</th></tr></thead><tbody>{items.map((item) => <tr key={item.question} className="border-t border-[var(--border)]"><td className="px-3 py-3">{item.question}</td><td className="px-3 py-3">{percent(item.mentionRate)} <span className="text-xs text-[var(--muted-foreground)]">({item.sampleCount})</span></td><td className="px-3 py-3">{diagnosisLabel[item.diagnosis]}</td><td className="px-3 py-3">{item.leadingCompetitor ? `${item.leadingCompetitor} ${percent(item.leadingCompetitorRate)}` : '—'}</td></tr>)}{!items.length && <tr><td colSpan={4} className="px-3 py-10 text-center text-[var(--muted-foreground)]">{priority ? '没有需要优先处理的问题。' : '暂无问题结果。'}</td></tr>}</tbody></table></div>{sourceRunId && <Button size="sm" variant="outline" asChild><Link href={`/improvement/optimization-work-orders?source=problem-summary&sourceRunId=${sourceRunId}`}>从问答汇总创建优化工单</Link></Button>}</div>; }

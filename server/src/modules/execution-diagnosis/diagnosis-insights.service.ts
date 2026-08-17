@@ -45,13 +45,19 @@ export class DiagnosisInsightsService {
     const brandMention = this.mention(brand.name, [brand.name], samples, true, reviewedBySampleId);
     const competitorMentions = activeCompetitors.map((item) => this.mention(item.name, [item.name, ...item.aliases], samples));
     const engineNames = [...new Set(samples.map((sample) => sample.engineName).filter(Boolean))];
-    const groupByQuestion = new Map(configuredQuestions.map((item) => [item.question, item.group]));
+    const taxonomyQuestions = run.configurationSnapshot?.questions?.length ? run.configurationSnapshot.questions : configuredQuestions;
+    const taxonomyByQuestion = new Map(taxonomyQuestions.map((item) => [item.question, {
+      group: item.group,
+      primaryCategory: item.primaryCategory ?? item.group ?? '未分类',
+      secondaryCategory: item.secondaryCategory ?? '未分类',
+    }]));
     const questionInsights = questions.map((question) => {
       const scoped = samples.filter((sample) => sample.question === question);
       const mentioned = this.mention(brand.name, [brand.name], scoped, true, reviewedBySampleId);
       const leadingCompetitor = competitorMentions.map((competitor) => { const item = competitors.find((candidate) => candidate.name === competitor.name); return {...competitor, rate: this.mention(competitor.name, [competitor.name, ...(item?.aliases ?? [])], scoped).rate}; }).sort((a, b) => b.rate - a.rate)[0];
       const diagnosis = !scoped.length ? 'unmeasured' : mentioned.rate === 0 && (leadingCompetitor?.rate ?? 0) >= 0.5 ? 'competitor-dominated' : mentioned.rate === 0 ? 'absent' : 'normal';
-      return { question, group: groupByQuestion.get(question) ?? '未分类', sampleCount: scoped.length, mentionRate: mentioned.rate, diagnosis, leadingCompetitor: leadingCompetitor?.name ?? null, leadingCompetitorRate: leadingCompetitor?.rate ?? 0 };
+      const taxonomy = taxonomyByQuestion.get(question);
+      return { question, group: taxonomy?.group ?? '未分类', primaryCategory: taxonomy?.primaryCategory ?? '未分类', secondaryCategory: taxonomy?.secondaryCategory ?? '未分类', sampleCount: scoped.length, mentionRate: mentioned.rate, diagnosis, leadingCompetitor: leadingCompetitor?.name ?? null, leadingCompetitorRate: leadingCompetitor?.rate ?? 0 };
     });
     const competitorMatrix = activeCompetitors.map((competitor) => {
       const aliases = [competitor.name, ...competitor.aliases];
