@@ -10,8 +10,9 @@ import { chromium } from 'playwright-core';
 import { Repository } from 'typeorm';
 import { EngineEntity } from '../engines/engine.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReviewAvailability, type WebReviewFailureCode } from './web-review.entity';
+import { KimiEngineSessionService } from './engine-session/kimi-engine-session.service';
 
-type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate(pageFunction: () => unknown): Promise<unknown> };
+type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate<T>(pageFunction: () => T | Promise<T>): Promise<T>; waitForSelector(selector: string, options?: object): Promise<unknown> };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
 type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: { executablePath: string; headless: boolean; args: string[]; ignoreDefaultArgs?: string[] }): Promise<BrowserContextLike> };
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
@@ -115,6 +116,7 @@ export class LocalChromeService {
   private readonly dependencies: LocalChromeDependencies;
   private readonly contexts = new Map<number, { launchId: string; profilePath: string; context: BrowserContextLike }>();
   private readonly engineOperations = new Map<number, Promise<void>>();
+  private readonly kimiSession = new KimiEngineSessionService();
 
   constructor(
     @InjectRepository(EngineEntity) private readonly engines: Repository<EngineEntity>,
@@ -362,11 +364,19 @@ export class LocalChromeService {
         const state = routerData?.loaderData?.chat_layout?.chat_layout;
         return state?.is_login === true || Number(state?.accountInfo?.data?.user_id ?? 0) > 0;
       }));
-      if (/yuanbao|tencent/.test(identity)) return !Boolean(await page.evaluate(() => document.body.innerText.includes('未登录')));
-      if (/kimi|moonshot/.test(identity)) return !Boolean(await page.evaluate(() => document.body.innerText.includes('登录以同步历史对话')));
+      if (/yuanbao|tencent/.test(identity)) {
+        if (await this.hasYuanbaoLoginDialog(page)) return false;
+        return Boolean(await page.evaluate(() => {
+          const name = document.querySelector('.nick-info-name')?.textContent?.trim();
+          return name && name !== '未登录';
+        }));
+      }
+      if (/kimi|moonshot/.test(identity)) {
+        return this.kimiSession.isLoggedIn(page);
+      }
       if (/wenxin|wenxiaoyan|baidu/.test(identity)) return Boolean(await page.evaluate(() => {
         const source = document.querySelector('script[name="aiTabFrameBaseData"]')?.textContent;
-        if (!source) return !/请登录|登录同步历史对话/.test(document.body.innerText);
+        if (!source) return false;
         const isUserLogin = JSON.parse(source)?.userInfo?.isUserLogin;
         return isUserLogin === true || isUserLogin === 1 || isUserLogin === '1';
       }));
@@ -374,6 +384,15 @@ export class LocalChromeService {
       return false;
     }
     return null;
+  }
+
+  private async hasYuanbaoLoginDialog(page: PageLike) {
+    try {
+      await page.waitForSelector('text=微信登录', { state: 'visible', timeout: 3_000 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private profilesRoot() {

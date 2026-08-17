@@ -156,7 +156,7 @@ describe('LocalChromeService', () => {
 
   it('元宝页面显示未登录状态时不能标记为已就绪', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://yuanbao.tencent.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://yuanbao.tencent.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(true), waitForSelector: jest.fn().mockResolvedValue(undefined) }]);
 
     await expect(service.reset({ ...engine, code: 'yuanbao', vendor: 'Tencent', homepage: 'https://yuanbao.tencent.com/' })).resolves.toBe('pending_login');
   });
@@ -168,10 +168,22 @@ describe('LocalChromeService', () => {
     await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('pending_login');
   });
 
+  it('Kimi 未出现已登录账户特征时不能标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+
+    await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('pending_login');
+  });
+
+  it('Kimi 页面显示已登录账户名且没有访客图标时标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(true) }]);
+
+    await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('ready');
+  });
+
   it.each([
     ['deepseek', 'DeepSeek', 'https://chat.deepseek.com/'],
-    ['yuanbao', 'Tencent', 'https://yuanbao.tencent.com/'],
-    ['kimi', 'Moonshot AI', 'https://www.kimi.com/'],
   ])('%s 页面出现登录入口时标记为未登录', async (code, vendor, homepage) => {
     const { service, context } = createService();
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue(homepage), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['登录']) }), evaluate: jest.fn() }]);
