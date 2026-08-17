@@ -154,6 +154,20 @@ describe('LocalChromeService', () => {
     await expect(service.reset({ ...engine, code: 'wenxin-yiyan', vendor: 'Baidu', homepage: 'https://wenxin.baidu.com' })).resolves.toBe('pending_login');
   });
 
+  it('元宝页面显示未登录状态时不能标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://yuanbao.tencent.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+
+    await expect(service.reset({ ...engine, code: 'yuanbao', vendor: 'Tencent', homepage: 'https://yuanbao.tencent.com/' })).resolves.toBe('pending_login');
+  });
+
+  it('Kimi 页面提示登录同步历史时不能标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.kimi.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
+
+    await expect(service.reset({ ...engine, code: 'kimi', vendor: 'Moonshot AI', homepage: 'https://www.kimi.com/' })).resolves.toBe('pending_login');
+  });
+
   it.each([
     ['deepseek', 'DeepSeek', 'https://chat.deepseek.com/'],
     ['yuanbao', 'Tencent', 'https://yuanbao.tencent.com/'],

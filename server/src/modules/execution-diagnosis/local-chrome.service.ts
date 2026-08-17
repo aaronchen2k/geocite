@@ -362,9 +362,11 @@ export class LocalChromeService {
         const state = routerData?.loaderData?.chat_layout?.chat_layout;
         return state?.is_login === true || Number(state?.accountInfo?.data?.user_id ?? 0) > 0;
       }));
+      if (/yuanbao|tencent/.test(identity)) return !Boolean(await page.evaluate(() => document.body.innerText.includes('未登录')));
+      if (/kimi|moonshot/.test(identity)) return !Boolean(await page.evaluate(() => document.body.innerText.includes('登录以同步历史对话')));
       if (/wenxin|wenxiaoyan|baidu/.test(identity)) return Boolean(await page.evaluate(() => {
         const source = document.querySelector('script[name="aiTabFrameBaseData"]')?.textContent;
-        if (!source) return false;
+        if (!source) return !/请登录|登录同步历史对话/.test(document.body.innerText);
         const isUserLogin = JSON.parse(source)?.userInfo?.isUserLogin;
         return isUserLogin === true || isUserLogin === 1 || isUserLogin === '1';
       }));
