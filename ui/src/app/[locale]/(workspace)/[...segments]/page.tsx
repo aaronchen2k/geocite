@@ -33,6 +33,11 @@ export default async function Page({params}: {params: Promise<{locale: string; s
   if (key === 'diagnosis/competitor-comparison') return <DiagnosisInsightsPage variant="competitors" />;
   if (key === 'diagnosis/samples') return <DiagnosisInsightsPage variant="samples" />;
   if (key === 'diagnosis/diagnosis-report') return <DiagnosisInsightsPage variant="report" />;
+  if (key === 'improvement/optimization-work-orders') return <OptimizationWorkOrdersPage />;
+  if (key === 'improvement/keyword-matrix') return <OptimizationPlanningPage variant="matrix" />;
+  if (key === 'improvement/source-building') return <OptimizationPlanningPage variant="source" />;
+  if (key === 'improvement/technical-adaptation') return <OptimizationPlanningPage variant="website" />;
+  if (key === 'improvement/content-production') return <OptimizationPlanningPage variant="content" />;
   if (key.startsWith('admin/')) return <WorkspacePage admin={key.slice(6)} />;
   const pageKey = pages[key];
   if (key === 'verification/visibility-trend') return <VerificationPages variant="trend" />;
@@ -42,5 +47,7 @@ export default async function Page({params}: {params: Promise<{locale: string; s
   if (key === 'verification/periodic-retest') return <VerificationPages variant="periodic-retest" />;
   if (!pageKey) notFound();
   const t = await getTranslations('Pages');
-  return <WorkspacePage title={t(`${pageKey}.title`)} description={t(`${pageKey}.description`)} />;
+  const guidanceGroup = key.startsWith('verification/') ? 'verificationGuidance' : key.startsWith('improvement/') ? 'improvementGuidance' : null;
+  const guidance = guidanceGroup ? {...t.raw(guidanceGroup) as Omit<VerificationGuidance, 'purpose' | 'automatic' | 'manual'>, ...t.raw(`${pageKey}.guidance`) as Pick<VerificationGuidance, 'purpose' | 'automatic' | 'manual'>} : undefined;
+  return <WorkspacePage title={t(`${pageKey}.title`)} description={t(`${pageKey}.description`)} guidance={guidance} />;
 }

@@ -104,6 +104,7 @@ describe('LocalChromeService', () => {
         executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         headless: false,
         args: [expect.stringMatching(/^--geocite-review-launch-id=/)],
+        ignoreDefaultArgs: ['--no-sandbox'],
       }),
     );
   });

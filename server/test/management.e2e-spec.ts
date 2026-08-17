@@ -18,14 +18,14 @@ describe('system management APIs', () => {
   it('manages independent Engines and masks Model API keys', async () => {
     const engine = await request(app.getHttpServer())
       .post('/api/v1/engines')
-      .send({ name: '豆包', code: 'doubao', vendor: 'ByteDance' })
+      .send({ name: '豆包', code: 'doubao', vendor: 'ByteDance', homepage: 'https://www.doubao.com' })
       .expect(201);
     const model = await request(app.getHttpServer())
       .post('/api/v1/models')
       .send({ name: '分析模型', modelName: 'gpt-5', provider: 'OpenAI', apiKey: 'sk-secret-value' })
       .expect(201);
 
-    expect(engine.body).toMatchObject({ name: '豆包', code: 'doubao', vendor: 'ByteDance', disabled: false });
+    expect(engine.body).toMatchObject({ name: '豆包', code: 'doubao', vendor: 'ByteDance', homepage: 'https://www.doubao.com', disabled: false });
     expect(engine.body).not.toHaveProperty('modelId');
     expect(model.body).toMatchObject({ name: '分析模型', apiKeyConfigured: true, apiKeyMasked: 'sk-…alue' });
     expect(JSON.stringify(model.body)).not.toContain('sk-secret-value');

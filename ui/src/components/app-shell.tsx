@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const currentBrandId = useWorkspaceStore((state) => state.currentBrandId);
   const setBrands = useWorkspaceStore((state) => state.setBrands);
   const setCurrentBrandId = useWorkspaceStore((state) => state.setCurrentBrandId);
-  const [open, setOpen] = useState<Record<string, boolean>>({ configuration: true, diagnosis: true, improvement: true, verification: true, admin: true });
+  const [open, setOpen] = useState<Record<string, boolean>>({ configuration: true, diagnosis: true, improvement: true, verification: true, admin: false });
   useEffect(() => { void requestJson<{ items: typeof brands }>('brands').then((x) => setBrands(x.items ?? [])).catch(() => setBrands([])); }, [setBrands]);
   useEffect(() => {
     const stored = window.localStorage.getItem(localeStorageKey);
