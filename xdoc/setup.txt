@@ -1,1 +1,10 @@
 node ./node_modules/.pnpm/playwright-core@1.62.1/node_modules/playwright-core/cli.js install --force chromium
+
+为 千问 引擎生成登录判断代码
+为 豆包 引擎生成登录判断代码
+为 DeepSeek 引擎生成登录判断代码
+为 元宝 引擎生成登录判断代码
+为 KIMI 引擎生成登录判断代码
+为 文心一言 引擎生成登录判断代码
+
+验证 豆包 引擎登录判断代码
