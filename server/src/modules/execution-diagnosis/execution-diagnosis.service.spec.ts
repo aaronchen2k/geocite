@@ -45,6 +45,59 @@ describe('ExecutionDiagnosisService events', () => {
     expect(runs.update).toHaveBeenCalledWith(7, expect.objectContaining({ configurationSnapshot: expect.objectContaining({ webReview: expect.objectContaining({ selected: [{ sampleId: 9, reasons: ['core_capability'] }] }) }) }));
   });
 
+  it('冻结按 id 排序的成功 API 候选集，并且不把 API 失败样本加入网页复核', async () => {
+    const runs = { update: jest.fn().mockResolvedValue(undefined) };
+    const service = new ExecutionDiagnosisService(
+      {} as never, {} as never, {} as never, runs as never, {} as never, {} as never, {} as never, {} as never,
+      { find: jest.fn().mockResolvedValue([
+        { id: 12, engineId: 2, question: '普通问题', answer: '', error: 'api-failed' },
+        { id: 9, engineId: 2, question: '核心能力', answer: '答案', error: null },
+      ]) } as never,
+      {} as never, {} as never, {} as never,
+    );
+    const run = { id: 7, configurationSnapshot: { questions: [{ id: 1, question: '核心能力', group: '核心业务能力提问', market: 'cn', brandProbe: false }], webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: 'seed', selected: [], enabled: true } } };
+
+    await (service as unknown as { freezeWebReviewSelection(run: unknown, brand: { name: string }): Promise<void> }).freezeWebReviewSelection(run, { name: 'Acme' });
+
+    expect(runs.update).toHaveBeenCalledWith(7, expect.objectContaining({ configurationSnapshot: expect.objectContaining({ webReview: expect.objectContaining({ candidateSampleIds: [9], selected: [{ sampleId: 9, reasons: ['core_capability'] }] }) }) }));
+  });
+
+  it('网页复核关闭时第六步精确跳过，不创建排除记录', async () => {
+    const webReviews = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const service = new ExecutionDiagnosisService({} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, webReviews as never, {} as never);
+    jest.spyOn(service as unknown as { getRun(id: number): Promise<unknown> }, 'getRun').mockResolvedValue({ configurationSnapshot: { webReview: { enabled: false } } });
+
+    await expect((service as unknown as { runWebReview(id: number): Promise<unknown> }).runWebReview(7)).resolves.toEqual({ conclusion: 'unmeasured', severity: 'unmeasured', evidence: { reason: 'playwright-web-review-disabled' }, recommendation: 'enable-playwright-web-review', stepStatus: 'skipped' });
+    expect(webReviews.save).not.toHaveBeenCalled();
+  });
+
+  it('第七步以成功网页证据的真实 answer 和 brandMentioned 校正指标', async () => {
+    const webReviews = { find: jest.fn().mockResolvedValue([
+      { apiSampleId: 9, answer: '网页端没有提及品牌', brandMentioned: false },
+      { apiSampleId: 10, answer: '网页端提及 Acme', brandMentioned: true },
+    ]) };
+    const service = new ExecutionDiagnosisService({} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, webReviews as never);
+
+    await expect((service as unknown as { applyWebReviewCorrection(id: number, baseline: number | null): Promise<unknown> }).applyWebReviewCorrection(7, null)).resolves.toMatchObject({
+      conclusion: 'passed', evidence: { correctionSource: 'web-review', successfulWebReviews: 2, brandMentionedCount: 1, brandMentionRate: 0.5, reviewedAnswers: [{ apiSampleId: 9, answer: '网页端没有提及品牌', brandMentioned: false }, { apiSampleId: 10, answer: '网页端提及 Acme', brandMentioned: true }] },
+    });
+  });
+
+  it('生成发现时以成功网页复核的 brandMentioned 覆盖 API 答案判断', async () => {
+    const samples = { find: jest.fn().mockResolvedValue([{ id: 9, question: '推荐什么服务？', answer: 'Acme 是首选', error: null }]) };
+    const reviews = { find: jest.fn().mockResolvedValue([{ apiSampleId: 9, answer: '网页端未提及品牌', brandMentioned: false }]) };
+    const findings = { create: jest.fn((value) => value), save: jest.fn().mockResolvedValue(undefined) };
+    const service = new ExecutionDiagnosisService(
+      { findOne: jest.fn().mockResolvedValue({ id: 5, name: 'Acme', deleted: false }) } as never,
+      {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
+      samples as never, {} as never, { find: jest.fn().mockResolvedValue([]) } as never, findings as never, reviews as never,
+    );
+
+    await (service as unknown as { generateFindings(run: unknown): Promise<void> }).generateFindings({ id: 7, brandId: 5, steps: [] });
+
+    expect(findings.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'brand_absent', scope: { question: '推荐什么服务？' }, evidence: expect.objectContaining({ sampleIds: [9], webReviewedSampleIds: [9] }) }));
+  });
+
   it('运行快照包含已持久化的步骤日志', () => {
     const service = new ExecutionDiagnosisService(
       {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,

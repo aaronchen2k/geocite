@@ -33,3 +33,37 @@ pnpm --dir server run simulate:diagnosis
 
 - `WebReviewRunnerService` 的浏览器回答器为可注入边界：未提供具体厂商网页操作器时，会诚实写入 `web-review-browser-not-configured` 排除记录，不伪造网页回答或品牌失败。模拟使用显式测试回答器验证成功证据流。
 - 持久化新网页证据实体需要同时更新 TypeORM 的 module 与 data source 注册；这两项和模拟脚本是 Task 3 的必要接线文件。
+
+## 审查修复：可复核候选集、真实网页适配器与校正结论
+
+### 修复内容
+
+- 第 5 步现在冻结 `candidateSampleIds`：它只包含 API 调用成功、问题和回答均非空的样本，按 `sample.id` 升序保存。最低比例以该集合为唯一分母；selector 也在随机前按相同顺序规范化输入，所以同一快照随机种子能完全复现结果。
+- API 失败样本不会再被第 6 步临时加入。没有可复核候选时，步骤结论为未测，证据明确列出 `no-reviewable-api-samples` 和不可复核 API 样本；网页配置缺失则持久化为 `web-review-engine-config-excluded`。
+- 关闭网页复核开关时，第 6 步精确返回 `skipped`，固定原因仍为 `playwright-web-review-disabled`，且不会创建网页排除记录。
+- 第 7 步输出每条成功网页证据的真实 `answer`、`brandMentioned`、校正后的提及计数和提及率。最终发现项优先使用这些成功网页证据：网页结论可覆盖 API 文本中的相反品牌提及，不会只报告“成功数量”。
+- `EngineEntity.webReviewConfig` 支持可编辑的网页 URL、输入 selector、回答 selector 和可选提交 selector。ChatGPT、Claude、Gemini、DeepSeek、Qwen 提供官方网页默认配置；未知或不完整配置明确排除。
+- 新增生产 `PlaywrightBrowserReviewer`。它用 `LocalChromeService.useReadyProfile` 启动/复用 Task 2 的专属持久 Profile，导航、填入问题、提交、等待答案并提取文本；登录、验证码与风控 URL 均以排除原因保存，绝不伪造网页答案。真实适配器使用 mock browser/Profile 边界测试。
+
+### TDD 与排错记录
+
+1. RED：候选分母、倒序输入的确定性、第 7 步实际指标、关闭开关和生产适配器测试先失败，分别暴露“总 API 样本作分母”“数据库返回顺序影响随机”“只计数”“缺少真实适配器”。
+2. GREEN：冻结候选 ID、稳定排序、成功网页证据校正与持久 Profile 浏览器适配后，聚焦套件 19 项通过；另加回归证明网页 `brandMentioned=false` 能覆盖 API 中的 `true` 并生成 `brand_absent` 发现。
+3. 全量 e2e 首次失败于 Nest 无法注入两个以 `Pick<LocalChromeService, ...>` 标注的构造参数。根因是 TypeScript 接口型运行时元数据不是注入 token；以显式 `@Inject(LocalChromeService)` 修复。健康 e2e 先转绿，之后全量通过。
+4. CLI 模拟首次在打印成功后销毁 SQLite，而后台运行仍在写最终事件。为本地工具增加 `waitForCompletion`，模拟脚本在释放数据库前等待后台 Promise；模拟现已稳定退出。
+
+### 验证
+
+```text
+pnpm --dir server test
+# 22 suites, 102 tests passed
+
+pnpm --dir server build
+# passed
+
+pnpm --dir server run simulate:diagnosis
+# 模拟执行诊断完成：页面 4 条，UA 探测 4 条，AI 采样 1 条。
+
+git diff --check
+# passed
+```

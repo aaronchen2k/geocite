@@ -15,7 +15,7 @@ import { fetchPage, inspectHtml, sitemapLocations, websiteUnavailableResult, typ
 import { toPageEvidence, toProbeEvidence, toSampleEvidence } from './evidence-records';
 import { EngineSamplingClient } from './engine-sampling-client';
 import { DiagnosisFindingEntity, type DiagnosisFindingType } from './optimization-verification.entity';
-import { selectWebReviewSamples, type WebReviewSelection } from './web-review-selector';
+import { selectWebReviewSamples, webReviewCandidates, type WebReviewSelection } from './web-review-selector';
 import { WebReviewRunnerService } from './web-review-runner.service';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']> & { stepStatus?: 'skipped' };
@@ -28,6 +28,7 @@ export class ExecutionDiagnosisService {
   private readonly streams = new Map<number, Subject<MessageEvent>>();
   private readonly controllers = new Map<number, AbortController>();
   private readonly contexts = new Map<number, RunContext>();
+  private readonly executions = new Map<number, Promise<void>>();
   private readonly engineSamplingClient = new EngineSamplingClient();
 
   constructor(
@@ -55,8 +56,16 @@ export class ExecutionDiagnosisService {
     await this.steps.save(Array.from({ length: 8 }, (_, index) => this.steps.create({ runId: run.id, number: index + 1, status: 'pending', startedAt: null, finishedAt: null, errorCode: null, result: null })));
     getExecutionDiagnosisLogger(brand.code, run.id, run.createdAt).info({ brandId, status: run.status, rulesVersion: run.rulesVersion }, 'execution diagnosis created');
     this.streams.set(run.id, new Subject<MessageEvent>());
-    void this.execute(run.id).catch((error: unknown) => this.failRun(run.id, error));
+    const execution = this.execute(run.id).catch((error: unknown) => this.failRun(run.id, error));
+    this.executions.set(run.id, execution);
     return this.findOne(brandId, run.id);
+  }
+
+  /** Allows local tooling to wait for the background run before releasing its database. */
+  async waitForCompletion(runId: number) {
+    const execution = this.executions.get(runId);
+    await execution;
+    this.executions.delete(runId);
   }
 
   async list(brandId: number) {
@@ -189,7 +198,7 @@ export class ExecutionDiagnosisService {
       samplingMethod: 'api',
       rulesVersion,
       executionScope,
-      webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: randomUUID(), selected: [], enabled: webReviewEnabled },
+      webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: randomUUID(), candidateSampleIds: [], selected: [], enabled: webReviewEnabled },
     };
   }
   private async performStep(runId: number, number: number): Promise<StepResult> {
@@ -308,7 +317,9 @@ export class ExecutionDiagnosisService {
     const webReview = run.configurationSnapshot?.webReview;
     if (!webReview || !webReview.enabled) return;
     const samples = await this.samplesRepository.find({ where: { runId: run.id } });
-    webReview.selected = selectWebReviewSamples(samples.map((sample) => ({ ...sample, apiBrandMentioned: this.mentions(sample.answer, brand.name) })), run.configurationSnapshot?.questions ?? [], webReview.randomSeed, webReview.minimumRate) as ExecutionDiagnosisConfigurationSnapshot['webReview']['selected'];
+    const selectable = samples.map((sample) => ({ ...sample, apiBrandMentioned: this.mentions(sample.answer, brand.name) }));
+    webReview.candidateSampleIds = webReviewCandidates(selectable).map((sample) => sample.id);
+    webReview.selected = selectWebReviewSamples(selectable, run.configurationSnapshot?.questions ?? [], webReview.randomSeed, webReview.minimumRate) as ExecutionDiagnosisConfigurationSnapshot['webReview']['selected'];
     await this.runs.update(run.id, { configurationSnapshot: run.configurationSnapshot });
   }
   private async runWebReview(runId: number): Promise<StepResult> {
@@ -317,10 +328,12 @@ export class ExecutionDiagnosisService {
     if (!webReview?.enabled) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { reason: 'playwright-web-review-disabled' }, recommendation: 'enable-playwright-web-review', stepStatus: 'skipped' };
     const samples = await this.samplesRepository.find({ where: { runId } });
     const byId = new Map(samples.map((sample) => [sample.id, sample]));
-    const selected = webReview.selected.map((item) => ({ item, sample: byId.get(item.sampleId) })).filter((item): item is { item: WebReviewSelection; sample: ExecutionDiagnosisSampleEntity } => Boolean(item.sample));
-    const selectedIds = new Set(selected.map(({ sample }) => sample.id));
-    samples.filter((sample) => Boolean(sample.error) && !selectedIds.has(sample.id)).forEach((sample) => selected.push({ item: { sampleId: sample.id, reasons: [] }, sample }));
-    if (!selected.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { selected: 0, reason: 'no-web-review-samples' }, recommendation: 'review-api-sampling' };
+    const candidateIds = new Set(webReview.candidateSampleIds ?? []);
+    const selected = webReview.selected
+      .map((item) => ({ item, sample: byId.get(item.sampleId) }))
+      .filter((item): item is { item: WebReviewSelection; sample: ExecutionDiagnosisSampleEntity } => Boolean(item.sample) && candidateIds.has(item.item.sampleId) && !item.sample.error)
+      .sort((left, right) => left.sample.id - right.sample.id);
+    if (!selected.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { selected: 0, candidateSampleIds: webReview.candidateSampleIds ?? [], unreviewableApiSamples: samples.filter((sample) => sample.error).map((sample) => ({ sampleId: sample.id, reason: sample.error })), reason: 'no-reviewable-api-samples' }, recommendation: 'review-api-sampling' };
     if (!this.webReviewRunner) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { selected: selected.length, reason: 'web-review-runner-unavailable' }, recommendation: 'configure-web-review-runner' };
     const outcomes: Array<{ sampleId: number; engineId: number; status: string; exclusionReason: string | null }> = [];
     const byEngine = new Map<number, Array<{ item: WebReviewSelection; sample: ExecutionDiagnosisSampleEntity }>>();
@@ -328,10 +341,8 @@ export class ExecutionDiagnosisService {
     for (const entries of byEngine.values()) {
       let stopReason: string | null = null;
       for (const { item, sample } of entries) {
-        const runnable = { id: sample.id, runId: sample.runId, engineId: sample.engineId, engineName: sample.engineName, engineCode: sample.engineCode, question: sample.question, prompt: sample.prompt };
-        const result = sample.error
-          ? await this.webReviewRunner.exclude(runnable, item, 'api-sample-failed', new Date(), false)
-          : stopReason ? await this.webReviewRunner.exclude(runnable, item, stopReason)
+        const runnable = { id: sample.id, runId: sample.runId, engineId: sample.engineId, engineName: sample.engineName, engineCode: sample.engineCode, question: sample.question, prompt: sample.prompt, brandName: this.contexts.get(runId)?.brand.name ?? '' };
+        const result = stopReason ? await this.webReviewRunner.exclude(runnable, item, stopReason)
             : await this.webReviewRunner.run(runnable, item);
         outcomes.push({ sampleId: sample.id, engineId: sample.engineId, status: result.status, exclusionReason: result.exclusionReason });
         if (result.terminalForEngine) stopReason = result.exclusionReason ?? 'web-review-engine-stopped';
@@ -343,7 +354,9 @@ export class ExecutionDiagnosisService {
   }
   private async applyWebReviewCorrection(runId: number, baselineRunId: number | null): Promise<StepResult> {
     const succeeded = this.webReviews ? await this.webReviews.find({ where: { runId, status: 'succeeded' } }) : [];
-    return { conclusion: succeeded.length ? 'passed' : 'unmeasured', severity: succeeded.length ? 'info' : 'unmeasured', evidence: { baselineRunId, successfulWebReviews: succeeded.length, correctionSource: succeeded.length ? 'web-review' : 'api-reference-only', comparedAt: new Date().toISOString() }, recommendation: succeeded.length ? 'review-delta' : 'restore-web-review-availability' };
+    const reviewedAnswers = succeeded.map((review) => ({ apiSampleId: review.apiSampleId, answer: review.answer ?? '', brandMentioned: review.brandMentioned ?? false }));
+    const brandMentionedCount = reviewedAnswers.filter((review) => review.brandMentioned).length;
+    return { conclusion: succeeded.length ? 'passed' : 'unmeasured', severity: succeeded.length ? 'info' : 'unmeasured', evidence: { baselineRunId, successfulWebReviews: succeeded.length, correctionSource: succeeded.length ? 'web-review' : 'api-reference-only', reviewedAnswers, brandMentionedCount, brandMentionRate: succeeded.length ? brandMentionedCount / succeeded.length : null, comparedAt: new Date().toISOString() }, recommendation: succeeded.length ? 'review-delta' : 'restore-web-review-availability' };
   }
   private async savePageEvidence(runId: number, page: FetchedPage) { await this.pagesRepository.save(this.pagesRepository.create(toPageEvidence(runId, page))); }
   private async generateFindings(run: ExecutionDiagnosisRunEntity) {
@@ -362,13 +375,22 @@ export class ExecutionDiagnosisService {
     const brand = await this.brands.findOne({ where: { id: run.brandId, deleted: false } });
     if (!brand) return;
     const competitors = (await this.competitors.find({ where: { brandId: run.brandId, deleted: false } })).filter((competitor) => competitor.enabled);
-    const byQuestion = new Map<string, ExecutionDiagnosisSampleEntity[]>();
-    successfulSamples.forEach((sample) => { if (sample.question) byQuestion.set(sample.question, [...(byQuestion.get(sample.question) ?? []), sample]); });
+    const successfulReviews = this.webReviews ? await this.webReviews.find({ where: { runId: run.id, status: 'succeeded' } }) : [];
+    const reviewBySampleId = new Map(successfulReviews.map((review) => [review.apiSampleId, review]));
+    const byQuestion = new Map<string, Array<{ sample: ExecutionDiagnosisSampleEntity; answer: string; brandMentioned: boolean }>>();
+    successfulSamples.forEach((sample) => {
+      if (!sample.question) return;
+      const review = reviewBySampleId.get(sample.id);
+      const answer = review?.answer ?? sample.answer;
+      const brandMentioned = review?.brandMentioned ?? this.mentions(answer, brand.name);
+      byQuestion.set(sample.question, [...(byQuestion.get(sample.question) ?? []), { sample, answer, brandMentioned }]);
+    });
     for (const [question, answers] of byQuestion) {
-      const brandMentioned = answers.some((sample) => this.mentions(sample.answer, brand.name));
-      if (!brandMentioned) add('brand_absent', 'P1', { question }, { sampleIds: answers.map((sample) => sample.id), answerCount: answers.length }, 'improve-brand-coverage');
-      const dominantCompetitor = competitors.find((competitor) => answers.some((sample) => [competitor.name, ...competitor.aliases].some((name) => this.mentions(sample.answer, name))));
-      if (!brandMentioned && dominantCompetitor) add('competitor_dominated', 'P1', { question, competitor: dominantCompetitor.name }, { sampleIds: answers.map((sample) => sample.id), competitor: dominantCompetitor.name }, 'address-competitor-gap');
+      const brandMentioned = answers.some((answer) => answer.brandMentioned);
+      const evidence = { sampleIds: answers.map(({ sample }) => sample.id), answerCount: answers.length, webReviewedSampleIds: answers.filter(({ sample }) => reviewBySampleId.has(sample.id)).map(({ sample }) => sample.id) };
+      if (!brandMentioned) add('brand_absent', 'P1', { question }, evidence, 'improve-brand-coverage');
+      const dominantCompetitor = competitors.find((competitor) => answers.some(({ answer }) => [competitor.name, ...competitor.aliases].some((name) => this.mentions(answer, name))));
+      if (!brandMentioned && dominantCompetitor) add('competitor_dominated', 'P1', { question, competitor: dominantCompetitor.name }, { ...evidence, competitor: dominantCompetitor.name }, 'address-competitor-gap');
     }
     await Promise.all(findings.map((finding) => this.findings.save(this.findings.create(finding))));
   }

@@ -22,14 +22,14 @@ const CORE_CAPABILITY_GROUP = '核心业务能力提问';
 export function selectWebReviewSamples(samples: WebReviewSelectableSample[], questions: WebReviewQuestion[], seed: string, minimumRate = 0.3): WebReviewSelection[] {
   const reasons = new Map<number, WebReviewSelectionReason[]>();
   const questionGroups = new Map(questions.map((question) => [question.question, question.group]));
-  const answerable = samples.filter((sample) => !sample.error && sample.question && sample.answer.trim());
+  const answerable = webReviewCandidates(samples);
   const add = (sampleId: number, reason: WebReviewSelectionReason) => {
     const current = reasons.get(sampleId) ?? [];
     if (!current.includes(reason)) current.push(reason);
     reasons.set(sampleId, current);
   };
 
-  for (const sample of samples.filter((sample) => sample.question)) {
+  for (const sample of answerable) {
     if (questionGroups.get(sample.question!) === CORE_CAPABILITY_GROUP) add(sample.id, 'core_capability');
     if (!sample.error && sample.apiBrandMentioned) add(sample.id, 'api_brand_mentioned');
   }
@@ -39,7 +39,7 @@ export function selectWebReviewSamples(samples: WebReviewSelectableSample[], que
   const randomCount = Math.ceil(remaining.length * 0.25);
   remaining.slice(0, randomCount).forEach((sample) => add(sample.id, 'random_unmentioned'));
 
-  const minimum = Math.ceil(samples.length * Math.max(0, Math.min(1, minimumRate)));
+  const minimum = Math.ceil(answerable.length * Math.max(0, Math.min(1, minimumRate)));
   const fillCandidates = shuffled(answerable.filter((sample) => !reasons.has(sample.id)), random);
   for (const sample of fillCandidates) {
     if (reasons.size >= minimum) break;
@@ -49,6 +49,13 @@ export function selectWebReviewSamples(samples: WebReviewSelectableSample[], que
   return [...reasons.entries()]
     .map(([sampleId, selectedReasons]) => ({ sampleId, reasons: selectedReasons }))
     .sort((left, right) => left.sampleId - right.sampleId);
+}
+
+/** The reviewable population is frozen separately so its denominator is auditable. */
+export function webReviewCandidates(samples: WebReviewSelectableSample[]): WebReviewSelectableSample[] {
+  return samples
+    .filter((sample) => !sample.error && Boolean(sample.question) && Boolean(sample.answer.trim()))
+    .sort((left, right) => left.id - right.id);
 }
 
 function createSeededRandom(seed: string) {

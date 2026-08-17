@@ -38,4 +38,20 @@ describe('selectWebReviewSamples', () => {
     expect(result).toHaveLength(3);
     expect(result.filter((item) => item.reasons.includes('minimum_fill')).every((item) => item.sampleId !== 22)).toBe(true);
   });
+
+  it('以按 sample.id 排序的成功 API 候选集作为最低比例的唯一分母', () => {
+    const unordered = [
+      { id: 30, engineId: 1, question: '品牌是否被推荐？', answer: '', error: 'api-failed', apiBrandMentioned: false },
+      { id: 14, engineId: 1, question: '适合谁使用？', answer: '其他品牌', error: null, apiBrandMentioned: false },
+      { id: 11, engineId: 1, question: '核心能力是什么？', answer: '未提及', error: null, apiBrandMentioned: false },
+      { id: 13, engineId: 1, question: '还有哪些选择？', answer: '其他品牌', error: null, apiBrandMentioned: false },
+      { id: 12, engineId: 1, question: '品牌是否被推荐？', answer: 'Acme', error: null, apiBrandMentioned: true },
+    ];
+
+    const result = selectWebReviewSamples(unordered, questions, 'stable-seed', 1);
+
+    expect(result.map((item) => item.sampleId)).toEqual([11, 12, 13, 14]);
+    expect(result).not.toContainEqual(expect.objectContaining({ sampleId: 30 }));
+    expect(selectWebReviewSamples([...unordered].reverse(), questions, 'stable-seed', 1)).toEqual(result);
+  });
 });

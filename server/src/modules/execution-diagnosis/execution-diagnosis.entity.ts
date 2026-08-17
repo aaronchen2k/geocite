@@ -16,6 +16,7 @@ export type ExecutionDiagnosisConfigurationSnapshot = {
     rulesVersion: string;
     minimumRate: number;
     randomSeed: string;
+    candidateSampleIds: number[];
     selected: Array<{ sampleId: number; reasons: Array<'core_capability' | 'api_brand_mentioned' | 'random_unmentioned' | 'minimum_fill'> }>;
     enabled: boolean;
   };

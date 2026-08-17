@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class CreateEngineDto {
   @IsString() @IsNotEmpty() name!: string;
@@ -10,6 +10,7 @@ export class CreateEngineDto {
   @IsOptional() @IsString() baseUrl?: string;
   @IsOptional() @IsString() apiKey?: string;
   @IsOptional() @IsBoolean() webSearchEnabled?: boolean;
+  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null } | null;
   @IsOptional() @IsBoolean() disabled?: boolean;
 }
 export class UpdateEngineDto extends CreateEngineDto {}

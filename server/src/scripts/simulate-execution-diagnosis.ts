@@ -87,6 +87,7 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
     const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings, webReviews, webReviewRunner);
     const createdRun = await service.create(brand.id);
     const completedRun = await waitForTerminalRun(service, brand.id, createdRun.id);
+    await service.waitForCompletion(createdRun.id);
     if (completedRun.status !== 'succeeded') throw new Error(`模拟执行诊断未成功完成：${completedRun.status}`);
     const [pageCount, probeCount, sampleRecords] = await Promise.all([
       pages.count({ where: { runId: createdRun.id } }),

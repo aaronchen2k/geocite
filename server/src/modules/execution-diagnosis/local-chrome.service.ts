@@ -126,6 +126,31 @@ export class LocalChromeService {
       : { availability: 'unavailable' as const, lastCheckedAt: null, failureCode: null, lastFailureReason: null, lastReadyAt: null };
   }
 
+  /** Executes an automated review in the same dedicated, persistent profile used for manual login. */
+  async useReadyProfile<T>(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>, action: (page: unknown) => Promise<T>): Promise<T> {
+    const engine = await this.resolveEngine(engineOrId);
+    return this.runForEngine(engine.id, async () => {
+      const profile = await this.ensureProfile(engine);
+      let managed = this.contexts.get(engine.id);
+      if (!managed) {
+        await this.closePreviousLaunch(engine.id);
+        const availability = await this.launchAndCheck(engine, profile, false);
+        if (availability !== 'ready') {
+          const error = new Error(availability === 'pending_login' ? 'engine-pending-login' : profile.failureCode === 'challenge_detected' ? 'engine-challenge-or-risk-control' : 'engine-unavailable');
+          Object.assign(error, { code: error.message });
+          throw error;
+        }
+        managed = this.contexts.get(engine.id);
+      }
+      if (!managed) {
+        const error = new Error('engine-unavailable');
+        Object.assign(error, { code: error.message });
+        throw error;
+      }
+      return action(managed.context.pages()[0] ?? await managed.context.newPage());
+    });
+  }
+
   async refresh(engineOrId: number | Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'>): Promise<WebReviewAvailability> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
