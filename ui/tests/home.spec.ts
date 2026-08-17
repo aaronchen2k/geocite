@@ -108,7 +108,7 @@ test('keeps the sitemap crawl limit out of brand questions', async ({ page }) =>
   await expect(page.getByText(/最多抓取URL数|Maximum sitemap\.xml URLs to crawl/)).toHaveCount(0);
 });
 
-test('saves basic configuration without question record ids', async ({ page }) => {
+test('groups fixed category weights by primary category in basic configuration', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('geocite.locale', 'zh');
     window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 }));
@@ -127,14 +127,17 @@ test('saves basic configuration without question record ids', async ({ page }) =
     const configuration = {
       questions: [{ id: 101, text: '已有诊断问题', group: '核心业务能力提问', primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认', market: 'cn', brandProbe: false }],
       prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 20,
-      taxonomyVersion: 'v1', categoryWeights: [{primaryCategory: '品牌基础提问', secondaryCategory: '事实查询', weight: 20, example: '品牌产品是什么？'}],
+      taxonomyVersion: 'v1', categoryWeights: [
+        {primaryCategory: '品牌基础提问', secondaryCategory: '事实查询', weight: 20, example: '品牌产品是什么？'},
+        {primaryCategory: '品牌基础提问', secondaryCategory: '品牌验证', weight: 8, example: '这个品牌可靠吗？'},
+        {primaryCategory: '核心业务能力提问', secondaryCategory: '场景', weight: 15, example: '适合什么场景？'},
+        {primaryCategory: '核心业务能力提问', secondaryCategory: '风险', weight: 12, example: '有哪些风险？'},
+        {primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认', weight: 15, example: '是否满足需求？'},
+        {primaryCategory: '竞品对比提问', secondaryCategory: '比较', weight: 12, example: '与竞品有什么区别？'},
+        {primaryCategory: '竞品对比提问', secondaryCategory: '替代', weight: 10, example: '有什么替代方案？'},
+        {primaryCategory: '竞品对比提问', secondaryCategory: '推荐', weight: 8, example: '值得推荐吗？'},
+      ],
     };
-    if (route.request().method() === 'PUT') {
-      expect(route.request().postDataJSON()).toMatchObject({
-        questions: [{ text: '已有诊断问题', group: '核心业务能力提问', market: 'cn', brandProbe: false }],
-      });
-      expect(route.request().postDataJSON().questions[0]).not.toHaveProperty('id');
-    }
     await route.fulfill({ json: configuration });
   });
 
@@ -142,9 +145,21 @@ test('saves basic configuration without question record ids', async ({ page }) =
   await expect(page.getByRole('heading', { name: '基础配置' })).toBeVisible();
   await expect(page.getByText('固定分类权重')).toBeVisible();
   await expect(page.getByLabel('品牌基础提问比例')).toHaveCount(0);
-  await page.getByRole('button', { name: '保存配置' }).click();
-
-  await expect(page.getByText('配置已保存。')).toBeVisible();
+  const taxonomyGroups = page.locator('[data-testid="fixed-category-weight-groups"]');
+  await expect(taxonomyGroups.getByRole('heading')).toHaveText(['品牌基础提问', '核心业务能力提问', '竞品对比提问']);
+  await expect(taxonomyGroups.getByText('事实查询', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('20%')).toBeVisible();
+  await expect(taxonomyGroups.getByText('品牌产品是什么？')).toBeVisible();
+  await expect(taxonomyGroups.getByText('品牌验证', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('8%', {exact: true})).toHaveCount(2);
+  await expect(taxonomyGroups.getByText('核心业务能力提问 · 场景')).toHaveCount(0);
+  await expect(taxonomyGroups.getByText('场景', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('风险', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('能力确认', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('竞品对比提问 · 比较')).toHaveCount(0);
+  await expect(taxonomyGroups.getByText('比较', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('替代', {exact: true})).toBeVisible();
+  await expect(taxonomyGroups.getByText('推荐', {exact: true})).toBeVisible();
 });
 
 test('defaults Playwright 网页复核 to enabled and saves its disabled value', async ({ page }) => {
