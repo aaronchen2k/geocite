@@ -42,3 +42,26 @@
 - 生命周期与进程枚举均通过注入依赖 mock 测试；本任务未在开发机启动真实 Chrome 或执行真实网站登录。
 - `engines.module.ts` 是任务清单外的必要配套修改：它导入并接收 `LocalChromeService`，否则 Nest 无法解析引擎控制器所需的跨模块服务。
 - 添加依赖导致 `pnpm-lock.yaml` 更新，应与 `server/package.json` 一并提交以保证可复现安装。
+
+## 审查修复（Task 2 Important / minor）
+
+### TDD 红绿记录
+
+1. RED：新增精确命令行参数匹配用例，首次运行因尚未导出 `hasExactControlledChromeArguments` 而编译失败；实现 token 解析与精确比较后转绿。
+2. RED：新增 `profilePath` 唯一索引元数据用例，失败信息为 `Expected: true, Received: undefined`；添加唯一索引后转绿。
+3. 其余新增回归用例覆盖：复用前台 context 仍访问该引擎目标登录页、`a/b` 与 `a?b` 的 profile 路径隔离、受控失败码和脱敏中文文案、关闭未确认时保持 `running`，以及拒绝 launchId/profile 路径的前缀碰撞。
+
+### 修复结果
+
+- 复用的前台 context 现携带 engine 进行目标页轻量检查，不会在不导航的情况下直接就绪。
+- Profile 目录包含 engine id 与 UUID，且 `profile_path` 具有数据库唯一索引。
+- 新增持久化的 `failureCode`；接口与数据库只保存受控失败码和中文脱敏文案，原始异常仅通过服务日志记录。
+- Unix 和 Windows 均将进程命令行解析为参数后精确比较 `--geocite-review-launch-id` 与 `--user-data-dir`。
+- 未确认关闭时不再把启动记录写为 `closed`。
+
+### 验证与提交
+
+- `pnpm --filter @geocite/server test -- local-chrome.service.spec.ts`：11/11 通过。
+- `pnpm --filter @geocite/server test`：20 个测试套件、87 个测试通过。
+- `pnpm --filter @geocite/server build` 与 `git diff --check`：通过。
+- 实现提交：`76a739c fix: harden local Chrome review lifecycle`。
