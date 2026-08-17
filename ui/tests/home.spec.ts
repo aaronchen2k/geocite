@@ -125,9 +125,9 @@ test('saves basic configuration without question record ids', async ({ page }) =
   });
   await page.route('http://127.0.0.1:8101/api/v1/brands/5/diagnosis-questions', async (route) => {
     const configuration = {
-      questions: [{ id: 101, text: '已有诊断问题', group: '核心业务能力提问', market: 'cn', brandProbe: false }],
-      prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 10,
-      questionCategoryRatio: { brandBasic: 1, coreCapability: 2, competitorComparison: 1 },
+      questions: [{ id: 101, text: '已有诊断问题', group: '核心业务能力提问', primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认', market: 'cn', brandProbe: false }],
+      prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 20,
+      taxonomyVersion: 'v1', categoryWeights: [{primaryCategory: '品牌基础提问', secondaryCategory: '事实查询', weight: 20, example: '品牌产品是什么？'}],
     };
     if (route.request().method() === 'PUT') {
       expect(route.request().postDataJSON()).toMatchObject({
@@ -140,6 +140,8 @@ test('saves basic configuration without question record ids', async ({ page }) =
 
   await page.goto('/zh/configuration/basic');
   await expect(page.getByRole('heading', { name: '基础配置' })).toBeVisible();
+  await expect(page.getByText('固定分类权重')).toBeVisible();
+  await expect(page.getByLabel('品牌基础提问比例')).toHaveCount(0);
   await page.getByRole('button', { name: '保存配置' }).click();
 
   await expect(page.getByText('配置已保存。')).toBeVisible();
@@ -158,8 +160,8 @@ test('defaults Playwright 网页复核 to enabled and saves its disabled value',
   });
   await page.route('http://127.0.0.1:8101/api/v1/brands/5/diagnosis-questions', async (route) => {
     const configuration = {
-      questions: [], prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 10,
-      questionCategoryRatio: { brandBasic: 1, coreCapability: 2, competitorComparison: 1 },
+      questions: [], prompt: '', sitemapUrlLimit: 10, samplingQuestionCount: 20,
+      categoryWeights: [{primaryCategory: '品牌基础提问', secondaryCategory: '事实查询', weight: 20, example: '品牌产品是什么？'}],
     };
     if (route.request().method() === 'PUT') {
       expect(route.request().postDataJSON()).toMatchObject({ playwrightWebReviewEnabled: false });
@@ -183,16 +185,20 @@ test('opens AI question suggestions from the brand-question modal', async ({ pag
   });
   await page.route('http://127.0.0.1:8101/api/v1/brands/91/diagnosis-questions**', async (route) => {
     if (route.request().method() === 'POST') {
-      await route.fulfill({json: {questions: [{text: '适合哪些团队使用？', group: '适用场景'}]}});
+      await route.fulfill({json: {questions: [{text: '适合哪些团队使用？', primaryCategory: '核心业务能力提问', secondaryCategory: '场景'}]}});
       return;
     }
     if (route.request().method() === 'PUT') {
       const payload = route.request().postDataJSON() as {questions: Array<Record<string, unknown>>};
       expect(payload.questions[0]).not.toHaveProperty('id');
-      await route.fulfill({json: {questions: [{id: 101, text: '适合哪些团队使用？', group: '适用场景', market: 'cn', brandProbe: false}], prompt: ''}});
+      await route.fulfill({json: {questions: [{id: 101, text: '适合哪些团队使用？', group: '核心业务能力提问', primaryCategory: '核心业务能力提问', secondaryCategory: '场景', market: 'cn', brandProbe: false}], prompt: '', categoryWeights: [{primaryCategory: '核心业务能力提问', secondaryCategory: '场景', weight: 15, example: '适合什么场景？'}]}});
       return;
     }
-    await route.fulfill({ json: {questions: [], prompt: ''} });
+    await route.fulfill({ json: {questions: [], prompt: '', categoryWeights: [
+      {primaryCategory: '品牌基础提问', secondaryCategory: '事实查询', weight: 20, example: '品牌产品是什么？'},
+      {primaryCategory: '核心业务能力提问', secondaryCategory: '场景', weight: 15, example: '适合什么场景？'},
+      {primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认', weight: 15, example: '是否满足需求？'},
+    ]} });
   });
   await page.goto('/zh/configuration/questions');
 
@@ -207,6 +213,7 @@ test('opens AI question suggestions from the brand-question modal', async ({ pag
   await expect(page.getByRole('link', {name: '全选'})).toBeVisible();
   await expect(page.getByLabel('适合哪些团队使用？')).toBeVisible();
   await page.getByLabel('适合哪些团队使用？').check();
+  await expect(page.getByText('场景')).toBeVisible();
   await page.getByRole('button', {name: '关闭'}).click();
   await page.getByRole('button', {name: '保存问题库'}).click();
   await expect(page.getByText('问题库已保存。')).toBeVisible();
