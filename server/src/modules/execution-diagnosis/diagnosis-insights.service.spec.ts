@@ -24,6 +24,7 @@ describe('DiagnosisInsightsService', () => {
     const result = await service.forRun(5, 7);
 
     expect(result.metrics).toMatchObject({ sampleCount: 3, sourceCount: 2, successfulSampleRate: 2 / 3, brandMentionRate: 0 });
+    expect(result.evidenceBasis).toBe('web-review-corrected');
     expect(result.webReviewSummary).toEqual({ apiTotal: 3, minimumTarget: 1, mandatoryCore: 1, mandatoryMentioned: 1, randomUnmentioned: 1, minimumFill: 1, succeeded: 1, excludedByReason: { 'pending-login': 2 } });
     expect(result.questions).toEqual(expect.arrayContaining([
       expect.objectContaining({ question: '哪个协作工具适合团队使用？', group: '选型', mentionRate: 0 }),

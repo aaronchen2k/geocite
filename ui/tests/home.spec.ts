@@ -67,6 +67,7 @@ test('keeps business groups expanded and system management collapsed by default'
 });
 
 test('explains how each verification page is activated', async ({page}) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.goto('/zh/verification/visibility-trend');
 
   await expect(page.getByText('根据历次完成的诊断，绘制品牌可见性及其变化趋势。')).toBeVisible();
@@ -86,6 +87,7 @@ test('explains how each verification page is activated', async ({page}) => {
 });
 
 test('explains the target and concrete work of each improvement page', async ({page}) => {
+  await page.addInitScript(() => window.localStorage.setItem('geocite.locale', 'zh'));
   await page.goto('/zh/improvement/optimization-work-orders');
   await expect(page.getByRole('heading', {name: '针对什么'})).toBeVisible();
   await expect(page.getByText('针对诊断报告、问答汇总、竞品对比和站点体检中已确认的发现项。')).toBeVisible();
@@ -228,7 +230,7 @@ test('opens AI question suggestions from the brand-question modal', async ({ pag
   await expect(page.getByRole('link', {name: '全选'})).toBeVisible();
   await expect(page.getByLabel('适合哪些团队使用？')).toBeVisible();
   await page.getByLabel('适合哪些团队使用？').check();
-  await expect(page.getByText('场景')).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('核心业务能力提问 · 场景')).toBeVisible();
   await page.getByRole('button', {name: '关闭'}).click();
   await page.getByRole('button', {name: '保存问题库'}).click();
   await expect(page.getByText('问题库已保存。')).toBeVisible();

@@ -6,6 +6,12 @@ import { compareDiagnosisRuns, createAttribution, createComparisonExperiment, cr
 import { useWorkspaceStore } from '@/stores/workspace-store';
 
 type Variant = 'trend' | 'questions' | 'comparison' | 'attribution' | 'periodic-retest' | 'comparison-test';
+type ActivationGuidance = { purpose: string; automatic: string; manual: string };
+const activationGuidance: Partial<Record<Variant, ActivationGuidance>> = {
+  trend: { purpose: '根据历次完成的诊断，绘制品牌可见性及其变化趋势。', automatic: '至少需要两次完成的诊断运行。', manual: '本页仅用于选择周期和查看趋势，无需单独运行。' },
+  attribution: { purpose: '对比优化动作前后的诊断结果，帮助判断哪些变化可能与已执行的优化有关。', automatic: '重新诊断只能呈现前后相关变化，不能自动得出因果归因。', manual: '关联优化动作或工单，必要时补充人工归因说明。' },
+  'comparison-test': { purpose: '比较预先定义的对照组与实验组的诊断结果，验证某一优化策略是否更有效。', automatic: '单次重新执行诊断不会自动形成对比实验结果。', manual: '创建对照组和实验组，定义比较范围与成功指标，再分别运行。' },
+};
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 const reasonLabels: Record<string, string> = { brand: '品牌', market: '市场', question_set: '问题集', engine_set: '引擎集合', sampling_method: '采样方式', rules_version: '规则版本', not_completed: '运行未完成', missing_snapshot: '缺少冻结快照' };
 
@@ -33,6 +39,7 @@ export function VerificationPages({ variant }: { variant: Variant }): React.JSX.
   const title = variant === 'trend' ? '可见性趋势' : variant === 'questions' ? '问题追踪' : variant === 'comparison' ? '运行比较' : variant === 'attribution' ? '效果归因' : variant === 'periodic-retest' ? '周期复测' : '对比测试';
   const description = variant === 'trend' ? '根据历次完成诊断绘制品牌在真实模型采样中的可见性变化。' : variant === 'questions' ? '根据历次完成诊断，按冻结的问题集追踪每次运行中的品牌可见性。' : variant === 'comparison' ? '对比前后两个诊断；仅在冻结配置可比或部分可比时汇总共同的问题和引擎。' : variant === 'attribution' ? '把人工完成的优化动作与前后诊断比较关联，用于记录人工依据下的归因结论。' : variant === 'periodic-retest' ? '配置后续复测范围和通知方式；每次复测仍需由人工在页面上明确发起。' : '定义对照组、实验组与成功指标，使用两次明确选择的诊断运行进行对比。';
   return <section className="pb-8"><header className="mb-6 border-b border-[var(--border)] pb-4"><h1 className="mb-2 text-[22px] font-semibold">{title}</h1><p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p></header>
+    <ActivationGuide guidance={activationGuidance[variant]} />
     {error && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
     {!brandId ? <Empty message="请先在顶部选择 Brand。" />
       : variant === 'trend' ? (trend === undefined ? <Loading /> : <Trend trend={trend ?? { runs: [] }} />)
@@ -42,6 +49,11 @@ export function VerificationPages({ variant }: { variant: Variant }): React.JSX.
               : variant === 'periodic-retest' ? (retestPlans === undefined ? <Loading /> : <PeriodicRetestPage brandId={brandId} plans={retestPlans ?? []} onRefresh={load} />)
                 : (experiments === undefined ? <Loading /> : <ExperimentPage brandId={brandId} experiments={experiments ?? []} onRefresh={load} />)}
   </section>;
+}
+
+function ActivationGuide({ guidance }: { guidance?: ActivationGuidance }): React.JSX.Element | null {
+  if (!guidance) return null;
+  return <section aria-label="验证说明" className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><h2 className="text-sm font-semibold">本页用于</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{guidance.purpose}</p><div className="mt-4 grid gap-4 md:grid-cols-2"><div><h2 className="text-sm font-semibold">重新执行诊断后自动更新</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{guidance.automatic}</p></div><div><h2 className="text-sm font-semibold">需要在页面单独操作</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{guidance.manual}</p></div></div></section>;
 }
 
 function Loading() { return <p className="text-sm text-[var(--muted-foreground)]">正在加载验证数据…</p>; }

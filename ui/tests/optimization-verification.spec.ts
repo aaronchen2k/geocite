@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('engine management exposes web-review status and the diagnosis report explains its evidence basis', async ({ page }) => {
+test('engine management exposes web-review status and the diagnosis report does not claim correction without successful web review', async ({ page }) => {
   await page.addInitScript(() => { window.localStorage.setItem('geocite.locale', 'zh'); window.localStorage.setItem('geocite.workspace', JSON.stringify({ state: { currentBrandId: 5 }, version: 0 })); });
   await page.route('http://127.0.0.1:8101/api/v1/engines?*', async (route) => {
     await route.fulfill({ json: { items: [{ id: 12, name: '示例引擎', code: 'example', vendor: 'Example', disabled: false, createdAt: '2026-08-17T00:00:00.000Z', updatedAt: '2026-08-17T00:00:00.000Z', webReview: { availability: 'pending_login', lastCheckedAt: null, lastFailureReason: null, lastReadyAt: null } }], total: 1 } });
@@ -12,6 +12,7 @@ test('engine management exposes web-review status and the diagnosis report expla
     await route.fulfill({ json: {
       run: { id: 7, createdAt: '2026-08-17T00:00:00.000Z', finishedAt: '2026-08-17T00:00:00.000Z' },
       metrics: { sampleCount: 10, questionCount: 4, brandMentionRate: 0.4, citedEngines: 1, successfulSampleRate: 1, reviewedSampleCount: 0, sourceCount: 0 },
+      evidenceBasis: 'api-reference-only',
       questions: [], competitors: [], competitorMatrix: [], findings: [],
       report: { engines: [], groups: [], priorityActions: [], competitorDominatedCount: 0, absentCount: 0, normalCount: 0 },
       webReviewSummary: { apiTotal: 10, minimumTarget: 3, mandatoryCore: 1, mandatoryMentioned: 1, randomUnmentioned: 1, minimumFill: 0, succeeded: 0, excludedByReason: { 'pending-login': 1 } },
@@ -26,8 +27,8 @@ test('engine management exposes web-review status and the diagnosis report expla
 
   await page.goto('/zh/diagnosis/diagnosis-report');
   await expect(page.getByRole('heading', { name: '网页端真实用户环境复核' })).toBeVisible();
-  await expect(page.getByText('仅 API 参考，不作为校正结论')).toBeVisible();
-  await expect(page.getByText('本次共采集 10 条目标问句，全部通过官方 API 批量预扫描；其中 0 条关键样本经过网页端真实用户环境复核，最终指标以复核样本校正得出；其余 API 扫描结果仅供参考。')).toBeVisible();
+  await expect(page.getByText('仅 API 参考，未经过网页复核校正，不输出校正结论')).toBeVisible();
+  await expect(page.getByText('最终指标以复核样本校正得出')).toHaveCount(0);
 });
 
 test('shows the visibility-trend empty state when fewer than two completed runs exist', async ({ page }) => {

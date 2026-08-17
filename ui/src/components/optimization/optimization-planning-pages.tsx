@@ -35,6 +35,11 @@ const sourceLabels: Record<string, {zh: string; en: string}> = {
   'site-discovery': {zh: '站点发现', en: 'Site discovery'},
 };
 
+const planningGuidance: Partial<Record<PlanningVariant, {target: string; work: string}>> = {
+  website: {target: '针对影响 AI 抓取、访问、理解与引用网站内容的技术和页面问题。', work: '修复 robots.txt、站点地图、结构化数据、页面可访问性和可引用段落。'},
+  content: {target: '围绕已审核的品牌事实和诊断发现的问题缺口，规划需要补充的内容。', work: '当前仅管理内容选题、事实依据和审核计划；不自动生成或发布文章。'},
+};
+
 function numberParam(value: string | null) { const number = Number(value); return Number.isInteger(number) && number > 0 ? number : undefined; }
 
 export function OptimizationPlanningPage({variant}: {variant: PlanningVariant}): React.JSX.Element {
@@ -64,9 +69,11 @@ export function OptimizationPlanningPage({variant}: {variant: PlanningVariant}):
     finally { setSaving(false); }
   };
   const sourceLabel = source ? sourceLabels[source]?.[locale === 'zh' ? 'zh' : 'en'] ?? source : null;
+  const guidance = locale === 'zh' ? planningGuidance[variant] : undefined;
 
   return <section className="pb-8">
     <header className="mb-6 border-b border-[var(--border)] pb-4"><h1 className="mb-2 text-[22px] font-semibold">{copy.title}</h1><p className="max-w-3xl text-sm leading-6 text-[var(--muted-foreground)]">{copy.description}</p></header>
+    {guidance && <section aria-label="优化说明" className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><div className="grid gap-4 md:grid-cols-2"><div><h2 className="text-sm font-semibold">针对什么</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{guidance.target}</p></div><div><h2 className="text-sm font-semibold">具体优化</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">{guidance.work}</p></div></div></section>}
     {(sourceLabel || sourceRunId) && <div className="mb-5 flex flex-wrap gap-x-4 gap-y-1 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm"><span>{copy.source}：{sourceLabel ?? '—'}</span>{sourceRunId && <span>{copy.run}：#{sourceRunId}</span>}</div>}
     {copy.note && <p className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm font-medium">{copy.note}</p>}
     {!brandId ? <p className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-5 py-10 text-center text-sm text-[var(--muted-foreground)]">{copy.noBrand}</p>

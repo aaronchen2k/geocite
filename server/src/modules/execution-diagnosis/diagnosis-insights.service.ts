@@ -88,7 +88,8 @@ export class DiagnosisInsightsService {
     const countSelection = (reason: ExecutionDiagnosisWebReviewEntity['selectionReasons'][number]) => webReviews.filter((review) => review.selectionReasons.includes(reason)).length;
     const excludedByReason = webReviews.filter((review) => review.status === 'excluded' && review.exclusionReason).reduce<Record<string, number>>((result, review) => ({ ...result, [review.exclusionReason!]: (result[review.exclusionReason!] ?? 0) + 1 }), {});
     const minimumRate = run.configurationSnapshot?.webReview?.minimumRate ?? 0.3;
-    const webReviewSummary = { apiTotal: samples.length, minimumTarget: Math.ceil(samples.length * minimumRate), mandatoryCore: countSelection('core_capability'), mandatoryMentioned: countSelection('api_brand_mentioned'), randomUnmentioned: countSelection('random_unmentioned'), minimumFill: countSelection('minimum_fill'), succeeded: webReviews.filter((review) => review.status === 'succeeded').length, excludedByReason };
+    const successfulWebReviews = webReviews.filter((review) => review.status === 'succeeded').length;
+    const webReviewSummary = { apiTotal: samples.length, minimumTarget: Math.ceil(samples.length * minimumRate), mandatoryCore: countSelection('core_capability'), mandatoryMentioned: countSelection('api_brand_mentioned'), randomUnmentioned: countSelection('random_unmentioned'), minimumFill: countSelection('minimum_fill'), succeeded: successfulWebReviews, excludedByReason };
     return {
       run: { id: run.id, status: run.status, createdAt: run.createdAt, finishedAt: run.finishedAt, summary: run.summary },
       metrics: { sampleCount: samples.length, questionCount: questions.length, brandMentionRate: brandMention.rate, citedEngines: new Set(samples.filter((sample) => !sample.error).map((sample) => sample.engineId)).size, successfulSampleRate: samples.length ? samples.filter((sample) => !sample.error).length / samples.length : 0, reviewedSampleCount: samples.filter((sample) => sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined).length, sourceCount: sources.size },
@@ -97,6 +98,7 @@ export class DiagnosisInsightsService {
       competitorMatrix,
       report: { engines: engineInsights, groups: groupInsights, priorityActions, competitorDominatedCount: questionInsights.filter((item) => item.diagnosis === 'competitor-dominated').length, absentCount: questionInsights.filter((item) => item.diagnosis === 'absent').length, normalCount: questionInsights.filter((item) => item.diagnosis === 'normal').length },
       webReviewSummary,
+      evidenceBasis: successfulWebReviews > 0 ? 'web-review-corrected' : 'api-reference-only',
       findings: findings.map((finding) => ({ id: finding.id, sourceRunId: finding.sourceRunId, type: finding.type, priority: finding.priority, scope: finding.scope, recommendation: finding.recommendation, status: finding.status })),
       samples: samples.map((sample) => ({ id: sample.id, engineName: sample.engineName, question: sample.question, answer: sample.answer, error: sample.error, sampledAt: sample.sampledAt, statusCode: sample.statusCode, brandMention: this.sampleMentions(sample, [brand.name], true), reviewedBrandMention: sample.reviewedBrandMention, reviewNote: sample.reviewNote, sources: this.sources(sample.answer) })),
     };
