@@ -8,11 +8,12 @@ import { BrandDiagnosisQuestionEntity, ExecutionDiagnosisEventEntity, ExecutionD
 import { CompetitorEntity } from '../modules/competitors/competitor.entity';
 import { AttributionRecordEntity, ComparisonExperimentEntity, DiagnosisComparisonEntity, DiagnosisFindingEntity, OptimizationActionEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, PeriodicRetestPlanEntity } from '../modules/execution-diagnosis/optimization-verification.entity';
 import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity } from '../modules/execution-diagnosis/web-review.entity';
+import { DiagnosisQuestionTaxonomyEntity } from '../modules/execution-diagnosis/question-taxonomy.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'sqlite',
   database: process.env.NODE_ENV === 'test' ? ':memory:' : 'data/geocite.sqlite',
-  entities: [BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, RagAgentEntity, CompetitorEntity, BrandDiagnosisQuestionEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisWebReviewEntity, DiagnosisFindingEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, OptimizationActionEntity, DiagnosisComparisonEntity, AttributionRecordEntity, PeriodicRetestPlanEntity, ComparisonExperimentEntity, EngineWebReviewProfileEntity, EngineBrowserLaunchEntity],
+  entities: [BrandEntity, BrandEngineEntity, EngineEntity, ModelEntity, RagAgentEntity, CompetitorEntity, BrandDiagnosisQuestionEntity, DiagnosisQuestionTaxonomyEntity, ExecutionDiagnosisRunEntity, ExecutionDiagnosisStepEntity, ExecutionDiagnosisEventEntity, ExecutionDiagnosisPageEntity, ExecutionDiagnosisProbeEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisWebReviewEntity, DiagnosisFindingEntity, OptimizationWorkOrderEntity, OptimizationWorkOrderTransitionEntity, OptimizationActionEntity, DiagnosisComparisonEntity, AttributionRecordEntity, PeriodicRetestPlanEntity, ComparisonExperimentEntity, EngineWebReviewProfileEntity, EngineBrowserLaunchEntity],
   synchronize: true,
 };
 

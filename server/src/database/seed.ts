@@ -5,6 +5,8 @@ import { BrandEntity } from '../modules/brands/brand.entity';
 import { EngineEntity } from '../modules/engines/engine.entity';
 import { ModelEntity } from '../modules/models/model.entity';
 import { RagAgentEntity } from '../modules/rag-agents/rag-agent.entity';
+import { DiagnosisQuestionTaxonomyEntity } from '../modules/execution-diagnosis/question-taxonomy.entity';
+import { DEFAULT_QUESTION_TAXONOMY, QUESTION_TAXONOMY_VERSION } from '../modules/execution-diagnosis/brand-question-prompt';
 import { logLocal } from '../logging/local-time';
 
 async function saveByUnique<T extends ObjectLiteral>(repository: Repository<T>, records: DeepPartial<T>[], unique: keyof T): Promise<void> {
@@ -21,6 +23,9 @@ async function seed(): Promise<void> {
   const engines = appDataSource.getRepository(EngineEntity);
   const models = appDataSource.getRepository(ModelEntity);
   const agents = appDataSource.getRepository(RagAgentEntity);
+  const taxonomy = appDataSource.getRepository(DiagnosisQuestionTaxonomyEntity);
+
+  await saveByUnique(taxonomy, DEFAULT_QUESTION_TAXONOMY.map((item) => ({ ...item, version: QUESTION_TAXONOMY_VERSION })), 'code');
 
   await saveByUnique(brands, [
     { code: 'aurora-beauty', name: '极光美妆', website: 'https://aurora.example.com', industry: '美妆个护', description: '面向年轻消费者的国货美妆品牌。', disabled: false },

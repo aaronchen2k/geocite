@@ -190,7 +190,7 @@ export class ExecutionDiagnosisService {
     ]);
     const markets = [...new Set(questions.map((item) => item.market))];
     return {
-      questions: questions.map((item) => ({ id: item.id, question: item.question, group: item.group, market: item.market, brandProbe: item.brandProbe })),
+      questions: questions.map((item) => ({ id: item.id, question: item.question, group: item.primaryCategory ?? item.group, primaryCategory: item.primaryCategory ?? item.group ?? '核心业务能力提问', secondaryCategory: item.secondaryCategory ?? '能力确认', market: item.market, brandProbe: item.brandProbe })),
       market: markets.length === 1 ? markets[0] : markets.length ? 'mixed' : null,
       markets,
       engines: engines.eligible.map((item) => ({ id: item.id, name: item.name, code: item.code, vendor: item.vendor, modelName: item.modelName, baseUrl: item.baseUrl, apiKey: item.apiKey, nativeWebSearch: item.webSearchEnabled === true })),

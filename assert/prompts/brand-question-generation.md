@@ -15,8 +15,9 @@
 
 ## 问题设计规则
 
-1. 必须一次性生成且只生成 {{samplingQuestionCount}} 个问题；输出前自行计数确认 `questions` 数组恰好有 {{samplingQuestionCount}} 项。严格按以下配额生成：品牌基础提问：{{brandBasicQuota}} 题；核心业务能力提问：{{coreCapabilityQuota}} 题；竞品对比提问：{{competitorComparisonQuota}} 题。禁止补发、重试或自行改动配额。
-2. 每个问题对象都必须带 `category`，且只能是“品牌基础提问”“核心业务能力提问”“竞品对比提问”之一；同一分类下的问题应有明确的诊断价值，避免语义重复。
+1. 必须一次性生成且只生成 {{samplingQuestionCount}} 个问题；输出前自行计数确认 `questions` 数组恰好有 {{samplingQuestionCount}} 项。严格按以下二级分类配额生成，禁止补发、重试或自行改动配额：
+{{taxonomyRules}}
+2. 每个问题对象都必须带 `primaryCategory` 和 `secondaryCategory`，必须精确使用上述分类名称；二级分类必须从属于对应的一级分类。同一分类下的问题应有明确的诊断价值，避免语义重复。
 3. 问题应自然口语化、具体明确，便于清晰判断 AI 是否提及品牌、提及位置及描述是否准确。
 4. 品牌词问题应涉及资质、价格、服务流程等具体细节，用于测试 AI 对品牌信息的掌握准确度和防幻觉能力。
 5. 通用词问题不得出现品牌名称，应属于品牌所在行业的典型用户提问，用于测试行业通用推荐中的自然可见度和占位能力。
@@ -24,4 +25,4 @@
 ## 输出格式
 
 只输出一个可直接解析的 JSON 对象，不要 Markdown 代码块、解释或诊断执行建议：
-{"questions":[{"text":"通用词问题 1","category":"核心业务能力提问"},{"text":"品牌词问题 1","category":"品牌基础提问"}]}
+{"questions":[{"text":"通用词问题 1","primaryCategory":"核心业务能力提问","secondaryCategory":"场景"},{"text":"品牌词问题 1","primaryCategory":"品牌基础提问","secondaryCategory":"事实查询"}]}

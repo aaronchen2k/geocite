@@ -1,9 +1,20 @@
-import { DiagnosisConfigurationService, validateSamplingConfig } from './diagnosis-configuration.service';
+import { DiagnosisConfigurationService } from './diagnosis-configuration.service';
+import { DEFAULT_QUESTION_TAXONOMY } from './brand-question-prompt';
 
 describe('DiagnosisConfigurationService', () => {
-  it('拒绝不完整或非正数的诊断采样配置', () => {
-    expect(() => validateSamplingConfig({ samplingQuestionCount: 3, questionCategoryRatio: { brandBasic: 1, coreCapability: 0, competitorComparison: 1 } }))
-      .toThrow('问题分类比例必须全部大于 0');
+  it('从数据库分类定义返回固定权重，并为旧题补齐核心能力/能力确认标签', async () => {
+    const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, deleted: false };
+    const legacyQuestion = { id: 11, question: '旧问题仍应保留', group: '选型', primaryCategory: null, secondaryCategory: null, market: 'cn', brandProbe: false, ordr: 0 };
+    const questions = { find: jest.fn().mockResolvedValue([legacyQuestion]), save: jest.fn().mockResolvedValue([legacyQuestion]) };
+    const taxonomy = { find: jest.fn().mockResolvedValue(DEFAULT_QUESTION_TAXONOMY.map((item) => ({ ...item, version: 'v1' }))) };
+    const service = new DiagnosisConfigurationService({ findOne: jest.fn().mockResolvedValue(brand) } as never, {} as never, questions as never, taxonomy as never);
+
+    await expect(service.list(5)).resolves.toMatchObject({
+      taxonomyVersion: 'v1',
+      categoryWeights: expect.arrayContaining([expect.objectContaining({ secondaryCategory: '能力确认', weight: 15 })]),
+      questions: [expect.objectContaining({ text: '旧问题仍应保留', primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认' })],
+    });
+    expect(questions.save).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认' })]));
   });
 
   it('为未设置抓取上限的品牌返回默认值 10', async () => {
@@ -26,8 +37,8 @@ describe('DiagnosisConfigurationService', () => {
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };
     const service = new DiagnosisConfigurationService(brands as never, {} as never, { find: jest.fn().mockResolvedValue([]), delete: jest.fn(), save: jest.fn(), create: jest.fn() } as never);
 
-    const saveWithWebReviewSetting = service.save.bind(service) as unknown as (brandId: number, inputs: [], prompt?: string, sitemapUrlLimit?: number, samplingQuestionCount?: number, questionCategoryRatio?: unknown, playwrightWebReviewEnabled?: boolean) => Promise<unknown>;
-    await expect(saveWithWebReviewSetting(5, [], undefined, undefined, undefined, undefined, false)).resolves.toMatchObject({ playwrightWebReviewEnabled: false });
+    const saveWithWebReviewSetting = service.save.bind(service) as unknown as (brandId: number, inputs: [], prompt?: string, sitemapUrlLimit?: number, samplingQuestionCount?: number, playwrightWebReviewEnabled?: boolean) => Promise<unknown>;
+    await expect(saveWithWebReviewSetting(5, [], undefined, undefined, undefined, false)).resolves.toMatchObject({ playwrightWebReviewEnabled: false });
     expect(brands.save).toHaveBeenCalledWith(expect.objectContaining({ playwrightWebReviewEnabled: false }));
   });
 
@@ -67,10 +78,10 @@ describe('DiagnosisConfigurationService', () => {
     const brands = { findOne: jest.fn().mockResolvedValue(brand), save: jest.fn().mockResolvedValue(brand) };
     const models = { findOne: jest.fn().mockResolvedValue({ baseUrl: 'https://model.example', apiKey: 'key', modelName: 'model' }) };
     const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
-      { text: '品牌是什么？', category: '品牌基础提问' },
-      { text: '核心能力是什么？', category: '核心业务能力提问' },
-      { text: '竞品有哪些？', category: '竞品对比提问' },
-      { text: '如何对比竞品？', category: '竞品对比提问' },
+      { text: '品牌是什么？', primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' },
+      { text: '核心能力是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '场景' },
+      { text: '风险是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '风险' },
+      { text: '能力如何？', primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认' },
     ] }) } }] }) });
     const previousFetch = global.fetch;
     global.fetch = fetchMock as typeof fetch;
@@ -81,10 +92,10 @@ describe('DiagnosisConfigurationService', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
       fetchMock.mockClear();
       fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
-        { text: '品牌是什么？', category: '品牌基础提问' },
-        { text: '核心能力是什么？', category: '核心业务能力提问' },
-        { text: '竞品有哪些？', category: '竞品对比提问' },
-        { text: '竞品还是什么？', category: '核心业务能力提问' },
+        { text: '品牌是什么？', primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' },
+        { text: '核心能力是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '场景' },
+        { text: '风险是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '风险' },
+        { text: '能力如何？', primaryCategory: '核心业务能力提问', secondaryCategory: '场景' },
       ] }) } }] }) });
       await expect(service.generate(5)).rejects.toThrow('问题分类配额');
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -97,11 +108,11 @@ describe('DiagnosisConfigurationService', () => {
     const brand = { id: 5, name: '乐堡论文', industry: null, description: null, questions: [], questionsPrompt: null, sitemapUrlLimit: null, samplingQuestionCount: 4, questionCategoryRatio: { brandBasic: 1, coreCapability: 1, competitorComparison: 2 }, deleted: false };
     const models = { findOne: jest.fn().mockResolvedValue({ baseUrl: 'https://model.example', apiKey: 'key', modelName: 'model' }) };
     const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ questions: [
-      { text: '品牌是什么？', category: '品牌基础提问' },
-      { text: '核心能力是什么？', category: '核心业务能力提问' },
-      { text: '竞品有哪些？', category: '竞品对比提问' },
-      { text: '如何对比竞品？', category: '竞品对比提问' },
-      { text: '竞品优势是什么？', category: '竞品对比提问' },
+      { text: '品牌是什么？', primaryCategory: '品牌基础提问', secondaryCategory: '事实查询' },
+      { text: '核心能力是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '场景' },
+      { text: '风险是什么？', primaryCategory: '核心业务能力提问', secondaryCategory: '风险' },
+      { text: '能力如何？', primaryCategory: '核心业务能力提问', secondaryCategory: '能力确认' },
+      { text: '比较如何？', primaryCategory: '竞品对比提问', secondaryCategory: '比较' },
     ] }) } }] }) });
     const previousFetch = global.fetch;
     global.fetch = fetchMock as typeof fetch;
@@ -123,6 +134,6 @@ describe('DiagnosisConfigurationService', () => {
     const result = await service.resetPrompt(5);
 
     expect(brands.save).toHaveBeenCalledWith(expect.objectContaining({ questionsPrompt: expect.stringContaining('品牌名称：乐堡论文') }));
-    expect(result.prompt).toContain('只生成 10 个问题');
+    expect(result.prompt).toContain('只生成 20 个问题');
   });
 });

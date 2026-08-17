@@ -4,7 +4,8 @@ import { BrandEntity } from '../brands/brand.entity';
 export type ExecutionRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'partial';
 export type ExecutionStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'partial' | 'skipped' | 'unmeasured' | 'cancelled';
 export type ExecutionDiagnosisConfigurationSnapshot = {
-  questions: Array<{ id: number; question: string; group: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
+  questions: Array<{ id: number; question: string; group: string; primaryCategory: string; secondaryCategory: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
+  taxonomyVersion?: string;
   market: 'cn' | 'global' | 'both' | 'mixed' | null;
   markets: Array<'cn' | 'global' | 'both'>;
   engines: Array<{ id: number; name: string; code: string; vendor: string; modelName: string | null; baseUrl: string | null; apiKey: string | null; nativeWebSearch: boolean }>;
@@ -134,6 +135,8 @@ export class BrandDiagnosisQuestionEntity {
   @ManyToOne(() => BrandEntity, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'brand_id' }) brand!: BrandEntity;
   @Column({ type: 'text' }) question!: string;
   @Column({ default: '核心业务能力提问' }) group!: string;
+  @Column({ name: 'primary_category', default: '核心业务能力提问' }) primaryCategory!: string;
+  @Column({ name: 'secondary_category', default: '能力确认' }) secondaryCategory!: string;
   @Column({ default: 'cn' }) market!: 'cn' | 'global' | 'both';
   @Column({ name: 'brand_probe', default: false }) brandProbe!: boolean;
   @Column({ default: 0 }) ordr!: number;
