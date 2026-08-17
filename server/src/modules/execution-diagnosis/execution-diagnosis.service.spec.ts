@@ -25,6 +25,7 @@ describe('ExecutionDiagnosisService events', () => {
 
     expect(runs.create).toHaveBeenCalledWith(expect.objectContaining({
       configurationSnapshot: expect.objectContaining({
+        taxonomyVersion: 'v1',
         webReview: expect.objectContaining({ enabled: false, minimumRate: 0.3, selected: [], randomSeed: expect.any(String) }),
       }),
     }));

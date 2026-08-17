@@ -17,6 +17,7 @@ import { EngineSamplingClient } from './engine-sampling-client';
 import { DiagnosisFindingEntity, type DiagnosisFindingType } from './optimization-verification.entity';
 import { selectWebReviewSamples, webReviewCandidates, type WebReviewSelection } from './web-review-selector';
 import { WebReviewRunnerService } from './web-review-runner.service';
+import { QUESTION_TAXONOMY_VERSION } from './brand-question-prompt';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']> & { stepStatus?: 'skipped' };
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
@@ -197,6 +198,7 @@ export class ExecutionDiagnosisService {
       skippedEngines: engines.skipped,
       samplingMethod: 'api',
       rulesVersion,
+      taxonomyVersion: QUESTION_TAXONOMY_VERSION,
       executionScope,
       webReview: { rulesVersion: 'v1', minimumRate: 0.3, randomSeed: randomUUID(), candidateSampleIds: [], selected: [], enabled: webReviewEnabled },
     };
