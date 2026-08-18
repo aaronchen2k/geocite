@@ -167,6 +167,13 @@ describe('LocalChromeService', () => {
     await expect(service.reset({ ...engine, code: 'doubao', vendor: 'ByteDance', homepage: 'https://www.doubao.com' })).resolves.toBe('pending_login');
   });
 
+  it('豆包同时存在账户头像按钮和已认证侧栏时标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.doubao.com/chat/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ accountAvatarButtonPresent: true, authenticatedSidebarPresent: true }) }]);
+
+    await expect(service.reset({ ...engine, code: 'doubao', vendor: 'ByteDance', homepage: 'https://www.doubao.com' })).resolves.toBe('ready');
+  });
+
   it('文心页面的实时未登录状态不能标记为已就绪', async () => {
     const { service, context } = createService();
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://wenxin.baidu.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(false) }]);
