@@ -220,13 +220,18 @@ describe('LocalChromeService', () => {
     expect(waitForSelector).toHaveBeenCalledWith('.membership-upgrade', expect.objectContaining({ state: 'attached', timeout: 1_000 }));
   });
 
-  it.each([
-    ['deepseek', 'DeepSeek', 'https://chat.deepseek.com/'],
-  ])('%s 页面出现登录入口时标记为未登录', async (code, vendor, homepage) => {
+  it('DeepSeek 页面尚未出现已认证工作区时标记为未登录', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue(homepage), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['登录']) }), evaluate: jest.fn() }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chat.deepseek.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ conversationHistoryPresent: false, authenticatedComposerPresent: false }), waitForSelector: jest.fn().mockResolvedValue(undefined) }]);
 
-    await expect(service.reset({ ...engine, code, vendor, homepage })).resolves.toBe('pending_login');
+    await expect(service.reset({ ...engine, code: 'deepseek', vendor: 'DeepSeek', homepage: 'https://chat.deepseek.com/' })).resolves.toBe('pending_login');
+  });
+
+  it('DeepSeek 同时存在会话历史和对话输入区时标记为已就绪', async () => {
+    const { service, context } = createService();
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://chat.deepseek.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue({ conversationHistoryPresent: true, authenticatedComposerPresent: true }), waitForSelector: jest.fn().mockResolvedValue(undefined) }]);
+
+    await expect(service.reset({ ...engine, code: 'deepseek', vendor: 'DeepSeek', homepage: 'https://chat.deepseek.com/' })).resolves.toBe('ready');
   });
 
 
