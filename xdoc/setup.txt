@@ -3,13 +3,22 @@ node ./node_modules/.pnpm/playwright-core@1.62.1/node_modules/playwright-core/cl
 为 千问 引擎生成登录判断代码
 为 豆包 引擎生成登录判断代码
 为 DeepSeek 引擎生成登录判断代码
-为 元宝 引擎生成登录判断代码
-为 KIMI 引擎生成登录判断代码
-为 文心一言 引擎生成登录判断代码
 
 验证 千问 引擎登录判断代码
 验证 豆包 引擎登录判断代码
 验证 DeepSeek 引擎登录判断代码
-验证 元宝 引擎登录判断代码
-验证 KIMI 引擎登录判断代码
-验证 文心一言 引擎登录判断代码
+
+为 千问 引擎生成执行搜索代码
+为 豆包 引擎生成执行搜索代码
+为 DeepSeek 引擎生成执行搜索代码
+
+验证 千问 引擎执行搜索代码
+验证 豆包 引擎执行搜索代码
+验证 DeepSeek 引擎执行搜索代码
+
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    --remote-debugging-port=9222 \
+    --user-data-dir="/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles/engine-3-deepseek-b2ae13f4-3b04-473d-94ac-c1d2d52ec61b"
+
+cd /Users/aaron/rd/project/gudi/geocite/server
+npm run test:deepseek-cdp-search
