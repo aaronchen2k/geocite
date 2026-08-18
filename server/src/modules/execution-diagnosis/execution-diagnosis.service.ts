@@ -286,7 +286,7 @@ export class ExecutionDiagnosisService {
     for (const engine of eligible) {
       const results: Array<Record<string, unknown>> = [];
       for (const question of questions) {
-        const prompt = `请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n问题：${question}`;
+        const prompt = `请联网搜索，回答务必输出网页引用来源以及原文链接。\n\n请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n问题：${question}`;
         if (!engine.baseUrl || !engine.modelName || !engine.apiKey) {
           await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, question, prompt, null, '', 'engine-config-incomplete')));
           results.push({ question, status: 'skipped', reason: 'engine-config-incomplete' });

@@ -165,7 +165,11 @@ describe('ExecutionDiagnosisService events', () => {
 
     await (service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null });
 
-    expect(sampler).toHaveBeenCalledWith(expect.objectContaining({ name: 'Frozen Engine', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key' }), expect.any(String), expect.objectContaining({ nativeWebSearch: true }));
+    expect(sampler).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Frozen Engine', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key' }),
+      expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。'),
+      expect.objectContaining({ nativeWebSearch: true }),
+    );
     expect(liveBrandEngines.find).not.toHaveBeenCalled();
     expect(liveEngines.findBy).not.toHaveBeenCalled();
   });
