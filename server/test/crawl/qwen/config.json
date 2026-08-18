@@ -1,0 +1,6 @@
+{
+  "engine": "qianwen",
+  "profileName": "engine-4-qwen-b088a06f-6f85-40ed-a918-9f2a6c04fc58",
+  "loginTexts": ["登录", "login", "Sign in", "扫码登录"],
+  "loginWaitMs": 600000
+}

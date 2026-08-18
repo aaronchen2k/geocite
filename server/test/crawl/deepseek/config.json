@@ -1,0 +1,21 @@
+{
+  "engine": "deepseek",
+  "profileName": "engine-3-deepseek-b2ae13f4-3b04-473d-94ac-c1d2d52ec61b",
+  "loginTexts": [
+    "发送验证码",
+    "密码登录",
+    "使用 Apple 账号登录",
+    "微信扫码登录",
+    "扫码登录",
+    "登录/注册",
+    "手机号登录",
+    "请输入手机号",
+    "请输入验证码",
+    "登录",
+    "Log in"
+  ],
+  "loginUrlPatterns": [
+    "sign_in",
+    "login"
+  ]
+}
