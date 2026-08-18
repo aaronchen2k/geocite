@@ -153,9 +153,9 @@ describe('LocalChromeService', () => {
     await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('pending_login');
   });
 
-  it('千问存在官方登录 Cookie 时标记为已就绪', async () => {
+  it('千问同时存在账户按钮和头像时标记为已就绪', async () => {
     const { service, context } = createService();
-    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['登录']) }), evaluate: jest.fn().mockResolvedValue(true) }]);
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue(['登录']) }), evaluate: jest.fn().mockResolvedValue({ accountButtonPresent: true, accountAvatarPresent: true }) }]);
 
     await expect(service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toBe('ready');
   });
