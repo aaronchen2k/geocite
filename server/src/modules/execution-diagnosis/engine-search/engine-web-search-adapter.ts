@@ -12,7 +12,13 @@ export type EngineSearchPage = {
     fill(value: string): Promise<void>;
     press(key: string): Promise<void>;
     click(): Promise<void>;
-    last(): { innerText(options?: object): Promise<string> };
+    last(): {
+      fill(value: string): Promise<void>;
+      press(key: string): Promise<void>;
+      click(): Promise<void>;
+      innerText(options?: object): Promise<string>;
+      evaluate<T>(pageFunction: (element: Element) => T | Promise<T>): Promise<T>;
+    };
     evaluateAll<T>(pageFunction: (nodes: Array<{ href: string; textContent: string | null; getAttribute(name: string): string | null }>) => T): Promise<T>;
   };
 };
