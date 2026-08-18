@@ -24,9 +24,12 @@ type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: {
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
 
 export type ControlledChromeProcess = { pid: number; launchId: string; profilePath: string };
+export type ControlledPageElement = { tag: string; id: string | null; classes: string[]; attributes: { role: string | null; dataSlot: string | null; contentEditable: string | null; type: string | null }; hrefPath: string | null };
 export type ControlledPageStructure = {
   url: string;
-  elements: Array<{ tag: string; id: string | null; classes: string[]; attributes: { role: string | null; dataSlot: string | null; contentEditable: string | null; type: string | null }; hrefPath: string | null }>;
+  elements: ControlledPageElement[];
+  sourceTriggers: ControlledPageElement[];
+  sourceLinks: ControlledPageElement[];
 };
 export type ProcessInspector = {
   findControlledChrome(launchId: string, profilePath: string): Promise<ControlledChromeProcess | null>;
@@ -181,25 +184,37 @@ export class LocalChromeService {
   async inspectControlledPage(engineOrId: number | BrowserEngine): Promise<ControlledPageStructure> {
     return this.useReadyProfile(engineOrId, async (rawPage) => (rawPage as PageLike).evaluate(() => {
       const safeUrl = new URL(window.location.href);
+      const describe = (element: Element) => {
+        const anchor = element instanceof HTMLAnchorElement ? new URL(element.href) : null;
+        const id = element.id && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(element.id) && !/radix/i.test(element.id) ? element.id : null;
+        return {
+          tag: element.tagName.toLowerCase(),
+          id,
+          classes: Array.from(element.classList).filter((item) => item.length <= 80).slice(0, 12),
+          attributes: {
+            role: element.getAttribute('role'),
+            dataSlot: element.getAttribute('data-slot'),
+            contentEditable: element.getAttribute('contenteditable'),
+            type: element.getAttribute('type'),
+          },
+          hrefPath: anchor ? `${anchor.origin}${anchor.pathname}` : null,
+        };
+      };
       const elements = Array.from(document.querySelectorAll('textarea, [contenteditable="true"], button, [role="button"], a[href], [data-slot], [class*="markdown"], [class*="answer"], [class*="citation"], [class*="source"]'))
         .slice(0, 300)
-        .map((element) => {
-          const anchor = element instanceof HTMLAnchorElement ? new URL(element.href) : null;
-          const id = element.id && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(element.id) && !/radix/i.test(element.id) ? element.id : null;
-          return {
-            tag: element.tagName.toLowerCase(),
-            id,
-            classes: Array.from(element.classList).filter((item) => item.length <= 80).slice(0, 12),
-            attributes: {
-              role: element.getAttribute('role'),
-              dataSlot: element.getAttribute('data-slot'),
-              contentEditable: element.getAttribute('contenteditable'),
-              type: element.getAttribute('type'),
-            },
-            hrefPath: anchor ? `${anchor.origin}${anchor.pathname}` : null,
-          };
-        });
-      return { url: `${safeUrl.origin}${safeUrl.pathname}`, elements };
+        .map(describe);
+      const sourceTriggers = Array.from(document.querySelectorAll('button, a, [role="button"]'))
+        .filter((element) => /(?:来源|source)/iu.test(element.textContent?.trim() ?? ''))
+        .slice(0, 20)
+        .map(describe);
+      const sourceLinks = Array.from(document.querySelectorAll('a[href]'))
+        .filter((element) => {
+          const url = new URL((element as HTMLAnchorElement).href);
+          return url.origin !== safeUrl.origin || /(?:来源|source|citation|reference)/iu.test(element.className);
+        })
+        .slice(0, 30)
+        .map(describe);
+      return { url: `${safeUrl.origin}${safeUrl.pathname}`, elements, sourceTriggers, sourceLinks };
     }));
   }
 

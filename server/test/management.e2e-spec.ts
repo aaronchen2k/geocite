@@ -31,6 +31,35 @@ describe('system management APIs', () => {
     expect(JSON.stringify(model.body)).not.toContain('sk-secret-value');
   });
 
+  it('updates an Engine web review configuration without resubmitting its identity fields', async () => {
+    const engine = await request(app.getHttpServer())
+      .post('/api/v1/engines')
+      .send({ name: '局部更新引擎', code: 'partial-update-engine', vendor: 'Test' })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/engines/${engine.body.id}`)
+      .send({ webReviewConfig: {
+        chatUrl: 'https://www.qianwen.com/',
+        inputSelector: 'div[role="textbox"]',
+        answerSelector: '#qk-markdown-react',
+        citationSelector: 'a[href]',
+        sourceTriggerText: '来源',
+      } })
+      .expect(200);
+
+    expect(response.body.webReviewConfig).toMatchObject({ sourceTriggerText: '来源' });
+
+    const saved = await request(app.getHttpServer())
+      .get(`/api/v1/engines/${engine.body.id}`)
+      .expect(200);
+    expect(saved.body).toMatchObject({
+      name: '局部更新引擎',
+      code: 'partial-update-engine',
+      webReviewConfig: expect.objectContaining({ sourceTriggerText: '来源' }),
+    });
+  });
+
   it('creates RagAgents only for existing Brands and non-disabled Models', async () => {
     const brand = await request(app.getHttpServer())
       .post('/api/v1/brands')

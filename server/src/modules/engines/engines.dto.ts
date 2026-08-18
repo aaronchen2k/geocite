@@ -11,10 +11,22 @@ export class CreateEngineDto {
   @IsOptional() @IsString() baseUrl?: string;
   @IsOptional() @IsString() apiKey?: string;
   @IsOptional() @IsBoolean() webSearchEnabled?: boolean;
-  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null; citationSelector?: string | null } | null;
+  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null; citationSelector?: string | null; sourceTriggerText?: string | null } | null;
   @IsOptional() @IsBoolean() disabled?: boolean;
 }
-export class UpdateEngineDto extends CreateEngineDto {}
+export class UpdateEngineDto {
+  @IsOptional() @IsString() @IsNotEmpty() name?: string;
+  @IsOptional() @IsString() @IsNotEmpty() code?: string;
+  @IsOptional() @IsString() @IsNotEmpty() vendor?: string;
+  @IsOptional() @IsString() homepage?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() modelName?: string;
+  @IsOptional() @IsString() baseUrl?: string;
+  @IsOptional() @IsString() apiKey?: string;
+  @IsOptional() @IsBoolean() webSearchEnabled?: boolean;
+  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null; citationSelector?: string | null; sourceTriggerText?: string | null } | null;
+  @IsOptional() @IsBoolean() disabled?: boolean;
+}
 
 export class ListEngineDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;

@@ -168,6 +168,8 @@ describe('LocalChromeService', () => {
     const structure = {
       url: 'https://www.qianwen.com/',
       elements: [{ tag: 'textarea', id: null, classes: ['chat-input'], attributes: { contenteditable: null }, hrefPath: null }],
+      sourceTriggers: [],
+      sourceLinks: [],
     };
     context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(structure) }]);
 

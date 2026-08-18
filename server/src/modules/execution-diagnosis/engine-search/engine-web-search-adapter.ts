@@ -6,6 +6,8 @@ export type EngineSearchPage = {
   goto(url: string, options?: object): Promise<unknown>;
   url(): string;
   waitForSelector(selector: string, options?: object): Promise<unknown>;
+  waitForFunction<T>(pageFunction: (argument: T) => boolean, argument: T, options?: object): Promise<unknown>;
+  evaluate<T, A = undefined>(pageFunction: (argument: A) => T | Promise<T>, argument?: A): Promise<T>;
   locator(selector: string): {
     fill(value: string): Promise<void>;
     press(key: string): Promise<void>;

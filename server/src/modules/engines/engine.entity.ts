@@ -7,6 +7,7 @@ export type EngineWebReviewConfig = {
   answerSelector: string;
   submitSelector?: string | null;
   citationSelector?: string | null;
+  sourceTriggerText?: string | null;
 };
 
 @Entity('engines')
