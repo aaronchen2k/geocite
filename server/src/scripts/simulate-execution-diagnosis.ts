@@ -84,7 +84,16 @@ export async function runExecutionDiagnosisSimulation(): Promise<SimulationResul
       webReviews,
       { review: async () => ({ answer: 'GeoCite 模拟网页复核回答。', screenshotPath: null, brandMentioned: true }) },
     );
-    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings, webReviews, webReviewRunner);
+    const webSampler = {
+      searchBatch: async (_engine: unknown, requests: Array<{ question: string }>) => requests.map((request) => ({
+        question: request.question,
+        answer: 'GeoCite 模拟引擎已采集到品牌站点信息。',
+        citations: [{ title: '模拟公开来源', url: `${baseUrl}/article`, excerpt: '模拟文章' }],
+        adapter: 'simulation-web',
+        error: null,
+      })),
+    };
+    const service = new ExecutionDiagnosisService(brands, brandEngines, engines, runs, steps, events, pages, probes, samples, diagnosisQuestions, competitors, findings, webReviews, webReviewRunner, webSampler as never);
     const createdRun = await service.create(brand.id);
     const completedRun = await waitForTerminalRun(service, brand.id, createdRun.id);
     await service.waitForCompletion(createdRun.id);

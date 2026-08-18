@@ -18,6 +18,7 @@ import { DiagnosisFindingEntity, type DiagnosisFindingType } from './optimizatio
 import { selectWebReviewSamples, webReviewCandidates, type WebReviewSelection } from './web-review-selector';
 import { WebReviewRunnerService } from './web-review-runner.service';
 import { QUESTION_TAXONOMY_VERSION } from './brand-question-prompt';
+import { PlaywrightWebSamplingService } from './playwright-web-sampling.service';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']> & { stepStatus?: 'skipped' };
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
@@ -47,6 +48,7 @@ export class ExecutionDiagnosisService {
     @InjectRepository(DiagnosisFindingEntity) private readonly findings: Repository<DiagnosisFindingEntity>,
     @Optional() @InjectRepository(ExecutionDiagnosisWebReviewEntity) private readonly webReviews?: Repository<ExecutionDiagnosisWebReviewEntity>,
     private readonly webReviewRunner?: WebReviewRunnerService,
+    @Optional() private readonly webSampler?: PlaywrightWebSamplingService,
   ) {}
 
   async create(brandId: number, options: { scope?: 'all_configured' } = {}) {
@@ -196,7 +198,7 @@ export class ExecutionDiagnosisService {
       markets,
       engines: engines.eligible.map((item) => ({ id: item.id, name: item.name, code: item.code, vendor: item.vendor, modelName: item.modelName, baseUrl: item.baseUrl, apiKey: item.apiKey, nativeWebSearch: item.webSearchEnabled === true })),
       skippedEngines: engines.skipped,
-      samplingMethod: 'api',
+      samplingMethod: 'playwright',
       rulesVersion,
       taxonomyVersion: QUESTION_TAXONOMY_VERSION,
       executionScope,
@@ -275,6 +277,63 @@ export class ExecutionDiagnosisService {
     const snapshot = run.configurationSnapshot;
     const { eligible, skipped } = snapshot
       ? {
+        eligible: snapshot.engines.map((engine) => ({ ...engine, webSearchEnabled: true, disabled: false })),
+        skipped: snapshot.skippedEngines,
+      }
+      : await this.samplingEngines(brand.id);
+    const questions = snapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
+    if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
+    if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
+    const sampled: Array<Record<string, unknown>> = [];
+    for (const engine of eligible) {
+      signal?.throwIfAborted();
+      const requests = questions.map((question) => ({
+        question,
+        prompt: this.webSearchPrompt(brand, question),
+        brandName: brand.name,
+      }));
+      await this.log(runId, 5, `使用 ${engine.name} 的受控网页端发起低频联网问题采样：${questions.length} 题`);
+      const results = this.webSampler
+        ? await this.webSampler.searchBatch(engine, requests)
+        : requests.map((request) => ({ question: request.question, answer: '', citations: [], adapter: null, error: 'playwright-web-sampler-unavailable' }));
+      const entries: Array<Record<string, unknown>> = [];
+      for (const [index, result] of results.entries()) {
+        const request = requests[index];
+        if (!request) continue;
+        await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(
+          runId,
+          engine,
+          request.question,
+          request.prompt,
+          null,
+          result.answer,
+          result.error,
+          { adapter: result.adapter ?? undefined, nativeWebSearch: true, citations: result.citations },
+        )));
+        entries.push({ question: request.question, status: result.error ? 'failed' : 'sampled', answerExcerpt: result.answer.slice(0, 500), adapter: result.adapter, citations: result.citations.length, reason: result.error });
+      }
+      const succeeded = entries.filter((item) => item.status === 'sampled').length;
+      const failed = entries.length - succeeded;
+      sampled.push({ id: engine.id, name: engine.name, status: succeeded ? 'sampled' : failed ? 'failed' : 'skipped', totalQuestions: questions.length, succeeded, failed, skipped: questions.length - succeeded - failed, questions: entries });
+    }
+    const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
+    const total = eligible.length * questions.length;
+    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { samplingMethod: 'playwright', sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'restore-engine-web-session' };
+  }
+
+  private webSearchPrompt(brand: Pick<BrandEntity, 'name' | 'website'>, question: string) {
+    return `请联网搜索，回答务必输出网页引用来源以及原文链接。\n\n请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n问题：${question}`;
+  }
+
+  /**
+   * API 采样备用路径：保留用于未来的离线或成本对照实验。
+   * 当前执行诊断步骤 5 不调用此函数，避免 API 结果与真实网页端回答混杂。
+   */
+  private async sampleEnginesViaApi(runId: number, brand: BrandEntity, signal?: AbortSignal): Promise<StepResult> {
+    const run = await this.getRun(runId);
+    const snapshot = run.configurationSnapshot;
+    const { eligible, skipped } = snapshot
+      ? {
         eligible: snapshot.engines.map((engine) => ({ ...engine, webSearchEnabled: engine.nativeWebSearch, disabled: false })),
         skipped: snapshot.skippedEngines,
       }
@@ -286,7 +345,7 @@ export class ExecutionDiagnosisService {
     for (const engine of eligible) {
       const results: Array<Record<string, unknown>> = [];
       for (const question of questions) {
-        const prompt = `请联网搜索，回答务必输出网页引用来源以及原文链接。\n\n请根据公开可见信息回答以下品牌问题。品牌：${brand.name}；官网：${brand.website ?? '未配置'}。若无法确认，请明确说明。\n\n问题：${question}`;
+        const prompt = this.webSearchPrompt(brand, question);
         if (!engine.baseUrl || !engine.modelName || !engine.apiKey) {
           await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(runId, engine, question, prompt, null, '', 'engine-config-incomplete')));
           results.push({ question, status: 'skipped', reason: 'engine-config-incomplete' });
@@ -326,6 +385,9 @@ export class ExecutionDiagnosisService {
   }
   private async runWebReview(runId: number): Promise<StepResult> {
     const run = await this.getRun(runId);
+    if (run.configurationSnapshot?.samplingMethod === 'playwright') {
+      return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { reason: 'playwright-primary-sampling' }, recommendation: 'review-browser-samples', stepStatus: 'skipped' };
+    }
     const webReview = run.configurationSnapshot?.webReview;
     if (!webReview?.enabled) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { reason: 'playwright-web-review-disabled' }, recommendation: 'enable-playwright-web-review', stepStatus: 'skipped' };
     const samples = await this.samplesRepository.find({ where: { runId } });
@@ -355,6 +417,15 @@ export class ExecutionDiagnosisService {
     return { conclusion: succeeded === outcomes.length ? 'passed' : succeeded ? 'partial' : 'unmeasured', severity: succeeded === outcomes.length ? 'info' : 'unmeasured', evidence: { selected: outcomes.length, succeeded, excluded, outcomes }, recommendation: succeeded ? 'use-web-review-correction' : 'restore-web-review-availability' };
   }
   private async applyWebReviewCorrection(runId: number, baselineRunId: number | null): Promise<StepResult> {
+    const run = await this.getRun(runId);
+    if (run.configurationSnapshot?.samplingMethod === 'playwright') {
+      const samples = await this.samplesRepository.find({ where: { runId } });
+      const browserSamples = samples.filter((sample) => !sample.error && sample.answer.trim());
+      const brandName = this.contexts.get(runId)?.brand.name ?? '';
+      const reviewedAnswers = browserSamples.map((sample) => ({ apiSampleId: sample.id, answer: sample.answer, brandMentioned: this.mentions(sample.answer, brandName) }));
+      const brandMentionedCount = reviewedAnswers.filter((sample) => sample.brandMentioned).length;
+      return { conclusion: browserSamples.length ? 'passed' : 'unmeasured', severity: browserSamples.length ? 'info' : 'unmeasured', evidence: { baselineRunId, successfulWebReviews: browserSamples.length, correctionSource: 'browser-primary', reviewedAnswers, brandMentionedCount, brandMentionRate: browserSamples.length ? brandMentionedCount / browserSamples.length : null, comparedAt: new Date().toISOString() }, recommendation: browserSamples.length ? 'review-delta' : 'restore-engine-web-session' };
+    }
     const succeeded = this.webReviews ? await this.webReviews.find({ where: { runId, status: 'succeeded' } }) : [];
     const reviewedAnswers = succeeded.map((review) => ({ apiSampleId: review.apiSampleId, answer: review.answer ?? '', brandMentioned: review.brandMentioned ?? false }));
     const brandMentionedCount = reviewedAnswers.filter((review) => review.brandMentioned).length;

@@ -11,7 +11,7 @@ export class CreateEngineDto {
   @IsOptional() @IsString() baseUrl?: string;
   @IsOptional() @IsString() apiKey?: string;
   @IsOptional() @IsBoolean() webSearchEnabled?: boolean;
-  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null } | null;
+  @IsOptional() @IsObject() webReviewConfig?: { chatUrl: string; inputSelector: string; answerSelector: string; submitSelector?: string | null; citationSelector?: string | null } | null;
   @IsOptional() @IsBoolean() disabled?: boolean;
 }
 export class UpdateEngineDto extends CreateEngineDto {}

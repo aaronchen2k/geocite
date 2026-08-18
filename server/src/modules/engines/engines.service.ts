@@ -16,6 +16,8 @@ export class EnginesService {
   async webReviewStatus(id: number) { await this.findOne(id); return this.localChrome.getStatus(id); }
   async refreshWebReview(id: number) { const engine = await this.findOne(id); const availability = await this.localChrome.refresh(engine); return { ...(await this.localChrome.getStatus(id)), availability }; }
   async resetWebReview(id: number) { const engine = await this.findOne(id); const availability = await this.localChrome.reset(engine); return { ...(await this.localChrome.getStatus(id)), availability }; }
+  async inspectWebReviewPage(id: number) { const engine = await this.findOne(id); return this.localChrome.inspectControlledPage(engine); }
+  async closeAllWebReviewWindows() { return this.localChrome.closeAllControlledLaunches(); }
   async deleteWebReviewProfile(id: number) { await this.findOne(id); return this.localChrome.deleteProfile(id); }
   private async save(entity: EngineEntity) { try { return await this.repository.save(entity); } catch { throw new ConflictException('Engine code 已存在'); } }
   toResponse(item: EngineEntity) { const { apiKey, ...rest } = item; return { ...rest, apiKeyConfigured: Boolean(apiKey), apiKeyMasked: apiKey ? `${apiKey.slice(0, 3)}…${apiKey.slice(-4)}` : null }; }

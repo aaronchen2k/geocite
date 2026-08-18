@@ -25,6 +25,7 @@ describe('LocalChromeService', () => {
       remove: jest.fn(),
     };
     const launches = {
+      find: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn((value) => value),
       save: jest.fn(async (value) => value),
@@ -75,6 +76,26 @@ describe('LocalChromeService', () => {
     }));
   });
 
+  it('可在适配器探索前关闭全部已登记的受控 Chrome', async () => {
+    const { service, launches, processInspector } = createService();
+    const launch = {
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'old-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+      lastHeartbeatAt: null,
+    };
+    launches.find = jest.fn().mockResolvedValue([launch]);
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome
+      .mockResolvedValueOnce({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath })
+      .mockResolvedValueOnce(null);
+
+    await expect(service.closeAllControlledLaunches()).resolves.toEqual({ attempted: 1, closed: 1 });
+    expect(processInspector.kill).toHaveBeenCalledWith(expect.objectContaining({ launchId: 'old-launch' }));
+  });
+
   it('拒绝仅凭 PID 或单一标识关闭不匹配的 Chrome 进程', async () => {
     const { service, launches, processInspector } = createService();
     launches.findOne.mockResolvedValue({
@@ -110,6 +131,29 @@ describe('LocalChromeService', () => {
     );
   });
 
+  it('自动网页采样启动前关闭同一引擎的旧受控 Chrome', async () => {
+    const { service, launches, processInspector, browser } = createService();
+    const launch = {
+      engineId: engine.id,
+      profileId: 'profile-7',
+      launchId: 'old-launch',
+      profilePath: '/tmp/geocite/playwright-profiles/chatgpt',
+      launchStatus: 'running',
+      startedAt: new Date(),
+      lastHeartbeatAt: null,
+    };
+    launches.findOne.mockResolvedValue(launch);
+    processInspector.findControlledChrome
+      .mockResolvedValueOnce({ pid: 731, launchId: launch.launchId, profilePath: launch.profilePath })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ pid: 732, launchId: expect.any(String), profilePath: launch.profilePath });
+
+    await expect(service.prepareForAutomatedSampling(engine)).resolves.toBe('ready');
+
+    expect(processInspector.kill).toHaveBeenCalledWith(expect.objectContaining({ launchId: 'old-launch' }));
+    expect(browser.launchPersistentContext).toHaveBeenCalledTimes(1);
+  });
+
   it('优先使用引擎配置的官网地址打开登录窗口', async () => {
     const { service, context } = createService();
     const homepage = 'https://chatgpt.com/c';
@@ -117,6 +161,19 @@ describe('LocalChromeService', () => {
     await service.reset({ ...engine, homepage });
 
     expect(context.pages()[0].goto).toHaveBeenCalledWith(homepage, expect.objectContaining({ waitUntil: 'domcontentloaded' }));
+  });
+
+  it('仅返回受控页面的脱敏结构用于适配器探索', async () => {
+    const { service, context } = createService();
+    const structure = {
+      url: 'https://www.qianwen.com/',
+      elements: [{ tag: 'textarea', id: null, classes: ['chat-input'], attributes: { contenteditable: null }, hrefPath: null }],
+    };
+    context.pages.mockReturnValue([{ goto: jest.fn(), url: jest.fn().mockReturnValue('https://www.qianwen.com/'), locator: jest.fn().mockReturnValue({ allTextContents: jest.fn().mockResolvedValue([]) }), evaluate: jest.fn().mockResolvedValue(structure) }]);
+
+    await service.reset({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' });
+
+    await expect(service.inspectControlledPage({ ...engine, code: 'qwen', vendor: 'Alibaba', homepage: 'https://www.qianwen.com/' })).resolves.toEqual(structure);
   });
 
   it('刷新时发现受控 Chrome 已关闭则标记未知且不重新启动浏览器', async () => {

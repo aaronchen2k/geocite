@@ -55,7 +55,7 @@ describe('ExecutionDiagnosisService optimization verification', () => {
     await waitFor(() => findings.length > 0 || executionError !== undefined);
     if (executionError) throw executionError;
 
-    expect(created.configurationSnapshot?.samplingMethod).toBe('api');
+    expect(created.configurationSnapshot?.samplingMethod).toBe('playwright');
     expect(await findingsRepository.find({ where: { sourceRunId: created.id } })).toContainEqual(
       expect.objectContaining({ type: 'competitor_dominated' }),
     );

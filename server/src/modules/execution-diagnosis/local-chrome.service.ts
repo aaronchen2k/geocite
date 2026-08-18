@@ -24,6 +24,10 @@ type BrowserLauncher = { launchPersistentContext(userDataDir: string, options: {
 type BrowserEngine = Pick<EngineEntity, 'id' | 'code' | 'vendor' | 'baseUrl'> & { homepage?: string | null };
 
 export type ControlledChromeProcess = { pid: number; launchId: string; profilePath: string };
+export type ControlledPageStructure = {
+  url: string;
+  elements: Array<{ tag: string; id: string | null; classes: string[]; attributes: { role: string | null; dataSlot: string | null; contentEditable: string | null; type: string | null }; hrefPath: string | null }>;
+};
 export type ProcessInspector = {
   findControlledChrome(launchId: string, profilePath: string): Promise<ControlledChromeProcess | null>;
   kill(process: ControlledChromeProcess): Promise<void>;
@@ -173,6 +177,32 @@ export class LocalChromeService {
     });
   }
 
+  /** 供适配器生成技能比较搜索前后的页面结构；不返回文本、会话或凭证。 */
+  async inspectControlledPage(engineOrId: number | BrowserEngine): Promise<ControlledPageStructure> {
+    return this.useReadyProfile(engineOrId, async (rawPage) => (rawPage as PageLike).evaluate(() => {
+      const safeUrl = new URL(window.location.href);
+      const elements = Array.from(document.querySelectorAll('textarea, [contenteditable="true"], button, [role="button"], a[href], [data-slot], [class*="markdown"], [class*="answer"], [class*="citation"], [class*="source"]'))
+        .slice(0, 300)
+        .map((element) => {
+          const anchor = element instanceof HTMLAnchorElement ? new URL(element.href) : null;
+          const id = element.id && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(element.id) && !/radix/i.test(element.id) ? element.id : null;
+          return {
+            tag: element.tagName.toLowerCase(),
+            id,
+            classes: Array.from(element.classList).filter((item) => item.length <= 80).slice(0, 12),
+            attributes: {
+              role: element.getAttribute('role'),
+              dataSlot: element.getAttribute('data-slot'),
+              contentEditable: element.getAttribute('contenteditable'),
+              type: element.getAttribute('type'),
+            },
+            hrefPath: anchor ? `${anchor.origin}${anchor.pathname}` : null,
+          };
+        });
+      return { url: `${safeUrl.origin}${safeUrl.pathname}`, elements };
+    }));
+  }
+
   async refresh(engineOrId: number | BrowserEngine): Promise<WebReviewAvailability> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
@@ -193,6 +223,16 @@ export class LocalChromeService {
   }
 
   async reset(engineOrId: number | BrowserEngine): Promise<WebReviewAvailability> {
+    const engine = await this.resolveEngine(engineOrId);
+    return this.runForEngine(engine.id, async () => {
+      const profile = await this.ensureProfile(engine);
+      await this.closePreviousLaunch(engine.id);
+      return this.launchAndCheck(engine, profile, false);
+    });
+  }
+
+  /** 网页主采样每次执行都用新的受控窗口，避免复用未知页面状态或残留会话。 */
+  async prepareForAutomatedSampling(engineOrId: number | BrowserEngine): Promise<WebReviewAvailability> {
     const engine = await this.resolveEngine(engineOrId);
     return this.runForEngine(engine.id, async () => {
       const profile = await this.ensureProfile(engine);
@@ -225,6 +265,17 @@ export class LocalChromeService {
       await this.launches.save(launch);
     }
     return { closed };
+  }
+
+  /** 仅关闭带 GeoCite 精确启动标识的窗口，供引擎适配器探索前清理现场。 */
+  async closeAllControlledLaunches() {
+    const running = await this.launches.find({ where: { launchStatus: 'running' } });
+    let closed = 0;
+    for (const launch of running) {
+      const result = await this.runForEngine(launch.engineId, () => this.closePreviousLaunch(launch.engineId));
+      if (result.closed) closed += 1;
+    }
+    return { attempted: running.length, closed };
   }
 
   private async confirmControlledChromeExited(launchId: string, profilePath: string) {

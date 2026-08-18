@@ -9,6 +9,8 @@ export class EnginesController {
   @Get(':id/web-review-status') webReviewStatus(@Param('id', ParseIntPipe) id: number) { return this.service.webReviewStatus(id); }
   @Post(':id/web-review/refresh') refreshWebReview(@Param('id', ParseIntPipe) id: number) { return this.service.refreshWebReview(id); }
   @Post(':id/web-review/reset') resetWebReview(@Param('id', ParseIntPipe) id: number) { return this.service.resetWebReview(id); }
+  @Get(':id/web-review/page-structure') inspectWebReviewPage(@Param('id', ParseIntPipe) id: number) { return this.service.inspectWebReviewPage(id); }
+  @Post('web-review/close-all') closeAllWebReviewWindows() { return this.service.closeAllWebReviewWindows(); }
   @Delete(':id/web-review-profile') deleteWebReviewProfile(@Param('id', ParseIntPipe) id: number) { return this.service.deleteWebReviewProfile(id); }
   @Get(':id') async findOne(@Param('id', ParseIntPipe) id: number) { return this.service.toResponse(await this.service.findOne(id)); }
   @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEngineDto) { return this.service.update(id, dto); }

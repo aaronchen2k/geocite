@@ -6,6 +6,7 @@ export type EngineWebReviewConfig = {
   inputSelector: string;
   answerSelector: string;
   submitSelector?: string | null;
+  citationSelector?: string | null;
 };
 
 @Entity('engines')

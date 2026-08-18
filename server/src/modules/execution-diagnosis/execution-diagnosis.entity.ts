@@ -10,7 +10,7 @@ export type ExecutionDiagnosisConfigurationSnapshot = {
   markets: Array<'cn' | 'global' | 'both'>;
   engines: Array<{ id: number; name: string; code: string; vendor: string; modelName: string | null; baseUrl: string | null; apiKey: string | null; nativeWebSearch: boolean }>;
   skippedEngines: Array<{ id: number; code: string; reason: string }>;
-  samplingMethod: 'api';
+  samplingMethod: 'api' | 'playwright';
   rulesVersion: string;
   executionScope?: 'all_configured';
   webReview: {
@@ -102,6 +102,7 @@ export class ExecutionDiagnosisSampleEntity {
   @Column({ name: 'status_code', nullable: true }) statusCode!: number | null;
   @Column({ type: 'text', nullable: true }) adapter!: string | null;
   @Column({ name: 'native_web_search', default: false }) nativeWebSearch!: boolean;
+  @Column({ name: 'citations_json', type: 'simple-json', nullable: true }) citations!: Array<{ title: string | null; url: string; excerpt: string | null }> | null;
   @Column({ type: 'text', nullable: true }) error!: string | null;
   @Column({ name: 'reviewed_brand_mention', type: 'boolean', nullable: true }) reviewedBrandMention!: boolean | null;
   @Column({ name: 'review_note', type: 'text', nullable: true }) reviewNote!: string | null;

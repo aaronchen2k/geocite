@@ -77,7 +77,7 @@ describe('ExecutionDiagnosisService events', () => {
       { apiSampleId: 9, answer: '网页端没有提及品牌', brandMentioned: false },
       { apiSampleId: 10, answer: '网页端提及 Acme', brandMentioned: true },
     ]) };
-    const service = new ExecutionDiagnosisService({} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, webReviews as never);
+    const service = new ExecutionDiagnosisService({} as never, {} as never, {} as never, { findOne: jest.fn().mockResolvedValue({ id: 7, configurationSnapshot: { samplingMethod: 'api' }, steps: [], events: [] }) } as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, webReviews as never);
 
     await expect((service as unknown as { applyWebReviewCorrection(id: number, baseline: number | null): Promise<unknown> }).applyWebReviewCorrection(7, null)).resolves.toMatchObject({
       conclusion: 'passed', evidence: { correctionSource: 'web-review', successfulWebReviews: 2, brandMentionedCount: 1, brandMentionRate: 0.5, reviewedAnswers: [{ apiSampleId: 9, answer: '网页端没有提及品牌', brandMentioned: false }, { apiSampleId: 10, answer: '网页端提及 Acme', brandMentioned: true }] },
@@ -142,7 +142,7 @@ describe('ExecutionDiagnosisService events', () => {
     expect(runs.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 7, brandId: 5 } }));
   });
 
-  it('samples with the frozen engine configuration after the engine changes', async () => {
+  it('以冻结引擎集合执行低频网页采样，并保存回答和引用而不调用 API 采样', async () => {
     const liveBrandEngines = { find: jest.fn() };
     const liveEngines = { findBy: jest.fn() };
     const runs = {
@@ -151,25 +151,32 @@ describe('ExecutionDiagnosisService events', () => {
         configurationSnapshot: {
           questions: [{ id: 1, question: '冻结问题', group: '推荐', market: 'cn', brandProbe: false }],
           engines: [{ id: 2, name: 'Frozen Engine', code: 'frozen', vendor: 'Frozen Vendor', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key', nativeWebSearch: true }],
-          skippedEngines: [], samplingMethod: 'api', rulesVersion: 'v1', market: 'cn', markets: ['cn'],
+          skippedEngines: [], samplingMethod: 'playwright', rulesVersion: 'v1', market: 'cn', markets: ['cn'],
         },
         steps: [], events: [],
       }),
     };
     const samples = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
     const events = { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) };
+    const webSampler = {
+      searchBatch: jest.fn().mockResolvedValue([{
+        question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: null,
+      }]),
+    };
     const service = new ExecutionDiagnosisService(
       { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never, liveBrandEngines as never, liveEngines as never, runs as never, {} as never, events as never, {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
+      {} as never, undefined, webSampler as never,
     );
     const sampler = jest.spyOn((service as unknown as { engineSamplingClient: { sample: jest.Mock } }).engineSamplingClient, 'sample').mockResolvedValue({ adapter: 'frozen', nativeWebSearch: true, statusCode: 200, answer: '答案', error: null });
 
     await (service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null });
 
-    expect(sampler).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Frozen Engine', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key' }),
-      expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。'),
-      expect.objectContaining({ nativeWebSearch: true }),
+    expect(webSampler.searchBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Frozen Engine', code: 'frozen' }),
+      [expect.objectContaining({ question: '冻结问题', prompt: expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。') })],
     );
+    expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
+    expect(sampler).not.toHaveBeenCalled();
     expect(liveBrandEngines.find).not.toHaveBeenCalled();
     expect(liveEngines.findBy).not.toHaveBeenCalled();
   });
