@@ -7,6 +7,7 @@ import { ConfiguredEngineWebSearchAdapter } from './engine-search/configured-eng
 import { EngineWebSearchError, type EngineSearchCitation, type EngineWebSearchAdapter, type EngineSearchIdentity } from './engine-search/engine-web-search-adapter';
 import { QwenEngineWebSearchAdapter } from './engine-search/qwen-engine-web-search.adapter';
 import { DoubaoEngineWebSearchAdapter } from './engine-search/doubao-engine-web-search.adapter';
+import { DeepSeekEngineWebSearchAdapter } from './engine-search/deepseek-engine-web-search.adapter';
 
 export type WebSamplingRequest = { question: string; prompt: string; brandName: string };
 export type WebSamplingResult = { question: string; answer: string; citations: EngineSearchCitation[]; adapter: string | null; error: string | null };
@@ -25,7 +26,7 @@ export class PlaywrightWebSamplingService {
   private readonly logger = new Logger(PlaywrightWebSamplingService.name);
   private readonly dependencies: WebSamplingDependencies;
   // 专用引擎适配器由“生成执行搜索代码”技能添加在兜底适配器之前。
-  private readonly adapters: EngineWebSearchAdapter[] = [new QwenEngineWebSearchAdapter(), new DoubaoEngineWebSearchAdapter(), new ConfiguredEngineWebSearchAdapter()];
+  private readonly adapters: EngineWebSearchAdapter[] = [new QwenEngineWebSearchAdapter(), new DoubaoEngineWebSearchAdapter(), new DeepSeekEngineWebSearchAdapter(), new ConfiguredEngineWebSearchAdapter()];
 
   constructor(
     @InjectRepository(EngineEntity) private readonly engines: Repository<EngineEntity>,
