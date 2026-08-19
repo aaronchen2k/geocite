@@ -1,7 +1,7 @@
 #!/bin/bash
-# 运行抓取脚本（默认 crawl.ts，可传脚本名；配置见上层 config.json + 本目录 config.json）
+# 运行抓取脚本（默认 crawl.mts，可传脚本名；配置见上层 config.json + 本目录 config.json）
 # Node >= 22.18 原生支持 .ts 直跑（type stripping），无需 tsc/tsx
-SCRIPT="${1:-crawl.ts}"
+SCRIPT="${1:-crawl.mts}"
 
 # Node 动态解析：优先环境变量 NODE_BIN，其次 PATH 查找（不硬编码具体版本路径）
 NODE_BIN="${NODE_BIN:-$(command -v node)}"

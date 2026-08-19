@@ -2,10 +2,12 @@ import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadEngineConfig } from '../utils/load-config.ts';
+import { loadEngineConfig } from '../utils/load-config.mts';
 
 // 地址统一从上层+引擎 config.json 合并读取（env 可覆盖），不再硬编码
 const { cdpUrl: CDP_URL, targetUrl: TARGET_URL } = loadEngineConfig(import.meta.dirname);
+/** 引擎域名（页面判断/内链过滤用，从 targetUrl 推导，勿硬编码） */
+const TARGET_HOST = new URL(TARGET_URL).hostname;
 const OUTPUT_DIR = path.join(import.meta.dirname, 'output');
 
 interface ElementInfo {
@@ -52,7 +54,7 @@ function save(name: string, content: string): void {
 }
 
 async function main(): Promise<void> {
-  log('=== Qwen 探针脚本启动 ===');
+  log('=== 探针脚本启动 ===');
 
   // 1. 连接 CDP
   log(`连接 CDP: ${CDP_URL}`);
@@ -66,18 +68,17 @@ async function main(): Promise<void> {
 
   const page: Page = context.pages()[0] ?? (await context.newPage());
 
-  // 2. 导航 — 先尝试 tongyi.com，看最终跳转到哪里
+  // 2. 导航
   log(`导航到 ${TARGET_URL}`);
   await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(5000); // 等 SPA 渲染
-  log(`最终 URL: ${page.url()}`); // 可能看到跳转到 chat.qwen.ai 等
 
   // 3. 截图
   await page.screenshot({ path: path.join(OUTPUT_DIR, 'probe-01-loaded.png'), fullPage: true });
   log('已截图: probe-01-loaded.png');
 
   // 4. 探测可交互元素
-  const probe: ProbeResult = await page.evaluate(() => {
+  const probe: ProbeResult = await page.evaluate((host: string) => {
     const result: ProbeResult = {
       url: location.href,
       title: document.title,
@@ -146,15 +147,13 @@ async function main(): Promise<void> {
     document.querySelectorAll('a[href]').forEach((el, i) => {
       const href = el.href;
       const text = (el.textContent || '').trim().slice(0, 100);
-      // 排除千问自身域名
-      const host = location.hostname;
       if (href && (href.startsWith('http') || href.startsWith('//')) && !href.includes(host)) {
         result.links.push({ idx: i, text, href });
       }
     });
 
-    // 搜索含关键文字的元素（千问 DOM 混淆，用文字定位最稳）
-    const keywords = ['联网搜索', '联网', '搜索', 'send', '发送', '提问', '搜索增强', 'web search', '联网查询'];
+    // 搜索含关键文字的元素（DOM 变化时用文字定位最稳）
+    const keywords = ['联网搜索', '智能搜索', '搜索', 'send', '发送', '提问'];
     for (const kw of keywords) {
       const els = document.evaluate(
         `//text()[contains(., '${kw}')]/..`,
@@ -189,7 +188,7 @@ async function main(): Promise<void> {
     });
 
     return result;
-  });
+  }, TARGET_HOST);
 
   save('probe-elements.json', JSON.stringify(probe, null, 2));
   log(`探测结果: ${probe.textareas.length} textarea, ${probe.contentEditables.length} contenteditable, ${probe.buttons.length} buttons, ${probe.links.length} external links, ${probe.searchTexts.length} keyword hits`);
@@ -201,14 +200,10 @@ async function main(): Promise<void> {
 
   // 6. 打印关键发现
   log('\n=== 关键发现 ===');
-  log(`URL: ${probe.url}`);
-  log(`Title: ${probe.title}`);
   log(`Textareas: ${JSON.stringify(probe.textareas.map(t => ({ id: t.id, cls: t.className, ph: t.placeholder, vis: t.visible })))}`);
   log(`ContentEditables: ${JSON.stringify(probe.contentEditables.map(c => ({ tag: c.tag, id: c.id, cls: c.className, role: c.role })))}`);
-  log(`Inputs: ${JSON.stringify(probe.inputs.map(i => ({ id: i.id, cls: i.className, ph: i.placeholder })))}`);
-  log(`Search text hits: ${JSON.stringify(probe.searchTexts.map(s => ({ kw: s.keyword, tag: s.tag, cls: s.className, text: s.text.slice(0, 50), pCls: s.parentClass })))}`);
+  log(`Search text hits: ${JSON.stringify(probe.searchTexts.map(s => ({ kw: s.keyword, tag: s.tag, cls: s.className, pCls: s.parentClass })))}`);
   log(`External links: ${JSON.stringify(probe.links.slice(0, 10))}`);
-  log(`Buttons (first 15): ${JSON.stringify(probe.buttons.slice(0, 15).map(b => ({ tag: b.tag, text: b.text?.slice(0, 40), cls: b.className?.slice(0, 60), aria: b.ariaLabel })))}`);
 
   // 7. 断开连接（不关闭浏览器）
   await browser.close();

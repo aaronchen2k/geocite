@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadEngineConfig } from '../utils/load-config.ts';
+import { loadEngineConfig } from '../utils/load-config.mts';
 
 // ─── 未登录状态探针：用临时空 profile 的 Chrome（独立端口）抓 DeepSeek 未登录 DOM ───
 // 用法：先手工启动临时 Chrome（空 profile + debugPort），再跑本脚本。

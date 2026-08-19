@@ -2,8 +2,13 @@
   "host": "127.0.0.1",
   "chromeBin": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   "profileRoot": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles",
-  "query": "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具，请简要说明并提供来源。",
-  "responseWaitMs": 20000,
+  "query": "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+  "batchQueries": [
+    "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+    "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文查重需要注意什么？",
+    "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文开题报告该怎么写？"
+  ],
+  "responseWaitMs": 30000,
   "waitJitterMs": [-5000, 10000],
   "loginWaitMs": 300000,
   "debugPorts": {

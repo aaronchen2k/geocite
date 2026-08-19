@@ -18,9 +18,16 @@ export function getOutDir(): string {
   return outDir;
 }
 
-/** 带时间戳日志 */
+/** 本地时间戳（yyyy-MM-dd HH:mm:ss，机器本地时区），供日志/结果目录/时间字段统一使用 */
+export function localTimestamp(): string {
+  const d = new Date();
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+/** 带时间戳日志（本地时间） */
 export function log(msg: string): void {
-  console.log(`[${new Date().toISOString()}] ${msg}`);
+  console.log(`[${localTimestamp()}] ${msg}`);
 }
 
 /** 保存文本产物到当前输出目录（每个文件只打一条日志） */

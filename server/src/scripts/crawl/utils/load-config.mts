@@ -21,6 +21,8 @@ export interface EngineConfig {
   profileDir: string;
   chromeBin: string;
   query: string;
+  /** 批量采样问题列表（可选，来自上层 config.json）：exec() 未传问题时优先使用；未配置则退回 [query] 单问题 */
+  batchQueries?: string[];
   responseWaitMs: number;
   waitJitterMs: [number, number];
   loginWaitMs: number;
@@ -76,6 +78,7 @@ export function loadEngineConfig(engineDir: string): EngineConfig {
     profileDir: path.join(profileRoot, profileName),
     chromeBin: requireValue<string>('chromeBin', (own.chromeBin as string) ?? (top.chromeBin as string)),
     query: requireValue<string>('query', (own.query as string) ?? (top.query as string)),
+    batchQueries: ((own.batchQueries as string[] | undefined) ?? (top.batchQueries as string[] | undefined)),
     responseWaitMs: requireValue<number>('responseWaitMs', (own.responseWaitMs as number) ?? (top.responseWaitMs as number)),
     waitJitterMs: ((own.waitJitterMs as [number, number]) ?? (top.waitJitterMs as [number, number]) ?? [0, 0]),
     loginWaitMs: ((own.loginWaitMs as number) ?? (top.loginWaitMs as number) ?? 300_000),

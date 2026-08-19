@@ -2,7 +2,7 @@
 // 目的：拿到未登录时的真实 DOM 特征，校准 crawl.ts 的 checkLoginState 登录检测
 import { chromium } from 'playwright';
 import fs from 'node:fs';
-import { loadEngineConfig } from '../utils/load-config.ts';
+import { loadEngineConfig } from '../utils/load-config.mts';
 
 const OUT = new URL('./output-login/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });

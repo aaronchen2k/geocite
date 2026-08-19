@@ -1,6 +1,7 @@
 // ─── 引擎无关的数据类型与运行快照构造（三引擎共享） ───
 // 豆包等引擎可在本地扩展 Citation（如加 rawHref）或 RunResult（如加 loginCheck）。
-import type { EngineConfig } from './load-config.ts';
+import type { EngineConfig } from './load-config.mts';
+import { localTimestamp } from './fs-utils.mts';
 
 /** 引用链接（基础结构；需要原始链接等附加字段的引擎可在本地 extends） */
 export interface Citation {
@@ -19,6 +20,8 @@ export interface SearchToggleState {
   on: boolean | null;
   className?: string;
   reason?: string;
+  /** 本次运行对开关采取的动作（none=未动/clicked=点击开启/clicked-after-retry=重试后开启/click-failed=点击后仍未开启） */
+  action?: string;
 }
 
 /** 引用文章详情 */
@@ -42,7 +45,7 @@ export interface RunConfigSnapshot {
 
 /** 构造运行配置快照 */
 export function makeRunConfig(runId: string, config: EngineConfig): RunConfigSnapshot {
-  return { runId, startedAt: new Date().toISOString(), config };
+  return { runId, startedAt: localTimestamp(), config };
 }
 
 /** 单问题汇总结果（问题 + 配置 + 回答 + 引用 + 文章，单文件留档） */

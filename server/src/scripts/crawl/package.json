@@ -1,0 +1,15 @@
+{
+  "name": "crawl",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "多引擎 AI 采样脚本（独立 ESM 子项目）：deepseek / doubao / qwen 抓取器",
+  "scripts": {
+    "crawl:deepseek": "node deepseek/crawl.mts",
+    "crawl:qwen": "node qwen/crawl.mts",
+    "crawl:doubao": "node doubao/crawl.mts"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

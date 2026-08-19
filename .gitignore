@@ -16,6 +16,6 @@ server/data/
 .superpowers/
 /docs/
 /openspec/
-/server/test/crawl/*/node_modules/
-/server/test/crawl/*/output*/
-/server/test/crawl/*/results/
+/server/src/scripts/crawl/*/node_modules/
+/server/src/scripts/crawl/*/output*/
+/server/src/scripts/crawl/*/results/

@@ -13,10 +13,7 @@ import { EngineBrowserLaunchEntity, EngineWebReviewProfileEntity, type WebReview
 import type { EngineSessionAdapter } from './engine-session/engine-session-adapter';
 import { DeepSeekEngineSessionService } from './engine-session/deepseek-engine-session.service';
 import { DoubaoEngineSessionService } from './engine-session/doubao-engine-session.service';
-import { KimiEngineSessionService, type KimiSessionInspection } from './engine-session/kimi-engine-session.service';
 import { QwenEngineSessionService } from './engine-session/qwen-engine-session.service';
-import { WenxinEngineSessionService } from './engine-session/wenxin-engine-session.service';
-import { YuanbaoEngineSessionService } from './engine-session/yuanbao-engine-session.service';
 
 type PageLike = { goto(url: string, options?: object): Promise<unknown>; url(): string; locator(selector: string): { allTextContents(): Promise<string[]> }; evaluate<T>(pageFunction: () => T | Promise<T>): Promise<T>; waitForSelector(selector: string, options?: object): Promise<unknown> };
 type BrowserContextLike = { pages(): PageLike[]; newPage(): Promise<PageLike>; close(): Promise<void> };
@@ -129,13 +126,9 @@ export class LocalChromeService {
   private readonly dependencies: LocalChromeDependencies;
   private readonly contexts = new Map<number, { launchId: string; profilePath: string; context: BrowserContextLike }>();
   private readonly engineOperations = new Map<number, Promise<void>>();
-  private readonly sessionInspection = new Map<number, KimiSessionInspection>();
   private readonly engineSessions: EngineSessionAdapter[] = [
     new QwenEngineSessionService(),
     new DoubaoEngineSessionService(),
-    new YuanbaoEngineSessionService(),
-    new KimiEngineSessionService(),
-    new WenxinEngineSessionService(),
     new DeepSeekEngineSessionService(),
   ];
 
@@ -426,7 +419,7 @@ export class LocalChromeService {
 
   private toStatus(profile: EngineWebReviewProfileEntity) {
     const { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt } = profile;
-    return { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt, sessionInspection: this.sessionInspection.get(profile.engineId) ?? null };
+    return { availability, lastCheckedAt, failureCode, lastFailureReason, lastReadyAt, sessionInspection: null };
   }
 
   private officialLoginUrl(engine: Pick<BrowserEngine, 'code' | 'vendor' | 'homepage' | 'baseUrl'>) {
@@ -452,11 +445,6 @@ export class LocalChromeService {
   private async knownEngineSessionState(engine: BrowserEngine, page: PageLike): Promise<boolean | null> {
     try {
       const adapter = this.engineSessions.find((item) => item.supports(engine));
-      if (adapter instanceof KimiEngineSessionService) {
-        const inspection = await adapter.inspect(page);
-        this.sessionInspection.set(engine.id, inspection);
-        return inspection.accountLabel === 'account' && inspection.membershipUpgradePresent;
-      }
       if (adapter) return adapter.isLoggedIn(page);
     } catch {
       return false;

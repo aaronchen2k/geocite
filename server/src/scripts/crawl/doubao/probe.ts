@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadEngineConfig } from '../utils/load-config.ts';
+import { loadEngineConfig } from '../utils/load-config.mts';
 
 // 地址统一从上层+引擎 config.json 合并读取（env 可覆盖），不再硬编码
 const { cdpUrl: CDP_URL, targetUrl: TARGET_URL } = loadEngineConfig(import.meta.dirname);

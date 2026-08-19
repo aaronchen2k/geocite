@@ -4,7 +4,7 @@
 // 拉起后 Chrome 保持运行（与手动执行 start-chrome.sh 效果一致），后续多次抓取复用。
 import { spawn } from 'node:child_process';
 import http from 'node:http';
-import type { EngineConfig } from './load-config.ts';
+import type { EngineConfig } from './load-config.mts';
 
 /** 探测 CDP 端口是否就绪（有 Chrome 在监听且返回 Browser 标识） */
 export function checkCdpPort(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
