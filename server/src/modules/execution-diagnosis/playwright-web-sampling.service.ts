@@ -46,12 +46,16 @@ export class PlaywrightWebSamplingService {
   private async runDshCommand(engineCode: string, prompts: string[]): Promise<CrawlerRunResult[]> {
     const crawlerDirectory = path.resolve(process.cwd(), 'src', 'scripts', 'crawl', engineCode);
     const runDirectory = this.runDirectoryName();
-    const command = `node crawl.mts ${this.shellArgument(JSON.stringify(prompts))} ${this.shellArgument(runDirectory)}`;
+    const command = `node crawl.mts ${this.shellArgument(JSON.stringify(prompts))} ${this.shellArgument(runDirectory)}`
+
     const task = [
       `在当前目录执行以下采样命令：${command}`,
       '若命令报错，请诊断并修复 crawler 或运行环境后重试。',
-      `采样成功后确认结果写入 results/${runDirectory}/q-XX/result.json，并最后报告执行结果。`,
+      prompts.length > 1
+          ? `采样成功后确认结果写入 results/${runDirectory}/q-01/result.json 等（每个问题一个 q-NN 子目录），并最后报告执行结果。`
+          : `采样成功后确认结果写入 results/${runDirectory}/result.json，并最后报告执行结果。`,
     ].join('\n');
+
     this.logger.log(`${engineCode} dsh 采样开始，结果目录=${runDirectory}`);
     const output = await this.runDsh(task, crawlerDirectory);
     if (output.stdout.trim()) this.logger.log(`${engineCode} dsh 输出：${output.stdout.trim().slice(-2_000)}`);
