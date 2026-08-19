@@ -55,10 +55,8 @@ export async function ensureBrowser(cfg: EngineConfig, waitMs = 30_000): Promise
       console.log(`[ensure-browser] 端口 ${debugPort} 就绪`);
       return;
     }
-    // 子进程提前退出说明启动失败（如 chromeBin 路径错、profile 被占用）
-    if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`Chrome 启动失败（端口 ${debugPort}，进程已退出 code=${child.exitCode ?? child.signalCode}）。请检查 chromeBin/profileDir。`);
-    }
+    // macOS 的 Chrome 启动器可能在把实际浏览器进程交接出去后先退出；
+    // 不能据此立刻判定失败，继续等待 CDP 端口直到超时。
   }
   throw new Error(`等待 Chrome 就绪超时（端口 ${debugPort}，${waitMs / 1000}s）。`);
 }

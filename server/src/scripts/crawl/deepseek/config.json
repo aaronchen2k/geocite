@@ -1,6 +1,6 @@
 {
   "engine": "deepseek",
-  "profileName": "engine-3-deepseek-b2ae13f4-3b04-473d-94ac-c1d2d52ec61b",
+  "profileName": "engine-3-deepseek",
   "loginTexts": [
     "发送验证码",
     "密码登录",

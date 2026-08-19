@@ -2,6 +2,7 @@
 # 运行 DeepSeek 抓取（默认 crawl.mts，可传脚本名）
 # Node >= 22.18 原生支持 .ts 直跑（type stripping），无需 tsc/tsx
 SCRIPT="${1:-crawl.mts}"
+shift || true
 
 # Node 动态解析：优先环境变量 NODE_BIN，其次 PATH 查找（不硬编码具体版本路径）
 NODE_BIN="${NODE_BIN:-$(command -v node)}"
@@ -19,4 +20,4 @@ fi
 # （ESM 不认 NODE_PATH，playwright 依赖靠脚本目录内 node_modules 软链解析，无需设置）
 cd "$(dirname "$0")"
 NO_PROXY="127.0.0.1,localhost" no_proxy="127.0.0.1,localhost" \
-  "$NODE_BIN" "$SCRIPT"
+  "$NODE_BIN" "$SCRIPT" "$@"

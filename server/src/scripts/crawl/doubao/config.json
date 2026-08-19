@@ -1,6 +1,6 @@
 {
   "engine": "doubao",
-  "profileName": "engine-2-doubao-90e1ebbd-0923-4930-af95-95ecbbb835f6",
+  "profileName": "engine-2-doubao",
   "loginTexts": ["登录", "验证码"],
   "loginPollIntervalMs": 5000,
   "loginWaitMs": 120000

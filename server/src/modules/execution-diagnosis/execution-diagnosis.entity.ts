@@ -3,6 +3,19 @@ import { BrandEntity } from '../brands/brand.entity';
 
 export type ExecutionRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'partial';
 export type ExecutionStepStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'partial' | 'skipped' | 'unmeasured' | 'cancelled';
+export type SampleAnalysis = {
+  brandMentioned: boolean | null;
+  mentionedCompetitors: string[];
+  recommendation: 'recommended' | 'candidate' | 'not_recommended' | 'not_mentioned' | 'uncertain';
+  recommendationRank: number | null;
+  sentiment: 'positive' | 'neutral' | 'negative' | 'mixed' | 'uncertain';
+  claims: Array<{ text: string; type: 'ability' | 'scenario' | 'boundary' | 'fact' | 'risk' }>;
+  factVerdict: 'accurate' | 'missing' | 'suspected_incorrect' | 'unverifiable' | 'pending_review';
+  citations: Array<{ url: string; title: string | null; supports: string }>;
+  evidence: string[];
+  modelName: string;
+  analyzedAt: string;
+};
 export type ExecutionDiagnosisConfigurationSnapshot = {
   questions: Array<{ id: number; question: string; group: string; primaryCategory: string; secondaryCategory: string; market: 'cn' | 'global' | 'both'; brandProbe: boolean }>;
   taxonomyVersion?: string;
@@ -103,6 +116,8 @@ export class ExecutionDiagnosisSampleEntity {
   @Column({ type: 'text', nullable: true }) adapter!: string | null;
   @Column({ name: 'native_web_search', default: false }) nativeWebSearch!: boolean;
   @Column({ name: 'citations_json', type: 'simple-json', nullable: true }) citations!: Array<{ title: string | null; url: string; excerpt: string | null }> | null;
+  @Column({ name: 'analysis_json', type: 'simple-json', nullable: true }) analysis!: SampleAnalysis | null;
+  @Column({ name: 'analysis_error', type: 'text', nullable: true }) analysisError!: string | null;
   @Column({ type: 'text', nullable: true }) error!: string | null;
   @Column({ name: 'reviewed_brand_mention', type: 'boolean', nullable: true }) reviewedBrandMention!: boolean | null;
   @Column({ name: 'review_note', type: 'text', nullable: true }) reviewNote!: string | null;

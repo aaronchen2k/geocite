@@ -19,6 +19,7 @@ import { selectWebReviewSamples, webReviewCandidates, type WebReviewSelection } 
 import { WebReviewRunnerService } from './web-review-runner.service';
 import { QUESTION_TAXONOMY_VERSION } from './brand-question-prompt';
 import { PlaywrightWebSamplingService } from './playwright-web-sampling.service';
+import { SampleAnalysisService } from './sample-analysis.service';
 
 type StepResult = NonNullable<ExecutionDiagnosisStepEntity['result']> & { stepStatus?: 'skipped' };
 type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: number | null };
@@ -49,6 +50,7 @@ export class ExecutionDiagnosisService {
     @Optional() @InjectRepository(ExecutionDiagnosisWebReviewEntity) private readonly webReviews?: Repository<ExecutionDiagnosisWebReviewEntity>,
     private readonly webReviewRunner?: WebReviewRunnerService,
     @Optional() private readonly webSampler?: PlaywrightWebSamplingService,
+    @Optional() private readonly sampleAnalysis?: SampleAnalysisService,
   ) {}
 
   async create(brandId: number, options: { scope?: 'all_configured' } = {}) {
@@ -318,7 +320,8 @@ export class ExecutionDiagnosisService {
     }
     const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
     const total = eligible.length * questions.length;
-    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { samplingMethod: 'playwright', sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'restore-engine-web-session' };
+    const analysis = await this.analyzeSamples(runId, brand.id);
+    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { samplingMethod: 'playwright', sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length, analysis }, recommendation: succeeded ? 'review-samples' : 'restore-engine-web-session' };
   }
 
   private webSearchPrompt(brand: Pick<BrandEntity, 'name' | 'website'>, question: string) {
@@ -372,7 +375,8 @@ export class ExecutionDiagnosisService {
     const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
     const total = eligible.length * questions.length;
     await this.freezeWebReviewSelection(run, brand);
-    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
+    const analysis = await this.analyzeSamples(runId, brand.id);
+    return { conclusion: succeeded ? 'passed' : 'failed', severity: succeeded ? 'info' : 'P1', evidence: { sampled, skipped, totalQuestions: total, succeededQuestions: succeeded, failedQuestions: total - succeeded, questionsPerEngine: questions.length, analysis }, recommendation: succeeded ? 'review-samples' : 'verify-engine-configuration' };
   }
   private async freezeWebReviewSelection(run: ExecutionDiagnosisRunEntity, brand: BrandEntity) {
     const webReview = run.configurationSnapshot?.webReview;
@@ -382,6 +386,18 @@ export class ExecutionDiagnosisService {
     webReview.candidateSampleIds = webReviewCandidates(selectable).map((sample) => sample.id);
     webReview.selected = selectWebReviewSamples(selectable, run.configurationSnapshot?.questions ?? [], webReview.randomSeed, webReview.minimumRate) as ExecutionDiagnosisConfigurationSnapshot['webReview']['selected'];
     await this.runs.update(run.id, { configurationSnapshot: run.configurationSnapshot });
+  }
+  private async analyzeSamples(runId: number, brandId: number) {
+    if (!this.sampleAnalysis) return { status: 'unavailable', reason: 'sample-analysis-service-unavailable' };
+    try {
+      const result = await this.sampleAnalysis.analyzeRun(brandId, runId);
+      await this.log(runId, 5, `采样结束，已完成 ${result.completed} 条样本分析${result.failed ? `，${result.failed} 条分析失败` : ''}`);
+      return { status: result.failed ? 'partial' : 'completed', ...result };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'sample-analysis-failed';
+      await this.log(runId, 5, `采样结束，但样本分析未完成：${reason}`);
+      return { status: 'failed', reason };
+    }
   }
   private async runWebReview(runId: number): Promise<StepResult> {
     const run = await this.getRun(runId);

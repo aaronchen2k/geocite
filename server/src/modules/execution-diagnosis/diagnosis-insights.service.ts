@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BrandEntity } from '../brands/brand.entity';
@@ -7,6 +7,7 @@ import { BrandDiagnosisQuestionEntity } from './execution-diagnosis.entity';
 import { ExecutionDiagnosisRunEntity, ExecutionDiagnosisSampleEntity, ExecutionDiagnosisWebReviewEntity } from './execution-diagnosis.entity';
 import { ReviewSampleDto } from './diagnosis-insights.dto';
 import { DiagnosisFindingEntity } from './optimization-verification.entity';
+import { SampleAnalysisService } from './sample-analysis.service';
 
 type Mention = { name: string; count: number; sampleCount: number; rate: number };
 type WebReviewCorrection = { answer: string; brandMentioned: boolean | null };
@@ -21,7 +22,14 @@ export class DiagnosisInsightsService {
     @InjectRepository(BrandDiagnosisQuestionEntity) private readonly diagnosisQuestions: Repository<BrandDiagnosisQuestionEntity>,
     @InjectRepository(DiagnosisFindingEntity) private readonly findings: Repository<DiagnosisFindingEntity>,
     @InjectRepository(ExecutionDiagnosisWebReviewEntity) private readonly webReviews: Repository<ExecutionDiagnosisWebReviewEntity>,
+    @Optional() private readonly sampleAnalysis?: SampleAnalysisService,
   ) {}
+
+  async recalculateLatest(brandId: number) {
+    if (!this.sampleAnalysis) throw new Error('样本分析服务不可用');
+    const result = await this.sampleAnalysis.analyzeLatest(brandId);
+    return { ...(await this.forRun(brandId, result.runId)), analysis: result };
+  }
 
   async latest(brandId: number) {
     await this.brand(brandId);
@@ -93,7 +101,34 @@ export class DiagnosisInsightsService {
       return { group, questionCount: scoped.length, sampleCount: scoped.reduce((total, item) => total + item.sampleCount, 0), mentionRate: scoped.length ? scoped.reduce((total, item) => total + item.mentionRate, 0) / scoped.length : 0, weakQuestion: weakQuestion?.question ?? null };
     });
     const priorityActions = questionInsights.filter((item) => item.diagnosis !== 'normal').sort((a, b) => (a.diagnosis === 'competitor-dominated' ? 0 : 1) - (b.diagnosis === 'competitor-dominated' ? 0 : 1) || a.mentionRate - b.mentionRate || b.leadingCompetitorRate - a.leadingCompetitorRate).slice(0, 3);
-    const sources = new Set(samples.flatMap((sample) => this.sources(this.effectiveAnswer(sample, webReviewCorrections))));
+    const structuredSources = samples.flatMap((sample) => {
+      const citations = sample.analysis?.citations?.length
+        ? sample.analysis.citations
+        : sample.citations?.length
+          ? sample.citations.map((citation) => ({ url: citation.url, title: citation.title, supports: '' }))
+          : this.answerSourceUrls(this.effectiveAnswer(sample, webReviewCorrections)).map((url) => ({ url, title: null, supports: '' }));
+      return citations.map((source) => ({ ...source, sample }));
+    }).filter((source) => Boolean(source.url));
+    const sources = new Map<string, { url: string; title: string | null; count: number; supports: string[]; engines: Set<string>; questions: Set<string> }>();
+    structuredSources.forEach((source) => {
+      const key = this.normalizedSourceUrl(source.url);
+      const entry = sources.get(key) ?? { url: key, title: source.title ?? null, count: 0, supports: [], engines: new Set<string>(), questions: new Set<string>() };
+      entry.count += 1;
+      if (source.supports) entry.supports.push(source.supports);
+      entry.engines.add(source.sample.engineName);
+      if (source.sample.question) entry.questions.add(source.sample.question);
+      sources.set(key, entry);
+    });
+    const analyses = samples.map((sample) => sample.analysis).filter((analysis): analysis is NonNullable<ExecutionDiagnosisSampleEntity['analysis']> => Boolean(analysis));
+    const countBy = <T extends string>(values: T[]) => values.reduce<Record<string, number>>((result, value) => ({ ...result, [value]: (result[value] ?? 0) + 1 }), {});
+    const analysisSummary = {
+      analyzedSampleCount: analyses.length,
+      pendingSampleCount: samples.filter((sample) => !sample.error && !sample.analysis).length,
+      recommendation: countBy(analyses.map((analysis) => analysis.recommendation)),
+      sentiment: countBy(analyses.map((analysis) => analysis.sentiment)),
+      factVerdict: countBy(analyses.map((analysis) => analysis.factVerdict)),
+      sources: [...sources.values()].sort((left, right) => right.count - left.count).slice(0, 20).map((source) => ({ url: source.url, title: source.title, count: source.count, supports: [...new Set(source.supports)].slice(0, 3), engines: [...source.engines], questions: [...source.questions] })),
+    };
     const countSelection = (reason: ExecutionDiagnosisWebReviewEntity['selectionReasons'][number]) => webReviews.filter((review) => review.selectionReasons.includes(reason)).length;
     const excludedByReason = webReviews.filter((review) => review.status === 'excluded' && review.exclusionReason).reduce<Record<string, number>>((result, review) => ({ ...result, [review.exclusionReason!]: (result[review.exclusionReason!] ?? 0) + 1 }), {});
     const minimumRate = run.configurationSnapshot?.webReview?.minimumRate ?? 0.3;
@@ -108,8 +143,9 @@ export class DiagnosisInsightsService {
       report: { engines: engineInsights, groups: groupInsights, priorityActions, competitorDominatedCount: questionInsights.filter((item) => item.diagnosis === 'competitor-dominated').length, absentCount: questionInsights.filter((item) => item.diagnosis === 'absent').length, normalCount: questionInsights.filter((item) => item.diagnosis === 'normal').length },
       evidenceBasis: successfulWebReviews.length > 0 ? 'web-review-corrected' : 'api-reference-only',
       webReviewSummary,
+      analysis: analysisSummary,
       findings: findings.map((finding) => ({ id: finding.id, sourceRunId: finding.sourceRunId, type: finding.type, priority: finding.priority, scope: finding.scope, recommendation: finding.recommendation, status: finding.status })),
-      samples: samples.map((sample) => { const answer = this.effectiveAnswer(sample, webReviewCorrections); return { id: sample.id, engineName: sample.engineName, question: sample.question, answer, error: sample.error, sampledAt: sample.sampledAt, statusCode: sample.statusCode, brandMention: this.sampleMentions(sample, [brand.name], true, webReviewCorrections, reviewedBrandMentions, true), reviewedBrandMention: sample.reviewedBrandMention, reviewNote: sample.reviewNote, sources: this.sources(answer) }; }),
+      samples: samples.map((sample) => { const answer = this.effectiveAnswer(sample, webReviewCorrections); return { id: sample.id, engineName: sample.engineName, question: sample.question, answer, error: sample.error, sampledAt: sample.sampledAt, statusCode: sample.statusCode, brandMention: this.sampleMentions(sample, [brand.name], true, webReviewCorrections, reviewedBrandMentions, true), reviewedBrandMention: sample.reviewedBrandMention, reviewNote: sample.reviewNote, sources: this.sources(answer), citations: sample.citations ?? [], analysis: sample.analysis, analysisError: sample.analysisError }; }),
     };
   }
 
@@ -130,5 +166,7 @@ export class DiagnosisInsightsService {
   private effectiveAnswer(sample: ExecutionDiagnosisSampleEntity, webReviewCorrections = new Map<number, WebReviewCorrection>()) { return webReviewCorrections.get(sample.id)?.answer ?? sample.answer; }
   private sampleMentions(sample: ExecutionDiagnosisSampleEntity, aliases: string[], useReview = false, webReviewCorrections = new Map<number, WebReviewCorrection>(), reviewedBrandMentions = new Map<number, boolean>(), useBrandReview = false) { if (useBrandReview && reviewedBrandMentions.has(sample.id)) return reviewedBrandMentions.get(sample.id)!; if (useBrandReview && sample.reviewedBrandMention !== null && sample.reviewedBrandMention !== undefined) return sample.reviewedBrandMention; const answer = this.effectiveAnswer(sample, useReview ? webReviewCorrections : undefined).toLocaleLowerCase(); return aliases.filter(Boolean).some((alias) => answer.includes(alias.toLocaleLowerCase())); }
   private sources(answer: string) { return [...new Set([...answer.matchAll(/https?:\/\/([^\s/)]+)/g)].map((match) => match[1].toLocaleLowerCase()))]; }
+  private answerSourceUrls(answer: string) { return [...new Set([...answer.matchAll(/https?:\/\/[^\s)\]}>,，。]+/g)].map((match) => match[0]))]; }
+  private normalizedSourceUrl(value: string) { try { const url = new URL(value); url.hash = ''; url.search = ''; return url.toString().replace(/\/$/, ''); } catch { return value.trim(); } }
   private async brand(id: number) { const brand = await this.brands.findOne({ where: { id, deleted: false } }); if (!brand) throw new NotFoundException(`Brand ${id} 不存在`); return brand; }
 }

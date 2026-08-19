@@ -163,9 +163,10 @@ describe('ExecutionDiagnosisService events', () => {
         question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: null,
       }]),
     };
+    const sampleAnalysis = { analyzeRun: jest.fn().mockResolvedValue({ runId: 7, completed: 1, failed: 0 }) };
     const service = new ExecutionDiagnosisService(
       { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never, liveBrandEngines as never, liveEngines as never, runs as never, {} as never, events as never, {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
-      {} as never, undefined, webSampler as never,
+      {} as never, undefined, webSampler as never, sampleAnalysis as never,
     );
     const sampler = jest.spyOn((service as unknown as { engineSamplingClient: { sample: jest.Mock } }).engineSamplingClient, 'sample').mockResolvedValue({ adapter: 'frozen', nativeWebSearch: true, statusCode: 200, answer: '答案', error: null });
 
@@ -176,9 +177,41 @@ describe('ExecutionDiagnosisService events', () => {
       [expect.objectContaining({ question: '冻结问题', prompt: expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。') })],
     );
     expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
+    expect(sampleAnalysis.analyzeRun).toHaveBeenCalledWith(5, 7);
+    expect(samples.save.mock.invocationCallOrder[0]).toBeLessThan(sampleAnalysis.analyzeRun.mock.invocationCallOrder[0]);
     expect(sampler).not.toHaveBeenCalled();
     expect(liveBrandEngines.find).not.toHaveBeenCalled();
     expect(liveEngines.findBy).not.toHaveBeenCalled();
+  });
+
+  it('样本分析不可用时保留采样结果并返回分析失败统计', async () => {
+    const runs = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 7,
+        configurationSnapshot: {
+          questions: [{ id: 1, question: '冻结问题', group: '推荐', market: 'cn', brandProbe: false }],
+          engines: [{ id: 2, name: 'Frozen Engine', code: 'frozen', vendor: 'Frozen Vendor', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key', nativeWebSearch: true }],
+          skippedEngines: [], samplingMethod: 'playwright', rulesVersion: 'v1', market: 'cn', markets: ['cn'],
+        },
+        steps: [], events: [],
+      }),
+    };
+    const samples = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
+    const sampleAnalysis = { analyzeRun: jest.fn().mockRejectedValue(new Error('default-model-unavailable')) };
+    const service = new ExecutionDiagnosisService(
+      { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never, {} as never, {} as never, runs as never, {} as never,
+      { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) } as never,
+      {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
+      {} as never, undefined,
+      { searchBatch: jest.fn().mockResolvedValue([{ question: '冻结问题', answer: '网页端的联网回答', citations: [], adapter: 'frozen-web', error: null }]) } as never,
+      sampleAnalysis as never,
+    );
+
+    await expect((service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null })).resolves.toMatchObject({
+      conclusion: 'passed',
+      evidence: { analysis: { status: 'failed', reason: 'default-model-unavailable' } },
+    });
+    expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答' }));
   });
 
   it('persists the site-failure finding before publishing a failed run', async () => {

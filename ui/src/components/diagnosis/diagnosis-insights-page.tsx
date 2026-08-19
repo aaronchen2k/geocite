@@ -8,7 +8,8 @@ import {Button} from '@/components/ui/button';
 import {Switch} from '@/components/ui/switch';
 
 type Question = {question: string; group: string; primaryCategory: string; secondaryCategory: string; sampleCount: number; mentionRate: number; diagnosis: string; leadingCompetitor: string | null; leadingCompetitorRate: number};
-type Sample = {id: number; engineName: string; question: string | null; answer: string; error: string | null; sampledAt: string; brandMention: boolean; reviewedBrandMention: boolean | null; reviewNote: string | null; sources: string[]};
+type SampleAnalysis = {brandMentioned: boolean | null; mentionedCompetitors: string[]; recommendation: string; recommendationRank: number | null; sentiment: string; claims: Array<{text: string; type: string}>; factVerdict: string; citations: Array<{url: string; title: string | null; supports: string}>; evidence: string[]};
+type Sample = {id: number; engineName: string; question: string | null; answer: string; error: string | null; sampledAt: string; brandMention: boolean; reviewedBrandMention: boolean | null; reviewNote: string | null; sources: string[]; citations?: Array<{title: string | null; url: string; excerpt: string | null}>; analysis?: SampleAnalysis | null; analysisError?: string | null};
 type MatrixRow = {name: string; overallRate: number; byEngine: Array<{engineName: string; sampleCount: number; rate: number}>; lostQuestions: Array<{question: string; rate: number; brandMentionRate: number}>};
 type Finding = {id: number; sourceRunId: number; type: string; priority: string; scope: Record<string, unknown> | null; recommendation: string; status: string};
 type WebReviewSummary = {apiTotal: number; candidateTotal: number; minimumTarget: number; mandatoryCore: number; mandatoryMentioned: number; randomUnmentioned: number; minimumFill: number; succeeded: number; excludedByReason: Record<string, number>};
@@ -18,11 +19,31 @@ type Variant = 'report' | 'summary' | 'competitors' | 'samples' | 'map';
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 const diagnosisLabel: Record<string, string> = {'competitor-dominated': '竞品主导', absent: '完全缺席', normal: '表现正常', unmeasured: '未测'};
+type PositioningMapDemoArea = {primary: string; mentionRate: number; leadingCompetitor: string; gap: string; secondary: Array<{name: string; mentionRate: number; leadingCompetitor: string; competitorRate: number; missingFact: string; source: {name: string; count: number; supports: string}; questions: string[]}>};
+
+// 暂以静态示例呈现完整分析结构；接入样本标注和结构化信源聚合后替换为服务端统计结果。
+const POSITIONING_MAP_DEMO: PositioningMapDemoArea[] = [
+  {primary: '品牌基础提问', mentionRate: 58, leadingCompetitor: '竞品 A', gap: '基础事实与官方身份信息分散', secondary: [
+    {name: '事实查询', mentionRate: 64, leadingCompetitor: '竞品 A', competitorRate: 76, missingFact: '主营服务、服务边界与官网主体关系缺少统一说明。', source: {name: '行业媒体示例', count: 12, supports: '企业背景与服务范围'}, questions: ['某品牌的主营产品和服务是什么？', '某品牌的官网和服务范围是什么？']},
+    {name: '品牌验证', mentionRate: 51, leadingCompetitor: '竞品 A', competitorRate: 68, missingFact: '品牌别名、官方渠道与服务保障缺少可核验的公开说明。', source: {name: '官网帮助中心示例', count: 8, supports: '品牌身份与服务保障'}, questions: ['某品牌是否提供官方售后与服务保障？']},
+  ]},
+  {primary: '核心业务能力提问', mentionRate: 43, leadingCompetitor: '竞品 B', gap: '能力边界与行业场景的可信证据不足', secondary: [
+    {name: '场景', mentionRate: 46, leadingCompetitor: '竞品 B', competitorRate: 72, missingFact: '适用行业、客户类型和典型使用场景缺少案例支撑。', source: {name: '垂直行业媒体示例', count: 15, supports: '适用场景与客户案例'}, questions: ['什么场景下适合选择这类服务？']},
+    {name: '风险', mentionRate: 31, leadingCompetitor: '竞品 B', competitorRate: 55, missingFact: '服务限制、实施前提和不适用场景尚未形成公开边界说明。', source: {name: '问答社区示例', count: 9, supports: '风险与限制'}, questions: ['选择这类服务时需要注意哪些风险？']},
+    {name: '能力确认', mentionRate: 52, leadingCompetitor: '竞品 B', competitorRate: 66, missingFact: '核心交付物、方法流程和可验证能力说明不足。', source: {name: '协会专栏示例', count: 11, supports: '专业能力与交付方式'}, questions: ['这类服务能否满足我的核心需求？']},
+  ]},
+  {primary: '竞品对比提问', mentionRate: 36, leadingCompetitor: '竞品 C', gap: '对比、替代与推荐场景缺少差异化事实', secondary: [
+    {name: '比较', mentionRate: 39, leadingCompetitor: '竞品 C', competitorRate: 74, missingFact: '与同类服务在方法、行业经验和交付方式上的差异缺少对照说明。', source: {name: '第三方评测示例', count: 14, supports: '服务能力横向比较'}, questions: ['同类品牌之间有哪些关键差异？']},
+    {name: '替代', mentionRate: 34, leadingCompetitor: '竞品 C', competitorRate: 69, missingFact: '替代方案选择条件及品牌不可替代价值未被公开表达。', source: {name: '采购指南示例', count: 10, supports: '替代方案与选择条件'}, questions: ['如果不选择当前方案，有哪些替代选择？']},
+    {name: '推荐', mentionRate: 35, leadingCompetitor: '竞品 C', competitorRate: 77, missingFact: '可验证案例、行业口碑和推荐理由覆盖不足。', source: {name: '行业榜单示例', count: 18, supports: '推荐依据与服务商选择'}, questions: ['面对这类需求，推荐哪个品牌或方案？']},
+  ]},
+];
 
 export function DiagnosisInsightsPage({variant}: {variant: Variant}): React.JSX.Element {
   const brandId = useWorkspaceStore((state) => state.currentBrandId);
   const [insight, setInsight] = useState<Insight | null | undefined>(undefined);
   const [error, setError] = useState('');
+  const [recalculating, setRecalculating] = useState(false);
   const load = useCallback(async () => {
     if (!brandId) { setInsight(null); return; }
     setError('');
@@ -30,22 +51,30 @@ export function DiagnosisInsightsPage({variant}: {variant: Variant}): React.JSX.
     catch (reason) { setError(reason instanceof Error ? reason.message : '加载诊断结果失败'); setInsight(null); }
   }, [brandId]);
   useEffect(() => { setInsight(undefined); void load(); }, [load]);
+  const recalculate = async () => {
+    if (!brandId) return;
+    setRecalculating(true);
+    setError('');
+    try { setInsight(await requestJson<Insight>(`brands/${brandId}/diagnosis-insights/latest/recalculate`, {method: 'POST'})); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '重新统计失败'); }
+    finally { setRecalculating(false); }
+  };
 
-  const title = {report: '诊断报告', summary: '问答汇总', competitors: '竞品对比', samples: '样本库', map: '阵地地图'}[variant];
-  const description = {report: '汇总当前品牌最近一次诊断的真实采样结果。', summary: '按品牌问题汇总各模型回答、品牌提及和竞品表现。', competitors: '从问题与模型两个维度找出竞品占优的具体场景。', samples: '浏览原始 AI 回答，必要时人工复核品牌提及。', map: '基于问题表现和竞品出现率识别值得争取的主题阵地。'}[variant];
+  const title = {report: '诊断报告', summary: '问答汇总', competitors: '竞品对比', samples: '样本标注', map: '阵地地图'}[variant];
+  const description = {report: '汇总当前品牌最近一次诊断的真实采样结果。', summary: '按品牌问题汇总各模型回答、品牌提及和竞品表现。', competitors: '从问题与模型两个维度找出竞品占优的具体场景。', samples: '查看并校验每个问题在各引擎中的原始回答、引用信源与结构化分析结果。人工修改优先于 AI 标注。', map: '基于问题表现和竞品出现率识别值得争取的主题阵地。'}[variant];
 
   return <section className="pb-8">
-    <header className="mb-6 border-b border-[var(--border)] pb-4"><h1 className="mb-2 text-[22px] font-semibold">{title}</h1><p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p></header>
+    <header className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-4"><div><h1 className="mb-2 text-[22px] font-semibold">{title}</h1><p className="max-w-3xl text-sm leading-6 text-[var(--muted-foreground)]">{description}</p></div>{variant === 'samples' && <div className="shrink-0"><Button variant="outline" onClick={() => void recalculate()} disabled={!brandId || recalculating}>{recalculating ? '分析并统计中…' : '重新统计'}</Button><p className="mt-2 text-xs text-[var(--muted-foreground)]">调用默认模型分析回答与引用，再生成当前指标和报告，不重新采样。</p></div>}</header>
     {error && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
     {insight === undefined ? <p className="text-sm text-[var(--muted-foreground)]">正在加载诊断结果…</p>
       : !brandId ? <p className="text-sm text-[var(--muted-foreground)]">请先在顶部选择 Brand。</p>
-        : !insight ? <EmptyState />
+        : !insight ? variant === 'map' ? <PositioningMap /> : <EmptyState />
           : <><p className="mb-4 text-xs text-[var(--muted-foreground)]">诊断批次 #{insight.run.id} · {new Date(insight.run.createdAt).toLocaleString()}</p>
             {variant === 'report' && <><Report insight={insight} /><WebReviewEvidence summary={insight.webReviewSummary} evidenceBasis={insight.evidenceBasis} /></>}
             {variant === 'summary' && <QuestionTable items={insight.questions} sourceRunId={insight.run.id} />}
             {variant === 'competitors' && <CompetitorComparison insight={insight} />}
             {variant === 'samples' && <SampleList samples={insight.samples} brandId={brandId} onReviewed={load} />}
-            {variant === 'map' && <PositioningMap questions={insight.questions} findings={insight.findings} sourceRunId={insight.run.id} />}
+            {variant === 'map' && <PositioningMap />}
           </>}
   </section>;
 }
@@ -82,60 +111,46 @@ function SampleCard({sample, brandId, onReviewed}: {sample: Sample; brandId: num
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const save = async () => { setSaving(true); setError(''); try { await requestJson(`brands/${brandId}/diagnosis-insights/samples/${sample.id}/review`, {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({brandMention: mention, note})}); await onReviewed(); } catch (reason) { setError(reason instanceof Error ? reason.message : '保存复核失败'); } finally { setSaving(false); } };
-  return <article className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><div className="flex flex-wrap justify-between gap-2 text-sm"><strong>{sample.engineName}</strong><span className="text-[var(--muted-foreground)]">{new Date(sample.sampledAt).toLocaleString()}</span></div><p className="mt-3 text-sm font-medium">{sample.question ?? '未关联问题'}</p><div className="mt-2 max-h-72 overflow-y-auto rounded-md bg-[var(--muted)] p-3 text-sm leading-6 text-[var(--muted-foreground)]"><p className="whitespace-pre-wrap">{sample.error ? `采样失败：${sample.error}` : sample.answer || '无回答内容'}</p></div>{sample.sources.length > 0 && <p className="mt-2 text-xs text-[var(--muted-foreground)]">引用来源：{sample.sources.join(' · ')}</p>}<div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-3"><label className="flex items-center gap-2 text-sm"><Switch aria-label="品牌被提及" checked={mention} onCheckedChange={setMention} /><span>品牌被提及</span></label><input aria-label="复核备注" className="h-8 min-w-48 flex-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm" placeholder="复核备注（可选）" value={note} onChange={(event) => setNote(event.target.value)} /><Button size="sm" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? '保存中…' : sample.reviewedBrandMention === null ? '确认复核' : '更新复核'}</Button></div>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</article>;
+  return <article className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"><div className="flex flex-wrap justify-between gap-2 text-sm"><strong>{sample.engineName}</strong><span className="text-[var(--muted-foreground)]">{new Date(sample.sampledAt).toLocaleString()}</span></div><p className="mt-3 text-sm font-medium">{sample.question ?? '未关联问题'}</p><div className="mt-2 max-h-72 overflow-y-auto rounded-md bg-[var(--muted)] p-3 text-sm leading-6 text-[var(--muted-foreground)]"><p className="whitespace-pre-wrap">{sample.error ? `采样失败：${sample.error}` : sample.answer || '无回答内容'}</p></div>{sample.analysis ? <SampleAnalysisView analysis={sample.analysis} /> : <p className="mt-3 text-xs text-[var(--muted-foreground)]">{sample.analysisError ? `分析失败：${sample.analysisError}` : '尚未进行样本分析。点击页面顶部“重新统计”后生成。'}</p>}<div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-3"><label className="flex items-center gap-2 text-sm"><Switch aria-label="品牌被提及" checked={mention} onCheckedChange={setMention} /><span>品牌被提及</span></label><input aria-label="复核备注" className="h-8 min-w-48 flex-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 text-sm" placeholder="复核备注（可选）" value={note} onChange={(event) => setNote(event.target.value)} /><Button size="sm" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? '保存中…' : sample.reviewedBrandMention === null ? '确认复核' : '更新复核'}</Button></div>{error && <p className="mt-2 text-xs text-red-600">{error}</p>}</article>;
 }
 
-function PositioningMap({questions, findings, sourceRunId}: {questions: Question[]; findings: Finding[]; sourceRunId: number}) {
+function SampleAnalysisView({analysis}: {analysis: SampleAnalysis}) { return <section className="mt-3 border-t border-[var(--border)] pt-3 text-sm"><div className="grid gap-x-5 gap-y-2 sm:grid-cols-2 xl:grid-cols-4"><p><span className="text-[var(--muted-foreground)]">品牌出现：</span>{analysis.brandMentioned === null ? '待确认' : analysis.brandMentioned ? '是' : '否'}</p><p><span className="text-[var(--muted-foreground)]">推荐：</span>{analysis.recommendation}{analysis.recommendationRank ? ` · 第 ${analysis.recommendationRank} 位` : ''}</p><p><span className="text-[var(--muted-foreground)]">语气：</span>{analysis.sentiment}</p><p><span className="text-[var(--muted-foreground)]">事实结论：</span>{analysis.factVerdict}</p></div>{analysis.mentionedCompetitors.length > 0 && <p className="mt-2"><span className="text-[var(--muted-foreground)]">出现竞品：</span>{analysis.mentionedCompetitors.join('、')}</p>}{analysis.claims.length > 0 && <p className="mt-2 leading-6"><span className="text-[var(--muted-foreground)]">能力/事实主张：</span>{analysis.claims.map((claim) => claim.text).join('；')}</p>}{analysis.citations.length > 0 && <div className="mt-3"><p className="text-[var(--muted-foreground)]">主要引用信源及支持观点</p><ul className="mt-2 space-y-1.5">{analysis.citations.map((citation) => <li key={citation.url}><a className="text-[var(--primary)] underline underline-offset-2" href={citation.url} target="_blank" rel="noreferrer">{citation.title || citation.url}</a>{citation.supports ? <span className="text-[var(--muted-foreground)]"> · {citation.supports}</span> : null}</li>)}</ul></div>}</section>; }
+
+function PositioningMap() {
   const [expandedPrimary, setExpandedPrimary] = useState<string[]>([]);
   const [expandedSecondary, setExpandedSecondary] = useState<string[]>([]);
-  const siteFinding = findings.find((finding) => finding.type === 'site_failure');
-  const primaryGroups = groupQuestions(questions, (item) => item.primaryCategory);
   const toggle = (value: string, setExpanded: React.Dispatch<React.SetStateAction<string[]>>) => setExpanded((items) => items.includes(value) ? items.filter((item) => item !== value) : [...items, value]);
 
   return <div className="space-y-4">
     <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-      <h2 className="font-semibold">站点发现</h2>
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{siteFinding ? '该批次发现站点访问或抓取问题，可创建带有原始发现记录的优化工单。' : '将本次诊断批次中的站点可抓取、可理解和可引用问题转为优化工单。'}</p>
-      <Button size="sm" variant="outline" className="mt-3" asChild><Link href={workOrderHref('site-discovery', sourceRunId, siteFinding?.id)}>根据站点发现创建优化工单</Link></Button>
-    </section>
-    <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-      <div className="mb-4"><h2 className="font-semibold">问题阵地</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">默认按一级分类汇总；逐层展开可定位到具体问题的竞品表现。</p></div>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] pb-4"><div><h2 className="font-semibold">问题阵地</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">按一级、二级问题意图查看品牌覆盖、竞品领先、事实缺口和高引用信源。</p></div><span className="rounded-md bg-[var(--muted)] px-2.5 py-1 text-xs text-[var(--muted-foreground)]">示例数据 · 接入统计后自动替换</span></div>
       <div className="space-y-3">
-        {primaryGroups.map(([primaryCategory, primaryQuestions], primaryIndex) => {
-          const primaryOpen = expandedPrimary.includes(primaryCategory);
+        {POSITIONING_MAP_DEMO.map((area, primaryIndex) => {
+          const primaryOpen = expandedPrimary.includes(area.primary);
           const primaryId = `positioning-primary-${primaryIndex}`;
-          const secondaryGroups = groupQuestions(primaryQuestions, (item) => item.secondaryCategory);
-          return <section key={primaryCategory} className="overflow-hidden rounded-md border border-[var(--border)]">
-            <button type="button" aria-label={primaryCategory} aria-expanded={primaryOpen} aria-controls={primaryId} onClick={() => toggle(primaryCategory, setExpandedPrimary)} className="flex w-full items-center justify-between gap-3 bg-[var(--card)] px-4 py-3 text-left hover:bg-[var(--muted)]">
-              <span className="font-medium">{primaryCategory}</span><span className="text-sm text-[var(--muted-foreground)]">{summary(primaryQuestions)}</span>
+          return <section key={area.primary} className="overflow-hidden rounded-md border border-[var(--border)]">
+            <button type="button" aria-label={area.primary} aria-expanded={primaryOpen} aria-controls={primaryId} onClick={() => toggle(area.primary, setExpandedPrimary)} className="flex w-full flex-wrap items-center justify-between gap-3 bg-[var(--card)] px-4 py-3 text-left hover:bg-[var(--muted)]">
+              <span className="font-medium">{area.primary}</span><span className="text-sm text-[var(--muted-foreground)]">品牌提及 {percent(area.mentionRate)} · 领先竞品 {area.leadingCompetitor}</span>
             </button>
             {primaryOpen && <div id={primaryId} className="space-y-2 border-t border-[var(--border)] p-3">
-              {secondaryGroups.map(([secondaryCategory, secondaryQuestions], secondaryIndex) => {
-                const secondaryKey = `${primaryCategory}\u0000${secondaryCategory}`;
+              <p className="px-1 text-sm leading-6 text-[var(--muted-foreground)]">主要缺口：{area.gap}</p>
+              {area.secondary.map((item, secondaryIndex) => {
+                const secondaryKey = `${area.primary}\u0000${item.name}`;
                 const secondaryOpen = expandedSecondary.includes(secondaryKey);
                 const secondaryId = `positioning-secondary-${primaryIndex}-${secondaryIndex}`;
                 return <section key={secondaryKey} className="overflow-hidden rounded-md bg-[var(--muted)]">
-                  <button type="button" aria-label={secondaryCategory} aria-expanded={secondaryOpen} aria-controls={secondaryId} onClick={() => toggle(secondaryKey, setExpandedSecondary)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[var(--card)]">
-                    <span className="text-sm font-medium">{secondaryCategory}</span><span className="text-xs text-[var(--muted-foreground)]">{summary(secondaryQuestions)}</span>
+                  <button type="button" aria-label={item.name} aria-expanded={secondaryOpen} aria-controls={secondaryId} onClick={() => toggle(secondaryKey, setExpandedSecondary)} className="flex w-full flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[var(--card)]">
+                    <span className="text-sm font-medium">{item.name}</span><span className="text-xs text-[var(--muted-foreground)]">品牌 {percent(item.mentionRate)} · {item.leadingCompetitor} {percent(item.competitorRate)}</span>
                   </button>
-                  {secondaryOpen && <div id={secondaryId} className="overflow-x-auto border-t border-[var(--border)] bg-[var(--card)]"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-[var(--muted)]"><tr><th className="px-3 py-3">问题文本</th><th className="px-3 py-3">领先竞品</th><th className="px-3 py-3">领先竞品提及率</th><th className="px-3 py-3">当前品牌提及率</th></tr></thead><tbody>{secondaryQuestions.map((item) => <tr key={item.question} className="border-t border-[var(--border)]"><td className="px-3 py-3 font-medium">{item.question}</td><td className="px-3 py-3">{item.leadingCompetitor ?? '无领先竞品'}</td><td className="px-3 py-3">{item.leadingCompetitor ? percent(item.leadingCompetitorRate) : '—'}</td><td className="px-3 py-3">{percent(item.mentionRate)}</td></tr>)}</tbody></table></div>}
+                  {secondaryOpen && <div id={secondaryId} className="grid gap-4 border-t border-[var(--border)] bg-[var(--card)] p-3 lg:grid-cols-2"><div className="space-y-3 text-sm"><div><p className="text-xs text-[var(--muted-foreground)]">主要缺失事实</p><p className="mt-1 leading-6">{item.missingFact}</p></div><div><p className="text-xs text-[var(--muted-foreground)]">高引用信源</p><p className="mt-1 font-medium">{item.source.name} <span className="font-normal text-[var(--muted-foreground)]">· 引用 {item.source.count} 次</span></p><p className="mt-1 leading-6 text-[var(--muted-foreground)]">支持观点：{item.source.supports}</p></div></div><div><p className="text-xs text-[var(--muted-foreground)]">关联问题</p><ul className="mt-2 space-y-2 text-sm">{item.questions.map((question) => <li key={question} className="rounded-md bg-[var(--muted)] px-3 py-2 leading-5">{question}</li>)}</ul></div></div>}
                 </section>;
               })}
             </div>}
           </section>;
         })}
-        {!primaryGroups.length && <p className="text-sm text-[var(--muted-foreground)]">该批次没有可汇总的问题结果。</p>}
       </div>
     </section>
   </div>;
 }
 
-function groupQuestions(questions: Question[], category: (item: Question) => string): Array<[string, Question[]]> {
-  const groups = new Map<string, Question[]>();
-  questions.forEach((question) => { const key = category(question) || '未分类'; groups.set(key, [...(groups.get(key) ?? []), question]); });
-  return [...groups.entries()];
-}
-
-function summary(questions: Question[]): string { return `${questions.length} 个问题 · 平均品牌提及 ${percent(questions.reduce((total, item) => total + item.mentionRate, 0) / questions.length)}`; }
-
-function QuestionTable({items, className = '', priority = false, sourceRunId}: {items: Question[]; className?: string; priority?: boolean; sourceRunId?: number}) { return <div className="space-y-3"><div className={`${className} overflow-x-auto rounded-lg border border-[var(--border)]`}><table className="w-full min-w-[640px] text-left text-sm"><thead className="bg-[var(--muted)]"><tr><th className="px-3 py-3">品牌问题</th><th className="px-3 py-3">品牌提及</th><th className="px-3 py-3">诊断</th><th className="px-3 py-3">关联竞品</th></tr></thead><tbody>{items.map((item) => <tr key={item.question} className="border-t border-[var(--border)]"><td className="px-3 py-3">{item.question}</td><td className="px-3 py-3">{percent(item.mentionRate)} <span className="text-xs text-[var(--muted-foreground)]">({item.sampleCount})</span></td><td className="px-3 py-3">{diagnosisLabel[item.diagnosis]}</td><td className="px-3 py-3">{item.leadingCompetitor ? `${item.leadingCompetitor} ${percent(item.leadingCompetitorRate)}` : '—'}</td></tr>)}{!items.length && <tr><td colSpan={4} className="px-3 py-10 text-center text-[var(--muted-foreground)]">{priority ? '没有需要优先处理的问题。' : '暂无问题结果。'}</td></tr>}</tbody></table></div>{sourceRunId && <Button size="sm" variant="outline" asChild><Link href={`/improvement/optimization-work-orders?source=problem-summary&sourceRunId=${sourceRunId}`}>从问答汇总创建优化工单</Link></Button>}</div>; }
+function QuestionTable({items, className = '', priority = false, sourceRunId}: {items: Question[]; className?: string; priority?: boolean; sourceRunId?: number}) { return <div className="space-y-3"><div className={`${className} overflow-x-auto rounded-lg border border-[var(--border)]`}><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[var(--muted)]"><tr><th className="px-3 py-3">品牌问题</th><th className="px-3 py-3">分类</th><th className="px-3 py-3">品牌提及</th><th className="px-3 py-3">诊断</th><th className="px-3 py-3">关联竞品</th></tr></thead><tbody>{items.map((item) => <tr key={item.question} className="border-t border-[var(--border)]"><td className="px-3 py-3">{item.question}</td><td className="px-3 py-3"><span className="rounded-md bg-[var(--muted)] px-2 py-1 text-xs">{item.secondaryCategory || '未分类'}</span></td><td className="px-3 py-3">{percent(item.mentionRate)} <span className="text-xs text-[var(--muted-foreground)]">({item.sampleCount})</span></td><td className="px-3 py-3">{diagnosisLabel[item.diagnosis]}</td><td className="px-3 py-3">{item.leadingCompetitor ? `${item.leadingCompetitor} ${percent(item.leadingCompetitorRate)}` : '—'}</td></tr>)}{!items.length && <tr><td colSpan={5} className="px-3 py-10 text-center text-[var(--muted-foreground)]">{priority ? '没有需要优先处理的问题。' : '暂无问题结果。'}</td></tr>}</tbody></table></div>{sourceRunId && <Button size="sm" variant="outline" asChild><Link href={`/improvement/optimization-work-orders?source=problem-summary&sourceRunId=${sourceRunId}`}>从问答汇总创建优化工单</Link></Button>}</div>; }

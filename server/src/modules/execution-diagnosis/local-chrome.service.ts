@@ -105,6 +105,11 @@ function detectChromePath(): string | null {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
+export function controlledProfilePath(profileRoot: string, engine: Pick<EngineEntity, 'id' | 'code'>) {
+  const normalizedCode = engine.code.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || `engine-${engine.id}`;
+  return path.join(path.resolve(profileRoot), `engine-${engine.id}-${normalizedCode}`);
+}
+
 /** Chrome only needs this compatibility flag when it is run as root in Linux. */
 function systemNeedsNoSandbox() {
   return process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0;
@@ -376,9 +381,13 @@ export class LocalChromeService {
 
   private async ensureProfile(engine: Pick<EngineEntity, 'id' | 'code'>) {
     const existing = await this.profiles.findOne({ where: { engineId: engine.id } });
-    if (existing) return existing;
+    const profilePath = controlledProfilePath(this.profilesRoot(), engine);
+    if (existing) {
+      if (this.sameProfilePath(existing.profilePath, profilePath)) return existing;
+      existing.profilePath = profilePath;
+      return this.profiles.save(existing);
+    }
     const profileId = randomUUID();
-    const profilePath = path.join(this.profilesRoot(), `engine-${engine.id}-${this.safeEngineCode(engine)}-${profileId}`);
     return this.profiles.save(this.profiles.create({
       engineId: engine.id,
       profileId,
@@ -454,11 +463,6 @@ export class LocalChromeService {
 
   private profilesRoot() {
     return path.resolve(this.dependencies.appDataPath(), 'playwright-profiles');
-  }
-
-  private safeEngineCode(engine: Pick<EngineEntity, 'id' | 'code'>) {
-    const normalized = engine.code.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-    return normalized || `engine-${engine.id}`;
   }
 
   private assertDedicatedProfilePath(profilePath: string) {
