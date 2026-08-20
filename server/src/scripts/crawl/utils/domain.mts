@@ -44,8 +44,16 @@ export interface RunConfigSnapshot {
 }
 
 /** 构造运行配置快照 */
-export function makeRunConfig(runId: string, config: EngineConfig): RunConfigSnapshot {
-  return { runId, startedAt: localTimestamp(), config };
+export function makeRunConfig(runId: string, config: EngineConfig, questions: string[] = []): RunConfigSnapshot {
+  const { batchQueries: _batchQueries, ...configWithoutBatchQueries } = config;
+  return {
+    runId,
+    startedAt: localTimestamp(),
+    config: {
+      ...configWithoutBatchQueries,
+      ...(questions[0] === undefined ? {} : { query: questions[0] }),
+    } as EngineConfig,
+  };
 }
 
 /** 单问题汇总结果（问题 + 配置 + 回答 + 引用 + 文章，单文件留档） */

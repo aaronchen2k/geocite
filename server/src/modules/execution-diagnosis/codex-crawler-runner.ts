@@ -25,7 +25,7 @@ function buildCrawlerPrompt(questions: string[], runName: string) {
     '',
     '要求：',
     '1. 不要汇总问题答案；后续系统会读取磁盘结果，只保留必要错误信息和诊断线索。',
-    '2. 若命令、crawler、依赖、配置、浏览器环境或运行环境报错，先定位根因。',
+    '2. 若命令、crawler、依赖、配置、浏览器环境或运行环境报错，先定位根因；登录、验证码、账号权限等必须人工介入的阻塞，不要尝试修改 crawler、绕过校验或伪造成功结果；保留 crawler 写入的 CRAWLER_BLOCKER 日志和 errors.json 存证。',
     '3. 在当前任务范围内修复 crawler 代码或运行环境问题；修复后重新执行同一组问题。',
     '4. 可重复“诊断 → 修复 → 重试”，直到成功或遇到必须由用户提供的外部信息（例如密钥、账号权限）。',
     '5. 不要把未实际执行的结果当作成功返回。最终只简要说明执行结果、做过的修复和仍存在的阻塞。',
@@ -48,6 +48,16 @@ function debugLog(onDebugLog: (message: string) => void, message: string) {
   if (message.trim()) onDebugLog(message);
 }
 
+/** crawler 在等待人工登录时输出该标记；立刻提升为普通 SSE 日志，不等待命令结束。 */
+function forwardCrawlerBlockers(onLog: (message: string) => void, output: string) {
+  for (const line of output.split(/\r?\n/)) {
+    const marker = line.indexOf('CRAWLER_BLOCKER:');
+    if (marker < 0) continue;
+    const message = line.slice(marker + 'CRAWLER_BLOCKER:'.length).trim();
+    if (message) onLog(`登录阻塞：${message}`);
+  }
+}
+
 export class CodexCrawlerRunner {
   constructor(private readonly dependencies: CodexCrawlerRunnerDependencies = {}) {}
 
@@ -68,6 +78,7 @@ export class CodexCrawlerRunner {
       if ((event.type === 'item.updated' || event.type === 'item.completed') && event.item?.type === 'command_execution') {
         const delta = outputDelta(event.item, outputLengths);
         debugLog(onDebugLog, delta);
+        forwardCrawlerBlockers(onLog, delta);
         if (event.type === 'item.completed') onLog(`命令完成: ${String(event.item.command ?? '')} (exit=${String(event.item.exit_code ?? 'unknown')})`);
         continue;
       }

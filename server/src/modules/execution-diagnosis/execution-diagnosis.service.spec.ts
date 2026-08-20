@@ -149,7 +149,11 @@ describe('ExecutionDiagnosisService events', () => {
       findOne: jest.fn().mockResolvedValue({
         id: 7,
         configurationSnapshot: {
-          questions: [{ id: 1, question: '冻结问题', group: '推荐', market: 'cn', brandProbe: false }],
+          questions: [
+            { id: 1, question: '假想问题一', group: '推荐', market: 'cn', brandProbe: false },
+            { id: 2, question: '假想问题二', group: '推荐', market: 'cn', brandProbe: false },
+            { id: 3, question: '假想问题三', group: '推荐', market: 'cn', brandProbe: false },
+          ],
           engines: [{ id: 2, name: 'Frozen Engine', code: 'frozen', vendor: 'Frozen Vendor', modelName: 'frozen-model', baseUrl: 'https://frozen.example', apiKey: 'frozen-key', nativeWebSearch: true }],
           skippedEngines: [], samplingMethod: 'playwright', rulesVersion: 'v1', market: 'cn', markets: ['cn'],
         },
@@ -165,13 +169,15 @@ describe('ExecutionDiagnosisService events', () => {
         return {
           isSuccess: false,
           errors: ['CDP 曾短暂断开'],
-          itemArray: [{
-            question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: '回答抓取超时',
-          }],
+          itemArray: [
+            { question: '假想问题一', answer: '第一题回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: null },
+            { question: '假想问题二', answer: '第二题回答', citations: [], adapter: 'frozen-web', error: '回答抓取超时' },
+            { question: '假想问题三', answer: '第三题回答', citations: [], adapter: 'frozen-web', error: null },
+          ],
         };
       }),
     };
-    const sampleAnalysis = { analyzeRun: jest.fn().mockResolvedValue({ runId: 7, completed: 1, failed: 0 }) };
+    const sampleAnalysis = { analyzeRun: jest.fn().mockResolvedValue({ runId: 7, completed: 3, failed: 0 }) };
     const service = new ExecutionDiagnosisService(
       { findOne: jest.fn().mockResolvedValue({ id: 5, code: 'acme' }) } as never, liveBrandEngines as never, liveEngines as never, runs as never, {} as never, events as never, {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
       {} as never, undefined, webSampler as never, sampleAnalysis as never,
@@ -182,14 +188,20 @@ describe('ExecutionDiagnosisService events', () => {
 
     expect(webSampler.searchBatch).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Frozen Engine', code: 'frozen' }),
-      [expect.objectContaining({ question: '冻结问题', prompt: expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。') })],
+      [
+        expect.objectContaining({ question: '假想问题一', prompt: '假想问题一' }),
+        expect.objectContaining({ question: '假想问题二' }),
+        expect.objectContaining({ question: '假想问题三' }),
+      ],
       expect.objectContaining({ runName: expect.stringMatching(/^run-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/), onLog: expect.any(Function) }),
     );
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Codex 正在诊断浏览器连接') }) }));
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'debugLog', data: expect.objectContaining({ number: 5, message: expect.stringContaining('crawler 的完整命令输出') }) }));
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Frozen Engine 引擎采样失败：CDP 曾短暂断开') }) }));
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Frozen Engine 问题采样失败：回答抓取超时') }) }));
-    expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
+    expect(samples.save).toHaveBeenCalledTimes(3);
+    expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '第一题回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
+    expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '第二题回答', error: '回答抓取超时' }));
     expect(outcome).toMatchObject({ evidence: { sampled: [{ isSuccess: false, errors: ['CDP 曾短暂断开'] }] } });
     expect(sampleAnalysis.analyzeRun).toHaveBeenCalledWith(5, 7);
     expect(samples.save.mock.invocationCallOrder[0]).toBeLessThan(sampleAnalysis.analyzeRun.mock.invocationCallOrder[0]);

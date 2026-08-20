@@ -40,10 +40,10 @@ async function main(): Promise<void> {
 export async function exec(questions: string[] = [], isDebug = true): Promise<RunResult[]> {
   debugMode = isDebug; // 调试模式开关（true=6s 快速抓取，重点参考文献引用）
   RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, CONFIG.engine);
-  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
   // 问题来源：显式传入 > config.batchQueries（批量）> config.query（单问题）
   const qs = questions.length > 0 ? questions
     : (CONFIG.batchQueries && CONFIG.batchQueries.length > 0 ? CONFIG.batchQueries : [QUERY]);
+  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG, qs);
   const multi = qs.length > 1;
   log(`=== DeepSeek 自动化抓取启动（${qs.length} 个问题${multi ? '，批量模式（config.batchQueries）' : '，单问题模式（config.query）'}）===`);
   setOutDir(RUN_DIR); // 单问题产物根目录；多问题下每问前再 setOutDir 到 q-NN/
@@ -135,6 +135,11 @@ function randomWaitMs(): number {
 }
 const TARGET_HOST = new URL(TARGET_URL).hostname; // 引擎域名（页面判断/内链过滤用，勿硬编码）
 
+/** DeepSeek 实际输入保留联网与引用要求；运行记录仍保存调用方传入的纯问题。 */
+export function buildSearchPrompt(question: string): string {
+  return `请联网搜索，回答务必输出网页引用来源以及原文链接。\n\n问题：${question}`;
+}
+
 const RUN_TS = localTimestamp().replace(' ', '_').replace(/:/g, '-');
 let RUN_NAME = `run-${RUN_TS}`;
 let RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, CONFIG.engine);
@@ -176,6 +181,7 @@ async function ensureLoggedIn(page: Page): Promise<void> {
     log('✅ 登录预检通过（未发现登录拦截）');
     return;
   }
+  log(`CRAWLER_BLOCKER: 检测到未登录（${hit}），请在 Chrome 完成登录或验证码；脚本正在等待。`);
   await page.screenshot({ path: path.join(getOutDir(), '00-login-required.png') });
   console.log('\n' + [
     '╔══════════════════════════════════════════════════╗',
@@ -369,7 +375,7 @@ async function runQuestion(browser: Browser, context: BrowserContext, page: Page
   log('输入查询内容…');
   await inputEl.click();
   await inputEl.fill('');
-  await inputEl.fill(question);
+  await inputEl.fill(buildSearchPrompt(question));
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(getOutDir(), '02-typed.png') });
 

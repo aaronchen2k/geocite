@@ -259,6 +259,7 @@ export class ExecutionDiagnosisService {
     if (number === 5) return this.sampleEngines(runId, context.brand, signal);
     if (number === 6) return this.runWebReview(runId);
     if (number === 7) return this.applyWebReviewCorrection(runId, context.baselineRunId);
+
     return { conclusion: 'passed', severity: 'info', evidence: { runId, generatedAt: new Date().toISOString() }, recommendation: 'review-diagnosis-summary' };
   }
   private async stopAfterWebsiteFailure(id: number) {
@@ -288,18 +289,24 @@ export class ExecutionDiagnosisService {
         skipped: snapshot.skippedEngines,
       }
       : await this.samplingEngines(brand.id);
+
     const questions = snapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
+
     if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
+
     const crawlerRunName = createCrawlerRunName();
     const sampled: Array<Record<string, unknown>> = [];
+
     for (const engine of eligible) {
       signal?.throwIfAborted();
       const requests = questions.map((question) => ({
         question,
-        prompt: this.webSearchPrompt(brand, question),
+        // crawler 只接收原始问题，并由各引擎在输入时追加自己的联网指令。
+        prompt: question,
         brandName: brand.name,
       }));
+
       await this.log(runId, 5, `使用 ${engine.name} 的受控网页端发起低频联网问题采样：${questions.length} 题`);
       let logQueue = Promise.resolve();
 

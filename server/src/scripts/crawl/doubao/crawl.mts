@@ -40,10 +40,10 @@ async function main(): Promise<void> {
 export async function exec(questions: string[] = [], isDebug = true): Promise<RunResult[]> {
   debugMode = isDebug; // 调试模式开关（true=6s 快速抓取，重点参考文献引用）
   RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, CONFIG.engine);
-  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
   // 问题来源：显式传入 > config.batchQueries（批量）> config.query（单问题）
   const qs = questions.length > 0 ? questions
     : (CONFIG.batchQueries && CONFIG.batchQueries.length > 0 ? CONFIG.batchQueries : [QUERY]);
+  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG, qs);
   const multi = qs.length > 1;
   log(`=== ${CONFIG.engine} 自动化抓取启动（${qs.length} 个问题${multi ? '，批量模式（config.batchQueries）' : '，单问题模式（config.query）'}）===`);
   setOutDir(RUN_DIR); // 单问题产物根目录；多问题下每问前再 setOutDir 到 q-NN/
@@ -416,6 +416,7 @@ async function runQuestion(browser: Browser, context: BrowserContext, page: Page
     const maxMs = LOGIN_WAIT_MS;
     let hits = await checkLoginState(page, LOGIN_TEXTS);
     if (hits.length > 0) {
+      log(`CRAWLER_BLOCKER: 检测到未登录（${hits.join('; ')}），请在 Chrome 完成登录或验证码；脚本正在等待。`);
       log(`⚠️ 检测到未登录（标志: ${hits.join('; ')}），已截图提示。请在 Chrome 窗口中登录/输入验证码…`);
       await shot(page, '00-login-check.png');
       const startAt = Date.now();

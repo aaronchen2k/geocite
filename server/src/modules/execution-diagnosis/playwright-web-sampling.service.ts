@@ -42,6 +42,7 @@ export class PlaywrightWebSamplingService {
       const runner = this.dependencies.runner ?? new CodexCrawlerRunner();
       const runName = options.runName ?? 'sampling-debug';
       options.onLog?.(`${engine.code} Codex crawler 采样开始`);
+
       await runner.run({ crawlerDirectory, questions: requests.map((request) => request.prompt), runName, signal: options.signal, onLog: options.onLog ?? (() => undefined), onDebugLog: options.onDebugLog ?? (() => undefined) });
 
       const resultDirectory = path.resolve(crawlerDirectory, '../../../..', 'data', 'playwright-exec', runName, engine.code);
