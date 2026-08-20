@@ -1,7 +1,7 @@
 export type CrawlCliOptions = { questions: string[]; isDebug: boolean; outDir: string | undefined };
 
 export function parseCrawlCliOptions(args: string[]): CrawlCliOptions {
-  const [questionsArg, debugOrOutDir, outDirArg] = args;
+  const [questionsArg, outDirOrDebug, debugArg] = args;
   let questions: string[] = [];
   if (questionsArg !== undefined) {
     let parsed: unknown;
@@ -15,8 +15,8 @@ export function parseCrawlCliOptions(args: string[]): CrawlCliOptions {
     }
     questions = parsed;
   }
-  if (debugOrOutDir === undefined || debugOrOutDir === 'true' || debugOrOutDir === 'false') {
-    return { questions, isDebug: debugOrOutDir !== 'false', outDir: outDirArg };
+  if (outDirOrDebug === undefined || outDirOrDebug === 'true' || outDirOrDebug === 'false') {
+    return { questions, isDebug: outDirOrDebug !== 'false', outDir: undefined };
   }
-  return { questions, isDebug: true, outDir: debugOrOutDir };
+  return { questions, isDebug: debugArg !== 'false', outDir: outDirOrDebug || undefined };
 }

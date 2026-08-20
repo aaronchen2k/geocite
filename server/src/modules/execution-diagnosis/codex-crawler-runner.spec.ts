@@ -23,6 +23,7 @@ describe('CodexCrawlerRunner', () => {
     await runner.run({
       crawlerDirectory: '/tmp/deepseek',
       questions: ['北京有哪些著名地标？'],
+      runName: 'run-2026-08-20_08-03-18',
       onLog: (message) => logs.push(message),
     });
 
@@ -31,7 +32,7 @@ describe('CodexCrawlerRunner', () => {
       skipGitRepoCheck: true,
       sandboxMode: 'danger-full-access',
     });
-    expect(runStreamed.mock.calls[0][0]).toContain("./run.sh crawl.mts '[\"北京有哪些著名地标？\"]' false");
+    expect(runStreamed.mock.calls[0][0]).toContain("./run.sh crawl.mts '[\"北京有哪些著名地标？\"]' run-2026-08-20_08-03-18 false");
     expect(logs.join('\n')).toContain('已生成结果');
     expect(logs.join('\n').match(/诊断中/g)).toHaveLength(1);
   });

@@ -9,6 +9,7 @@ type CodexModule = {
 export type CodexCrawlerRunInput = {
   crawlerDirectory: string;
   questions: string[];
+  runName: string;
   signal?: AbortSignal;
   onLog: (message: string) => void;
 };
@@ -17,11 +18,11 @@ export type CodexCrawlerRunnerDependencies = { loadCodex?: () => Promise<CodexMo
 
 const maxLogLength = 2_000;
 
-function buildCrawlerPrompt(questions: string[]) {
+function buildCrawlerPrompt(questions: string[], runName: string) {
   const serializedQuestions = JSON.stringify(questions);
   return [
     '在当前目录执行以下采样命令：',
-    `./run.sh crawl.mts '${serializedQuestions.replace(/'/g, "'\\''")}' false`,
+    `./run.sh crawl.mts '${serializedQuestions.replace(/'/g, "'\\''")}' ${runName} false`,
     '',
     '要求：',
     '1. 不要汇总问题答案；后续系统会读取磁盘结果，只保留必要错误信息和诊断线索。',
@@ -52,10 +53,10 @@ function logTail(onLog: (message: string) => void, message: string) {
 export class CodexCrawlerRunner {
   constructor(private readonly dependencies: CodexCrawlerRunnerDependencies = {}) {}
 
-  async run({ crawlerDirectory, questions, signal, onLog }: CodexCrawlerRunInput): Promise<void> {
+  async run({ crawlerDirectory, questions, runName, signal, onLog }: CodexCrawlerRunInput): Promise<void> {
     const { Codex } = await (this.dependencies.loadCodex ?? loadCodexSdk)();
     const thread = new Codex().startThread({ workingDirectory: crawlerDirectory, skipGitRepoCheck: true, sandboxMode: 'danger-full-access' });
-    const streamed = await thread.runStreamed(buildCrawlerPrompt(questions), { signal });
+    const streamed = await thread.runStreamed(buildCrawlerPrompt(questions, runName), { signal });
     const outputLengths = new Map<string, number>();
     for await (const event of streamed.events) {
       if (event.type === 'thread.started') {

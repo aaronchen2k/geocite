@@ -11,12 +11,11 @@ export type WebSamplingResult = { question: string; answer: string; citations: E
 type SamplingEngine = { id: number; code: string; name: string };
 type CrawlerRunResult = { question: string; response: string; citations?: Array<{ title?: string; href?: string }> };
 
-export type WebSamplingOptions = { signal?: AbortSignal; onLog?: (message: string) => void };
+export type WebSamplingOptions = { runName?: string; signal?: AbortSignal; onLog?: (message: string) => void };
 
 /** 仅用于单元测试替换 Codex runner 和结果目录定位。 */
 export type CrawlerSamplingDependencies = {
   runner?: Pick<CodexCrawlerRunner, 'run'>;
-  resultDirectories?: (crawlerDirectory: string) => Promise<string[]>;
 };
 export const CRAWLER_SAMPLING_DEPENDENCIES = Symbol('CRAWLER_SAMPLING_DEPENDENCIES');
 
@@ -38,34 +37,21 @@ export class PlaywrightWebSamplingService {
     try {
       const crawlerDirectory = path.resolve(process.cwd(), 'src', 'scripts', 'crawl', engine.code);
       const runner = this.dependencies.runner ?? new CodexCrawlerRunner();
-      const before = await this.resultDirectories(crawlerDirectory);
+      const runName = options.runName ?? 'sampling-debug';
       options.onLog?.(`${engine.code} Codex crawler 采样开始`);
-      await runner.run({ crawlerDirectory, questions: requests.map((request) => request.prompt), signal: options.signal, onLog: options.onLog ?? (() => undefined) });
-      const resultDirectory = this.selectNewResultDirectory(before, await this.resultDirectories(crawlerDirectory));
+      await runner.run({ crawlerDirectory, questions: requests.map((request) => request.prompt), runName, signal: options.signal, onLog: options.onLog ?? (() => undefined) });
+
+      const resultDirectory = path.resolve(crawlerDirectory, '../../../..', 'data', 'playwright-exec', runName, engine.code);
+
       const results = await this.readCommandResults(resultDirectory, requests.length);
+
       return requests.map((request, index) => this.toSamplingResult(engine.code, request, results[index]));
+
     } catch (error) {
       const message = error instanceof Error ? error.message : 'crawler-execution-failed';
       this.logger.error(`${engine.code} crawler 采样失败：${message}`);
       return requests.map((request) => this.failed(request, `crawler-execution-failed: ${message}`));
     }
-  }
-
-  private async resultDirectories(crawlerDirectory: string) {
-    if (this.dependencies.resultDirectories) return this.dependencies.resultDirectories(crawlerDirectory);
-    const resultsDirectory = path.resolve(crawlerDirectory, '../../../..', 'data', 'playwright-exec');
-    const directories = await fs.readdir(resultsDirectory, { withFileTypes: true });
-    const candidates = await Promise.all(directories.filter((entry) => entry.isDirectory()).map(async (entry) => {
-      const directory = path.join(resultsDirectory, entry.name);
-      return { directory, modifiedAt: (await fs.stat(directory)).mtimeMs };
-    }));
-    return candidates.sort((left, right) => right.modifiedAt - left.modifiedAt).map((item) => item.directory);
-  }
-
-  private selectNewResultDirectory(before: string[], after: string[]) {
-    const directory = after.find((candidate) => !before.includes(candidate));
-    if (!directory) throw new Error('crawler-result-directory-missing-for-current-run');
-    return directory;
   }
 
   /**

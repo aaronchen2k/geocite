@@ -9,6 +9,7 @@ import { save, saveResult, log, setOutDir, getOutDir, localTimestamp } from '../
 import { makeRunConfig } from '../utils/domain.mts';
 import { parseCrawlCliOptions } from '../utils/parse-cli-options.ts';
 import { resolveCrawlRunDirectory } from '../utils/run-directory.ts';
+import { writeCrawlerErrorRecord } from '../utils/error-record.ts';
 import type { CrawlResult, SearchToggleState, RunResult } from '../utils/domain.mts';
 
 
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
  */
 export async function exec(questions: string[] = [], isDebug = true): Promise<RunResult[]> {
   debugMode = isDebug; // 调试模式开关（true=6s 快速抓取，重点参考文献引用）
-  RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, isDebug);
+  RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, CONFIG.engine);
   RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
   // 问题来源：显式传入 > config.batchQueries（批量）> config.query（单问题）
   const qs = questions.length > 0 ? questions
@@ -136,7 +137,7 @@ const TARGET_HOST = new URL(TARGET_URL).hostname; // 引擎域名（页面判断
 
 const RUN_TS = localTimestamp().replace(' ', '_').replace(/:/g, '-');
 let RUN_NAME = `run-${RUN_TS}`;
-let RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, true);
+let RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, CONFIG.engine);
 
 // 本次运行使用的配置（随结果一起持久化；类型/构造来自 utils/domain.ts）
 let RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
@@ -672,9 +673,11 @@ async function failWithEvidence(e: unknown): Promise<never> {
   ];
 
   let captchaHit: string | null = null;
+  let hasErrorImage = false;
   if (currentPage && !currentPage.isClosed()) {
     try {
       await currentPage.screenshot({ path: path.join(RUN_DIR, '99-error.png') });
+      hasErrorImage = true;
       log('已保存失败截图: 99-error.png');
       const bodyText = await currentPage.evaluate(() => document.body.innerText.slice(0, 3000));
       captchaHit = CAPTCHA_PATTERNS.find(p => bodyText.toLowerCase().includes(p.toLowerCase())) ?? null;
@@ -693,6 +696,7 @@ async function failWithEvidence(e: unknown): Promise<never> {
       '╚══════════════════════════════════════════════════╝',
     ].join('\n'));
   }
+  writeCrawlerErrorRecord(path.dirname(RUN_DIR), CONFIG.engine, msg, hasErrorImage, localTimestamp());
   process.exit(1);
 }
 

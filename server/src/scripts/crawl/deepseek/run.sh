@@ -19,5 +19,18 @@ fi
 # 关键: 绕过本地代理访问 127.0.0.1:<debugPort>，否则 connectOverCDP 报 502
 # （ESM 不认 NODE_PATH，playwright 依赖靠脚本目录内 node_modules 软链解析，无需设置）
 cd "$(dirname "$0")"
+if [[ $# -eq 0 || $# -eq 1 || -z "${2:-}" || "${2:-}" == "true" || "${2:-}" == "false" ]]; then
+  # 直接调试未指定运行目录时，复用可丢弃的 sampling-debug 工作区。
+  # 此路径由当前引擎目录固定推导，绝不根据调用方输入删除目录。
+  EXECUTION_ROOT="$(cd ../../../.. && pwd)/data/playwright-exec"
+  DEBUG_RUN_DIR="${EXECUTION_ROOT}/sampling-debug"
+  rm -rf "${DEBUG_RUN_DIR}"
+  mkdir -p "${DEBUG_RUN_DIR}/deepseek"
+  if [[ $# -eq 0 ]]; then
+    set -- '[]' sampling-debug
+  else
+    set -- "$1" sampling-debug "${@:2}"
+  fi
+fi
 NO_PROXY="127.0.0.1,localhost" no_proxy="127.0.0.1,localhost" \
   "$NODE_BIN" "$SCRIPT" "$@"

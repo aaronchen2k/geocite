@@ -1,12 +1,9 @@
 import path from 'node:path';
 
-export function resolveCrawlRunDirectory(scriptDirectory: string, runName: string, isDebug: boolean): string {
-  const root = resolveCrawlExecutionRoot(scriptDirectory, isDebug);
-  return path.join(root, runName);
+export function resolveCrawlRunDirectory(scriptDirectory: string, runName: string, engineCode: string): string {
+  return path.join(resolveCrawlExecutionRoot(scriptDirectory), runName, engineCode);
 }
 
-export function resolveCrawlExecutionRoot(scriptDirectory: string, isDebug: boolean): string {
-  return isDebug
-    ? path.join(scriptDirectory, 'playwright-exec')
-    : path.resolve(scriptDirectory, '../../../..', 'data', 'playwright-exec');
+export function resolveCrawlExecutionRoot(scriptDirectory: string, _isDebug?: boolean): string {
+  return path.resolve(scriptDirectory, '../../../..', 'data', 'playwright-exec');
 }

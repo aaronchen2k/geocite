@@ -26,6 +26,11 @@ type RunContext = { brand: BrandEntity; pages: FetchedPage[]; baselineRunId: num
 const browserUa = 'Mozilla/5.0 (compatible; GeoCiteDiagnosis/1.0; +https://geocite.net)';
 const aiCrawlerUas = ['GPTBot', 'ClaudeBot', 'Google-Extended'];
 
+function createCrawlerRunName(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `run-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
 @Injectable()
 export class ExecutionDiagnosisService {
   private readonly streams = new Map<number, Subject<MessageEvent>>();
@@ -286,6 +291,7 @@ export class ExecutionDiagnosisService {
     const questions = snapshot?.questions.map((item) => item.question) ?? (await this.diagnosisQuestions.find({ where: { brandId: brand.id }, order: { ordr: 'ASC', id: 'ASC' } })).map((item) => item.question);
     if (!questions.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped, reason: 'diagnosis-questions-not-configured' }, recommendation: 'configure-diagnosis-questions' };
     if (!eligible.length) return { conclusion: 'unmeasured', severity: 'unmeasured', evidence: { sampled: [], skipped }, recommendation: 'configure-authorized-engine' };
+    const crawlerRunName = createCrawlerRunName();
     const sampled: Array<Record<string, unknown>> = [];
     for (const engine of eligible) {
       signal?.throwIfAborted();
@@ -298,6 +304,7 @@ export class ExecutionDiagnosisService {
       let logQueue = Promise.resolve();
       const results = this.webSampler
         ? await this.webSampler.searchBatch(engine, requests, {
+          runName: crawlerRunName,
           signal,
           onLog: (message) => {
             logQueue = logQueue.then(() => this.log(runId, 5, `${engine.name}: ${message}`));

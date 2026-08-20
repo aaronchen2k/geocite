@@ -178,7 +178,7 @@ describe('ExecutionDiagnosisService events', () => {
     expect(webSampler.searchBatch).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Frozen Engine', code: 'frozen' }),
       [expect.objectContaining({ question: '冻结问题', prompt: expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。') })],
-      expect.objectContaining({ onLog: expect.any(Function) }),
+      expect.objectContaining({ runName: expect.stringMatching(/^run-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/), onLog: expect.any(Function) }),
     );
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Codex 正在诊断浏览器连接') }) }));
     expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));

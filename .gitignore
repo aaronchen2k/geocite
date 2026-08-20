@@ -17,5 +17,4 @@ server/data/
 /docs/
 /openspec/
 /server/src/scripts/crawl/*/node_modules/
-/server/src/scripts/crawl/*/output*/
-/server/src/scripts/crawl/*/results/
+/server/src/scripts/crawl/*/playwright-exec/
