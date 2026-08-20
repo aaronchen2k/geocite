@@ -12,11 +12,10 @@ export type CodexCrawlerRunInput = {
   runName: string;
   signal?: AbortSignal;
   onLog: (message: string) => void;
+  onDebugLog: (message: string) => void;
 };
 
 export type CodexCrawlerRunnerDependencies = { loadCodex?: () => Promise<CodexModule> };
-
-const maxLogLength = 2_000;
 
 function buildCrawlerPrompt(questions: string[], runName: string) {
   const serializedQuestions = JSON.stringify(questions);
@@ -45,15 +44,14 @@ function outputDelta(item: Record<string, unknown>, lengths: Map<string, number>
   return output.length > previous ? output.slice(previous) : '';
 }
 
-function logTail(onLog: (message: string) => void, message: string) {
-  const tail = message.length > maxLogLength ? message.slice(-maxLogLength) : message;
-  if (tail.trim()) onLog(tail);
+function debugLog(onDebugLog: (message: string) => void, message: string) {
+  if (message.trim()) onDebugLog(message);
 }
 
 export class CodexCrawlerRunner {
   constructor(private readonly dependencies: CodexCrawlerRunnerDependencies = {}) {}
 
-  async run({ crawlerDirectory, questions, runName, signal, onLog }: CodexCrawlerRunInput): Promise<void> {
+  async run({ crawlerDirectory, questions, runName, signal, onLog, onDebugLog }: CodexCrawlerRunInput): Promise<void> {
     const { Codex } = await (this.dependencies.loadCodex ?? loadCodexSdk)();
     const thread = new Codex().startThread({ workingDirectory: crawlerDirectory, skipGitRepoCheck: true, sandboxMode: 'danger-full-access' });
     const streamed = await thread.runStreamed(buildCrawlerPrompt(questions, runName), { signal });
@@ -69,7 +67,7 @@ export class CodexCrawlerRunner {
       }
       if ((event.type === 'item.updated' || event.type === 'item.completed') && event.item?.type === 'command_execution') {
         const delta = outputDelta(event.item, outputLengths);
-        logTail(onLog, delta);
+        debugLog(onDebugLog, delta);
         if (event.type === 'item.completed') onLog(`命令完成: ${String(event.item.command ?? '')} (exit=${String(event.item.exit_code ?? 'unknown')})`);
         continue;
       }

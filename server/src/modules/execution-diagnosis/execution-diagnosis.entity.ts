@@ -71,7 +71,7 @@ export class ExecutionDiagnosisEventEntity {
   @Column({ name: 'run_id' }) runId!: number;
   @ManyToOne(() => ExecutionDiagnosisRunEntity, (run) => run.events, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'run_id' }) run!: ExecutionDiagnosisRunEntity;
   @Column() sequence!: number;
-  @Column() type!: 'run' | 'step' | 'log' | 'summary';
+  @Column() type!: 'run' | 'step' | 'log' | 'debugLog' | 'summary';
   @Column({ name: 'data_json', type: 'simple-json' }) data!: Record<string, unknown>;
   @CreateDateColumn({ name: 'created_at', type: 'datetime' }) createdAt!: Date;
 }

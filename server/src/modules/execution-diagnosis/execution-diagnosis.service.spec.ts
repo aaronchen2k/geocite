@@ -161,9 +161,14 @@ describe('ExecutionDiagnosisService events', () => {
     const webSampler = {
       searchBatch: jest.fn(async (_engine, _requests, options) => {
         options.onLog('Codex 正在诊断浏览器连接');
-        return [{
-        question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: null,
-        }];
+        options.onDebugLog('crawler 的完整命令输出');
+        return {
+          isSuccess: false,
+          errors: ['CDP 曾短暂断开'],
+          itemArray: [{
+            question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: '回答抓取超时',
+          }],
+        };
       }),
     };
     const sampleAnalysis = { analyzeRun: jest.fn().mockResolvedValue({ runId: 7, completed: 1, failed: 0 }) };
@@ -173,7 +178,7 @@ describe('ExecutionDiagnosisService events', () => {
     );
     const sampler = jest.spyOn((service as unknown as { engineSamplingClient: { sample: jest.Mock } }).engineSamplingClient, 'sample').mockResolvedValue({ adapter: 'frozen', nativeWebSearch: true, statusCode: 200, answer: '答案', error: null });
 
-    await (service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null });
+    const outcome = await (service as unknown as { sampleEngines(runId: number, brand: { id: number; name: string; website: string | null }): Promise<unknown> }).sampleEngines(7, { id: 5, name: 'Acme', website: null });
 
     expect(webSampler.searchBatch).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Frozen Engine', code: 'frozen' }),
@@ -181,7 +186,11 @@ describe('ExecutionDiagnosisService events', () => {
       expect.objectContaining({ runName: expect.stringMatching(/^run-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/), onLog: expect.any(Function) }),
     );
     expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Codex 正在诊断浏览器连接') }) }));
+    expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'debugLog', data: expect.objectContaining({ number: 5, message: expect.stringContaining('crawler 的完整命令输出') }) }));
+    expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Frozen Engine 引擎采样失败：CDP 曾短暂断开') }) }));
+    expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Frozen Engine 问题采样失败：回答抓取超时') }) }));
     expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
+    expect(outcome).toMatchObject({ evidence: { sampled: [{ isSuccess: false, errors: ['CDP 曾短暂断开'] }] } });
     expect(sampleAnalysis.analyzeRun).toHaveBeenCalledWith(5, 7);
     expect(samples.save.mock.invocationCallOrder[0]).toBeLessThan(sampleAnalysis.analyzeRun.mock.invocationCallOrder[0]);
     expect(sampler).not.toHaveBeenCalled();
@@ -208,7 +217,13 @@ describe('ExecutionDiagnosisService events', () => {
       { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) } as never,
       {} as never, {} as never, samples as never, {} as never, {} as never, {} as never,
       {} as never, undefined,
-      { searchBatch: jest.fn().mockResolvedValue([{ question: '冻结问题', answer: '网页端的联网回答', citations: [], adapter: 'frozen-web', error: null }]) } as never,
+      {
+        searchBatch: jest.fn().mockResolvedValue({
+          isSuccess: true,
+          errors: [],
+          itemArray: [{ question: '冻结问题', answer: '网页端的联网回答', citations: [], adapter: 'frozen-web', error: null }],
+        }),
+      } as never,
       sampleAnalysis as never,
     );
 

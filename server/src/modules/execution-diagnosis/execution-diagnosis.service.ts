@@ -302,20 +302,35 @@ export class ExecutionDiagnosisService {
       }));
       await this.log(runId, 5, `使用 ${engine.name} 的受控网页端发起低频联网问题采样：${questions.length} 题`);
       let logQueue = Promise.resolve();
-      const results = this.webSampler
+
+      const batchResult = this.webSampler
         ? await this.webSampler.searchBatch(engine, requests, {
           runName: crawlerRunName,
           signal,
           onLog: (message) => {
             logQueue = logQueue.then(() => this.log(runId, 5, `${engine.name}: ${message}`));
           },
+          onDebugLog: (message) => {
+            logQueue = logQueue.then(() => this.debugLog(runId, 5, `${engine.name}: ${message}`));
+          },
         })
-        : requests.map((request) => ({ question: request.question, answer: '', citations: [], adapter: null, error: 'playwright-web-sampler-unavailable' }));
+        : {
+          isSuccess: false,
+          errors: ['playwright-web-sampler-unavailable'],
+          itemArray: requests.map((request) => ({ question: request.question, answer: '', citations: [], adapter: null, error: 'playwright-web-sampler-unavailable' })),
+        };
+
       await logQueue;
+      const results = batchResult.itemArray;
+      for (const error of batchResult.errors) {
+        await this.log(runId, 5, `${engine.name} 引擎采样失败：${error}`);
+      }
+
       const entries: Array<Record<string, unknown>> = [];
       for (const [index, result] of results.entries()) {
         const request = requests[index];
         if (!request) continue;
+        if (result.error) await this.log(runId, 5, `${engine.name} 问题采样失败：${result.error}`);
         await this.samplesRepository.save(this.samplesRepository.create(toSampleEvidence(
           runId,
           engine,
@@ -330,7 +345,7 @@ export class ExecutionDiagnosisService {
       }
       const succeeded = entries.filter((item) => item.status === 'sampled').length;
       const failed = entries.length - succeeded;
-      sampled.push({ id: engine.id, name: engine.name, status: succeeded ? 'sampled' : failed ? 'failed' : 'skipped', totalQuestions: questions.length, succeeded, failed, skipped: questions.length - succeeded - failed, questions: entries });
+      sampled.push({ id: engine.id, name: engine.name, status: succeeded ? 'sampled' : failed ? 'failed' : 'skipped', isSuccess: batchResult.isSuccess, errors: batchResult.errors, totalQuestions: questions.length, succeeded, failed, skipped: questions.length - succeeded - failed, questions: entries });
     }
     const succeeded = sampled.reduce((count, item) => count + (typeof item.succeeded === 'number' ? item.succeeded : 0), 0);
     const total = eligible.length * questions.length;
@@ -499,6 +514,7 @@ export class ExecutionDiagnosisService {
   }
   private mentions(answer: string, name: string) { return name.trim() !== '' && answer.toLocaleLowerCase().includes(name.trim().toLocaleLowerCase()); }
   private async log(runId: number, number: number, message: string) { await this.publish(runId, 'log', { number, message }); const run = await this.getRun(runId); (await this.runLogger(run)).info({ step: number }, message); }
+  private async debugLog(runId: number, number: number, message: string) { await this.publish(runId, 'debugLog', { number, message }); }
   private async failRun(id: number, error: unknown) { const run = await this.getRun(id); if (this.isTerminal(run.status)) return; run.status = 'failed'; run.finishedAt = new Date(); run.summary = { passed: 0, failed: 1, manual: 0, unmeasured: 0 }; await this.generateFindings(run); await this.runs.save(run); await this.publish(id, 'summary', { status: run.status, summary: run.summary }); (await this.runLogger(run)).error({ error: error instanceof Error ? error.message : String(error) }, 'execution diagnosis failed'); this.controllers.delete(id); this.contexts.delete(id); this.streams.get(id)?.complete(); }
   private async runLogger(run: ExecutionDiagnosisRunEntity) { const brand = await this.brands.findOne({ where: { id: run.brandId } }); return getExecutionDiagnosisLogger(brand?.code ?? `brand-${run.brandId}`, run.id, run.createdAt); }
   private isTerminal(status: ExecutionRunStatus) { return ['succeeded', 'failed', 'cancelled', 'partial'].includes(status); }

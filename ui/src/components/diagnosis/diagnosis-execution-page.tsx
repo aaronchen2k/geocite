@@ -324,12 +324,13 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
                             className="mt-1 text-base font-semibold">{String(selectedStep.id).padStart(2, '0')} · {selectedStep.title}</h2>
                         </div>
                         <span
-                            className={`inline-flex items-center gap-5 text-sm ${statusMeta[selectedStep.status].className}`}>{selectedStep.id === 5 && selectedStep.status === 'pending' && <button
-                            type="button"
-                            aria-label="查看日志"
-                            title="查看日志"
-                            className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--muted)]"
-                            onClick={() => console.log('日志被点击')}><Icon icon="lucide:scroll-text" className="size-4" aria-hidden="true"/><span>查看日志</span></button>}<span className="inline-flex items-center gap-1"><Icon
+                            className={`inline-flex items-center gap-5 text-sm ${statusMeta[selectedStep.status].className}`}>{selectedStep.id === 5 && run && brand && <a
+                            href={`/${locale}/execution-logs?brandId=${brand.id}&runId=${run.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t('debugLogs.open')}
+                            title={t('debugLogs.open')}
+                            className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--muted)]"><Icon icon="lucide:scroll-text" className="size-4" aria-hidden="true"/><span>{t('debugLogs.open')}</span></a>}<span className="inline-flex items-center gap-1"><Icon
                             icon={statusMeta[selectedStep.status].icon}
                             className={`size-4 ${selectedStep.status === 'running' ? 'animate-spin' : ''}`}
                             aria-hidden="true"/>{statusMeta[selectedStep.status].label}</span></span></div>

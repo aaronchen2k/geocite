@@ -7,6 +7,7 @@ async function* events(items: unknown[]) {
 describe('CodexCrawlerRunner', () => {
   it('在 crawler 目录调用 Codex，并转发命令输出的新增尾部', async () => {
     const logs: string[] = [];
+    const debugLogs: string[] = [];
     const runStreamed = jest.fn().mockResolvedValue({
       events: events([
         { type: 'thread.started', thread_id: 'thread-1' },
@@ -25,6 +26,7 @@ describe('CodexCrawlerRunner', () => {
       questions: ['北京有哪些著名地标？'],
       runName: 'run-2026-08-20_08-03-18',
       onLog: (message) => logs.push(message),
+      onDebugLog: (message) => debugLogs.push(message),
     });
 
     expect(startThread).toHaveBeenCalledWith({
@@ -33,7 +35,8 @@ describe('CodexCrawlerRunner', () => {
       sandboxMode: 'danger-full-access',
     });
     expect(runStreamed.mock.calls[0][0]).toContain("./run.sh crawl.mts '[\"北京有哪些著名地标？\"]' run-2026-08-20_08-03-18 false");
-    expect(logs.join('\n')).toContain('已生成结果');
-    expect(logs.join('\n').match(/诊断中/g)).toHaveLength(1);
+    expect(logs.join('\n')).not.toContain('诊断中');
+    expect(debugLogs.join('\n')).toContain('诊断中');
+    expect(debugLogs.join('\n')).toContain('已生成结果');
   });
 });
