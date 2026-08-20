@@ -1,0 +1,86 @@
+{
+  "question": "北京有哪些著名地标？",
+  "config": {
+    "runId": "run-2026-08-20_08-03-18",
+    "startedAt": "2026-08-20 08:03:18",
+    "config": {
+      "engine": "deepseek",
+      "host": "127.0.0.1",
+      "debugPort": 9222,
+      "cdpUrl": "http://127.0.0.1:9222",
+      "targetUrl": "https://chat.deepseek.com/",
+      "profileRoot": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles",
+      "profileName": "engine-3-deepseek",
+      "profileDir": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles/engine-3-deepseek",
+      "chromeBin": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "query": "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+      "batchQueries": [
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文查重需要注意什么？",
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文开题报告该怎么写？"
+      ],
+      "responseWaitMs": 30000,
+      "waitJitterMs": [
+        -5000,
+        10000
+      ],
+      "loginWaitMs": 300000,
+      "searchToggleTexts": [
+        "智能搜索",
+        "联网搜索"
+      ],
+      "loginTexts": [
+        "发送验证码",
+        "密码登录",
+        "使用 Apple 账号登录",
+        "微信扫码登录",
+        "扫码登录",
+        "登录/注册",
+        "手机号登录",
+        "请输入手机号",
+        "请输入验证码",
+        "登录",
+        "Log in"
+      ],
+      "loginUrlPatterns": [
+        "sign_in",
+        "login"
+      ]
+    }
+  },
+  "searchToggle": {
+    "on": true,
+    "className": "f79352dc ds-toggle-button ds-toggle-button--m ds-toggle-button--selected",
+    "reason": "命中 2 处，第 2 处显示激活",
+    "action": "none"
+  },
+  "response": "已阅读 12 个网页北京的地标可以大致分为古都经典和现代奇迹两大类，其中不少都汇聚在贯穿老城的北京中轴线上-2-7。这里为你整理了一些最著名的代表：类别地标名称一句话亮点🏛️ 古都之魂故宫博物院又称紫禁城，是明清两代的皇家宫殿，也是世界上规模最大、保存最完整的木结构古建筑群之一-9-11。天安门广场及建筑群位于北京中轴线的核心，是中国的国家象征和现代公共建筑的里程碑-5-7-9。天坛明清两代皇帝祭天的神圣场所，其核心建筑祈年殿是北京最著名的文化符号之一-3-9-11。钟鼓楼位于中轴线最北端，是元、明、清三代的“时间建筑”，周边",
+  "citations": [
+    {
+      "title": "北京的地标可以大致分为古都经典和现代奇迹两大类，其中不少都汇聚在贯穿老城的北京中轴线上-",
+      "href": "https://www.beijing.gov.cn/gate/big5/www.beijing.gov.cn/renwen/zt/pwzz/"
+    },
+    {
+      "title": "北京的地标可以大致分为古都经典和现代奇迹两大类，其中不少都汇聚在贯穿老城的北京中轴线上-",
+      "href": "https://www.beijing.gov.cn/renwen/zt/pwzz/"
+    },
+    {
+      "title": "又称紫禁城，是明清两代的皇家宫殿，也是世界上规模最大、保存最完整的木结构古建筑群之一-",
+      "href": "https://www.visitbeijing.com.cn/article/4Jl5JwVG6ep"
+    },
+    {
+      "title": "又称紫禁城，是明清两代的皇家宫殿，也是世界上规模最大、保存最完整的木结构古建筑群之一-",
+      "href": "https://www.meipian.cn/5modxumu"
+    },
+    {
+      "title": "位于北京中轴线的核心，是中国的国家象征和现代公共建筑的里程碑-",
+      "href": "http://tour.youth.cn/xw/202510/t20251001_16270189.htm"
+    },
+    {
+      "title": "明清两代皇帝祭天的神圣场所，其核心建筑祈年殿是北京最著名的文化符号之一-",
+      "href": "https://www.news.cn/local/20260819/e15ffbfffea24fb2abe9f1c433c31b38/c.html"
+    }
+  ],
+  "article": null,
+  "finishedAt": "2026-08-20 08:03:30"
+}

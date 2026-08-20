@@ -1,0 +1,48 @@
+{
+  "runId": "run-2026-08-20_08-03-18",
+  "startedAt": "2026-08-20 08:03:18",
+  "config": {
+    "engine": "deepseek",
+    "host": "127.0.0.1",
+    "debugPort": 9222,
+    "cdpUrl": "http://127.0.0.1:9222",
+    "targetUrl": "https://chat.deepseek.com/",
+    "profileRoot": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles",
+    "profileName": "engine-3-deepseek",
+    "profileDir": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles/engine-3-deepseek",
+    "chromeBin": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "query": "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+    "batchQueries": [
+      "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+      "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文查重需要注意什么？",
+      "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文开题报告该怎么写？"
+    ],
+    "responseWaitMs": 30000,
+    "waitJitterMs": [
+      -5000,
+      10000
+    ],
+    "loginWaitMs": 300000,
+    "searchToggleTexts": [
+      "智能搜索",
+      "联网搜索"
+    ],
+    "loginTexts": [
+      "发送验证码",
+      "密码登录",
+      "使用 Apple 账号登录",
+      "微信扫码登录",
+      "扫码登录",
+      "登录/注册",
+      "手机号登录",
+      "请输入手机号",
+      "请输入验证码",
+      "登录",
+      "Log in"
+    ],
+    "loginUrlPatterns": [
+      "sign_in",
+      "login"
+    ]
+  }
+}

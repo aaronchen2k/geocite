@@ -159,9 +159,12 @@ describe('ExecutionDiagnosisService events', () => {
     const samples = { create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
     const events = { count: jest.fn().mockResolvedValue(0), create: jest.fn((value) => ({ ...value, createdAt: new Date() })), save: jest.fn(async (value) => value) };
     const webSampler = {
-      searchBatch: jest.fn().mockResolvedValue([{
+      searchBatch: jest.fn(async (_engine, _requests, options) => {
+        options.onLog('Codex 正在诊断浏览器连接');
+        return [{
         question: '冻结问题', answer: '网页端的联网回答', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }], adapter: 'frozen-web', error: null,
-      }]),
+        }];
+      }),
     };
     const sampleAnalysis = { analyzeRun: jest.fn().mockResolvedValue({ runId: 7, completed: 1, failed: 0 }) };
     const service = new ExecutionDiagnosisService(
@@ -175,7 +178,9 @@ describe('ExecutionDiagnosisService events', () => {
     expect(webSampler.searchBatch).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Frozen Engine', code: 'frozen' }),
       [expect.objectContaining({ question: '冻结问题', prompt: expect.stringContaining('请联网搜索，回答务必输出网页引用来源以及原文链接。') })],
+      expect.objectContaining({ onLog: expect.any(Function) }),
     );
+    expect(events.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'log', data: expect.objectContaining({ number: 5, message: expect.stringContaining('Codex 正在诊断浏览器连接') }) }));
     expect(samples.save).toHaveBeenCalledWith(expect.objectContaining({ answer: '网页端的联网回答', adapter: 'frozen-web', citations: [{ title: '公开来源', url: 'https://example.com/source', excerpt: '摘要' }] }));
     expect(sampleAnalysis.analyzeRun).toHaveBeenCalledWith(5, 7);
     expect(samples.save.mock.invocationCallOrder[0]).toBeLessThan(sampleAnalysis.analyzeRun.mock.invocationCallOrder[0]);

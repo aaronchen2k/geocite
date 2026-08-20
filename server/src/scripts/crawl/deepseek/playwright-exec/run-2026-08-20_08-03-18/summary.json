@@ -1,0 +1,27 @@
+{
+  "runId": "run-2026-08-20_08-03-18",
+  "engine": "deepseek",
+  "startedAt": "2026-08-20 08:03:18",
+  "finishedAt": "2026-08-20 08:03:43",
+  "count": 2,
+  "items": [
+    {
+      "index": 1,
+      "question": "北京有哪些著名地标？",
+      "responseLength": 267,
+      "citationsCount": 6,
+      "articleUrl": null,
+      "articleTitle": null,
+      "finishedAt": "2026-08-20 08:03:30"
+    },
+    {
+      "index": 2,
+      "question": "上海今天的天气如何？",
+      "responseLength": 110,
+      "citationsCount": 5,
+      "articleUrl": null,
+      "articleTitle": null,
+      "finishedAt": "2026-08-20 08:03:43"
+    }
+  ]
+}

@@ -7,39 +7,25 @@ import { loadEngineConfig } from '../utils/load-config.mts';
 import { ensureBrowser } from '../utils/ensure-browser.mts';
 import { save, log, setOutDir, getOutDir, localTimestamp } from '../utils/fs-utils.mts';
 import { makeRunConfig } from '../utils/domain.mts';
+import { parseCrawlCliOptions } from '../utils/parse-cli-options.ts';
+import { resolveCrawlRunDirectory } from '../utils/run-directory.ts';
 import type { Citation, SearchToggleState, RunResult as BaseRunResult } from '../utils/domain.mts';
 
 
 async function main(): Promise<void> {
-  // CLI 用法：node crawl.mts '["问题1","问题2"]' —— 传 JSON 字符串数组直接跑批量采样；
-  // 无参数时用 config.json 的 batchQueries（批量），未配置则退回 query（单问题）。
-  let questions: string[] = [];
-  const arg = process.argv[2];
-  if (arg !== undefined) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(arg);
-    } catch {
-      console.error('参数不是合法 JSON，需为字符串数组，例如: node crawl.mts \'["问题1","问题2"]\'');
-      process.exit(1);
-    }
-    if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === 'string')) {
-      console.error('参数需为 JSON 字符串数组，例如: node crawl.mts \'["问题1","问题2"]\'');
-      process.exit(1);
-    }
-    questions = parsed as string[];
-  }
-  // 可选第二个参数：结果目录名（写到 <engine>/results/<目录名>）；缺省按当前时间生成 run-<时间戳>
-  const outDirArg = process.argv[3];
+  let options;
+  try { options = parseCrawlCliOptions(process.argv.slice(2)); }
+  catch (error) { console.error(error instanceof Error ? error.message : error); process.exit(1); }
+  const { questions, isDebug, outDir: outDirArg } = options;
   if (outDirArg !== undefined) {
     if (!/^[A-Za-z0-9._-]+$/.test(outDirArg)) {
       console.error('结果目录名只能包含字母/数字/点/下划线/连字符，例如: run-2026-08-19_12-18-36');
       process.exit(1);
     }
-    RUN_DIR = path.join(RESULTS_ROOT, outDirArg);
+    RUN_NAME = outDirArg;
     RUN_CONFIG = makeRunConfig(outDirArg, CONFIG);
   }
-  await exec(questions);
+  await exec(questions, isDebug);
 }
 
 /**
@@ -52,6 +38,8 @@ async function main(): Promise<void> {
  */
 export async function exec(questions: string[] = [], isDebug = true): Promise<RunResult[]> {
   debugMode = isDebug; // 调试模式开关（true=6s 快速抓取，重点参考文献引用）
+  RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, isDebug);
+  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
   // 问题来源：显式传入 > config.batchQueries（批量）> config.query（单问题）
   const qs = questions.length > 0 ? questions
     : (CONFIG.batchQueries && CONFIG.batchQueries.length > 0 ? CONFIG.batchQueries : [QUERY]);
@@ -151,12 +139,12 @@ function randomWaitMs(): number {
 }
 const TARGET_HOST = new URL(TARGET_URL).hostname; // 引擎域名（页面判断/内链过滤用，由 targetUrl 推导，勿硬编码）
 
-const RESULTS_ROOT = path.join(SCRIPT_DIR, 'results');
 const RUN_TS = localTimestamp().replace(' ', '_').replace(/:/g, '-');
-let RUN_DIR = path.join(RESULTS_ROOT, `run-${RUN_TS}`);
+let RUN_NAME = `run-${RUN_TS}`;
+let RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, true);
 
 // 本次运行使用的完整配置快照（随结果一起持久化；构造来自 utils/domain.ts）
-let RUN_CONFIG = makeRunConfig(`run-${RUN_TS}`, CONFIG);
+let RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
 
 // ─── 类型（公共类型来自 utils/domain.ts，此处仅保留豆包差异：rawHref / loginCheck） ───
 /** 豆包引用链接：在公共 Citation 基础上增加原始 href（排查中转问题用） */

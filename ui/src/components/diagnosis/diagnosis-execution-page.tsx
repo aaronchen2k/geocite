@@ -324,10 +324,15 @@ export function DiagnosisExecutionPage(): React.JSX.Element {
                             className="mt-1 text-base font-semibold">{String(selectedStep.id).padStart(2, '0')} · {selectedStep.title}</h2>
                         </div>
                         <span
-                            className={`inline-flex items-center gap-1 text-sm ${statusMeta[selectedStep.status].className}`}><Icon
+                            className={`inline-flex items-center gap-5 text-sm ${statusMeta[selectedStep.status].className}`}>{selectedStep.id === 5 && selectedStep.status === 'pending' && <button
+                            type="button"
+                            aria-label="查看日志"
+                            title="查看日志"
+                            className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--muted)]"
+                            onClick={() => console.log('日志被点击')}><Icon icon="lucide:scroll-text" className="size-4" aria-hidden="true"/><span>查看日志</span></button>}<span className="inline-flex items-center gap-1"><Icon
                             icon={statusMeta[selectedStep.status].icon}
                             className={`size-4 ${selectedStep.status === 'running' ? 'animate-spin' : ''}`}
-                            aria-hidden="true"/>{statusMeta[selectedStep.status].label}</span></div>
+                            aria-hidden="true"/>{statusMeta[selectedStep.status].label}</span></span></div>
                     <p className="mb-4 text-sm leading-6 text-[var(--muted-foreground)]">{selectedStep.detail}</p>
                     <div className="rounded-md bg-[var(--muted)] p-3"><p
                         className="mb-2 text-xs font-medium text-[var(--muted-foreground)]">{t('liveEvents')}</p>{selectedStep.events.length ?

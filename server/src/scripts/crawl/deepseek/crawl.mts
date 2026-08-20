@@ -7,39 +7,25 @@ import { loadEngineConfig } from '../utils/load-config.mts';
 import { ensureBrowser } from '../utils/ensure-browser.mts';
 import { save, saveResult, log, setOutDir, getOutDir, localTimestamp } from '../utils/fs-utils.mts';
 import { makeRunConfig } from '../utils/domain.mts';
+import { parseCrawlCliOptions } from '../utils/parse-cli-options.ts';
+import { resolveCrawlRunDirectory } from '../utils/run-directory.ts';
 import type { Citation, CrawlResult, SearchToggleState, RunResult } from '../utils/domain.mts';
 
 
 async function main(): Promise<void> {
-  // CLI 用法：node crawl.mts '["问题1","问题2"]' —— 传 JSON 字符串数组直接跑批量采样；
-  // 无参数时用 config.json 的 batchQueries（批量），未配置则退回 query（单问题）。
-  let questions: string[] = [];
-  const arg = process.argv[2];
-  if (arg !== undefined) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(arg);
-    } catch {
-      console.error('参数不是合法 JSON，需为字符串数组，例如: node crawl.mts \'["问题1","问题2"]\'');
-      process.exit(1);
-    }
-    if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === 'string')) {
-      console.error('参数需为 JSON 字符串数组，例如: node crawl.mts \'["问题1","问题2"]\'');
-      process.exit(1);
-    }
-    questions = parsed as string[];
-  }
-  // 可选第二个参数：结果目录名（写到 <engine>/results/<目录名>）；缺省按当前时间生成 run-<时间戳>
-  const outDirArg = process.argv[3];
+  let options;
+  try { options = parseCrawlCliOptions(process.argv.slice(2)); }
+  catch (error) { console.error(error instanceof Error ? error.message : error); process.exit(1); }
+  const { questions, isDebug, outDir: outDirArg } = options;
   if (outDirArg !== undefined) {
     if (!/^[A-Za-z0-9._-]+$/.test(outDirArg)) {
       console.error('结果目录名只能包含字母/数字/点/下划线/连字符，例如: run-2026-08-19_12-18-36');
       process.exit(1);
     }
-    RUN_DIR = path.join(RESULTS_ROOT, outDirArg);
+    RUN_NAME = outDirArg;
     RUN_CONFIG = makeRunConfig(outDirArg, CONFIG);
   }
-  await exec(questions);
+  await exec(questions, isDebug);
 }
 
 /**
@@ -52,6 +38,8 @@ async function main(): Promise<void> {
  */
 export async function exec(questions: string[] = [], isDebug = true): Promise<RunResult[]> {
   debugMode = isDebug; // 调试模式开关（true=6s 快速抓取，重点参考文献引用）
+  RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, isDebug);
+  RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
   // 问题来源：显式传入 > config.batchQueries（批量）> config.query（单问题）
   const qs = questions.length > 0 ? questions
     : (CONFIG.batchQueries && CONFIG.batchQueries.length > 0 ? CONFIG.batchQueries : [QUERY]);
@@ -146,12 +134,12 @@ function randomWaitMs(): number {
 }
 const TARGET_HOST = new URL(TARGET_URL).hostname; // 引擎域名（页面判断/内链过滤用，勿硬编码）
 
-const RESULTS_ROOT = path.join(SCRIPT_DIR, 'results');
 const RUN_TS = localTimestamp().replace(' ', '_').replace(/:/g, '-');
-let RUN_DIR = path.join(RESULTS_ROOT, `run-${RUN_TS}`);
+let RUN_NAME = `run-${RUN_TS}`;
+let RUN_DIR = resolveCrawlRunDirectory(SCRIPT_DIR, RUN_NAME, true);
 
 // 本次运行使用的配置（随结果一起持久化；类型/构造来自 utils/domain.ts）
-let RUN_CONFIG = makeRunConfig(`run-${RUN_TS}`, CONFIG);
+let RUN_CONFIG = makeRunConfig(RUN_NAME, CONFIG);
 
 /** 登录预检：先查 URL 路径，再扫可见 button/a 的文字。命中即返回命中文本。规则：未登录必须停下等人工处理，绝不带病继续 */
 async function checkNotLoggedIn(page: Page): Promise<string | null> {

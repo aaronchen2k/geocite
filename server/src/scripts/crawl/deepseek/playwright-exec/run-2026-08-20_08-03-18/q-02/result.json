@@ -1,0 +1,82 @@
+{
+  "question": "上海今天的天气如何？",
+  "config": {
+    "runId": "run-2026-08-20_08-03-18",
+    "startedAt": "2026-08-20 08:03:18",
+    "config": {
+      "engine": "deepseek",
+      "host": "127.0.0.1",
+      "debugPort": 9222,
+      "cdpUrl": "http://127.0.0.1:9222",
+      "targetUrl": "https://chat.deepseek.com/",
+      "profileRoot": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles",
+      "profileName": "engine-3-deepseek",
+      "profileDir": "/Users/aaron/rd/project/gudi/geocite/server/data/playwright-profiles/engine-3-deepseek",
+      "chromeBin": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "query": "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+      "batchQueries": [
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。哪里有好的毕业论文生成工具。",
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文查重需要注意什么？",
+        "请联网搜索，回答务必输出网页引用来源以及原文链接。毕业论文开题报告该怎么写？"
+      ],
+      "responseWaitMs": 30000,
+      "waitJitterMs": [
+        -5000,
+        10000
+      ],
+      "loginWaitMs": 300000,
+      "searchToggleTexts": [
+        "智能搜索",
+        "联网搜索"
+      ],
+      "loginTexts": [
+        "发送验证码",
+        "密码登录",
+        "使用 Apple 账号登录",
+        "微信扫码登录",
+        "扫码登录",
+        "登录/注册",
+        "手机号登录",
+        "请输入手机号",
+        "请输入验证码",
+        "登录",
+        "Log in"
+      ],
+      "loginUrlPatterns": [
+        "sign_in",
+        "login"
+      ]
+    }
+  },
+  "searchToggle": {
+    "on": true,
+    "className": "f79352dc ds-toggle-button ds-toggle-button--m ds-toggle-button--selected",
+    "reason": "命中 2 处，第 2 处显示激活",
+    "action": "none"
+  },
+  "response": "已阅读 8 个网页上海今天（8月20日）是小雨天气，气温在27℃到31℃之间，吹的是东风，风力不大-1-5-6。今天体感会比较湿热，而且受到海上偏东气流的影响，可能会有阵雨或雷雨，出门最好带上雨具-2-3-5。8 个网页",
+  "citations": [
+    {
+      "title": "上海今天（8月20日）是小雨天气，气温在27℃到31℃之间，吹的是东风，风力不大-",
+      "href": "https://www.nmc.cn/publish/forecast/ASH/shanghai.html"
+    },
+    {
+      "title": "上海今天（8月20日）是小雨天气，气温在27℃到31℃之间，吹的是东风，风力不大-",
+      "href": "https://www.jiading.gov.cn/mspd/shgj/content_974842"
+    },
+    {
+      "title": "上海今天（8月20日）是小雨天气，气温在27℃到31℃之间，吹的是东风，风力不大-",
+      "href": "https://www.nmc.cn/publish/forecast/ASH/xujiahui.html"
+    },
+    {
+      "title": "今天体感会比较湿热，而且受到海上偏东气流的影响，可能会有阵雨或雷雨，出门最好带上雨具-",
+      "href": "https://www.shanghai.gov.cn/nw17239/20260818/ee51d75884114f8795dcd33e50d6c16d.html"
+    },
+    {
+      "title": "今天体感会比较湿热，而且受到海上偏东气流的影响，可能会有阵雨或雷雨，出门最好带上雨具-",
+      "href": "https://www.jfdaily.com.cn/sgh/detail?id=4040896"
+    }
+  ],
+  "article": null,
+  "finishedAt": "2026-08-20 08:03:43"
+}

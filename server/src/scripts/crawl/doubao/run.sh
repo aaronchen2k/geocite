@@ -19,4 +19,4 @@ fi
 # （ESM 不认 NODE_PATH，playwright 依赖靠脚本目录内 node_modules 软链解析，无需设置）
 cd "$(dirname "$0")"
 NO_PROXY="127.0.0.1,localhost" no_proxy="127.0.0.1,localhost" \
-  "$NODE_BIN" "$SCRIPT"
+  "$NODE_BIN" "$SCRIPT" "$@"

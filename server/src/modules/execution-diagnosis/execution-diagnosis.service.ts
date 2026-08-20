@@ -295,9 +295,16 @@ export class ExecutionDiagnosisService {
         brandName: brand.name,
       }));
       await this.log(runId, 5, `使用 ${engine.name} 的受控网页端发起低频联网问题采样：${questions.length} 题`);
+      let logQueue = Promise.resolve();
       const results = this.webSampler
-        ? await this.webSampler.searchBatch(engine, requests)
+        ? await this.webSampler.searchBatch(engine, requests, {
+          signal,
+          onLog: (message) => {
+            logQueue = logQueue.then(() => this.log(runId, 5, `${engine.name}: ${message}`));
+          },
+        })
         : requests.map((request) => ({ question: request.question, answer: '', citations: [], adapter: null, error: 'playwright-web-sampler-unavailable' }));
+      await logQueue;
       const entries: Array<Record<string, unknown>> = [];
       for (const [index, result] of results.entries()) {
         const request = requests[index];
